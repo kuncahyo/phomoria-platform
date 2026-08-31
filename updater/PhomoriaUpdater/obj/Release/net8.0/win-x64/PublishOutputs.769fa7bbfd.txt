@@ -1,0 +1,2 @@
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\publish\PhomoriaUpdater.pdb
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\publish\PhomoriaUpdater.exe

@@ -1,0 +1,15 @@
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\bin\Debug\net8.0\PhomoriaUpdater.exe
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\bin\Debug\net8.0\PhomoriaUpdater.deps.json
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\bin\Debug\net8.0\PhomoriaUpdater.runtimeconfig.json
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\bin\Debug\net8.0\PhomoriaUpdater.dll
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\bin\Debug\net8.0\PhomoriaUpdater.pdb
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.AssemblyInfoInputs.cache
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.AssemblyInfo.cs
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.csproj.CoreCompileInputs.cache
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.sourcelink.json
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.dll
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\refint\PhomoriaUpdater.dll
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.pdb
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\PhomoriaUpdater.genruntimeconfig.cache
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\updater\PhomoriaUpdater\obj\Debug\net8.0\ref\PhomoriaUpdater.dll
