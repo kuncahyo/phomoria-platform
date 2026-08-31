@@ -55,3 +55,12 @@ C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\co
 C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\ui\ResultScreen.java
 C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\ui\SettingsScreen.java
 C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\ui\StartScreen.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\ui\UpdateScreen.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\AppVersion.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateCheckResult.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateConfig.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateDownloader.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateInfo.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateInstaller.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\UpdateService.java
+C:\Users\HP\OneDrive\Dokumen\NetBeansProjects\phomoria-platform\src\main\java\com\phomoria\update\VersionComparator.java

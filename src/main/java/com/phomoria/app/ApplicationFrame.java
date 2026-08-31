@@ -9,6 +9,10 @@ import com.phomoria.ui.StartScreen;
 import com.phomoria.debug.DebugConsoleDialog;
 import com.phomoria.debug.DebugLog;
 import com.phomoria.ui.FrameSelectionScreen;
+import com.phomoria.ui.UpdateScreen;
+import com.phomoria.update.UpdateCheckResult;
+import com.phomoria.update.UpdateConfig;
+import com.phomoria.update.UpdateService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,6 +29,7 @@ public final class ApplicationFrame extends JFrame {
         setSize(1440, 900);
         setLocationRelativeTo(null);
 
+        addScreen("UPDATE", new UpdateScreen());
         addScreen("LOGIN", new LoginScreen(this, this::showStart));
         addScreen("START", new StartScreen(this));
         addScreen("FRAME_SELECTION", new FrameSelectionScreen(this));
@@ -35,23 +40,112 @@ public final class ApplicationFrame extends JFrame {
 
         add(root);
         installBackdoorLog();
+
         DebugLog.info("ApplicationFrame initialized.");
+    }
+
+    public void startupUpdateCheck() {
+        UpdateScreen screen = (UpdateScreen) findScreen("UPDATE");
+        if (screen == null) {
+            DebugLog.error("Update screen not found.");
+            showLogin();
+            return;
+        }
+
+        cards.show(root, "UPDATE");
+        screen.showChecking();
+
+        SwingWorker<UpdateCheckResult, Void> worker = new SwingWorker<>() {
+            private Exception failure;
+
+            @Override
+            protected UpdateCheckResult doInBackground() {
+                try {
+                    UpdateService service =
+                            new UpdateService(UpdateConfig.UPDATE_URL);
+
+                    var info = service.check();
+                    return service.evaluate(info);
+
+                } catch (Exception ex) {
+                    failure = ex;
+                    return null;
+                }
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    UpdateCheckResult result = get();
+
+                    if (result == null) {
+                        DebugLog.warn(
+                                "Update check unavailable. "
+                                        + "Continuing application startup."
+                        );
+                        showLogin();
+                        return;
+                    }
+
+                    switch (result.getStatus()) {
+                        case UP_TO_DATE ->
+                                screen.showUpToDate(
+                                        ApplicationFrame.this::showLogin
+                                );
+
+                        case UPDATE_AVAILABLE ->
+                                screen.showOptional(
+                                        result.getUpdateInfo(),
+                                        ApplicationFrame.this::showLogin
+                                );
+
+                        case UPDATE_REQUIRED ->
+                                screen.showRequired(
+                                        result.getUpdateInfo()
+                                );
+                    }
+
+                } catch (Exception ex) {
+                    DebugLog.error(
+                            "Update startup check failed.",
+                            ex
+                    );
+                    showLogin();
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    public void finishStartupAfterUpdate() {
+        DebugLog.info("Startup update flow finished.");
         showLogin();
     }
 
     private void installBackdoorLog() {
         getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(KeyStroke.getKeyStroke("F12"), "phomoria-debug-console");
+                .put(
+                        KeyStroke.getKeyStroke("F12"),
+                        "phomoria-debug-console"
+                );
 
         getRootPane().getActionMap()
-                .put("phomoria-debug-console", new AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        DebugConsoleDialog dialog =
-                                new DebugConsoleDialog(ApplicationFrame.this);
-                        dialog.setVisible(true);
-                    }
-                });
+                .put(
+                        "phomoria-debug-console",
+                        new AbstractAction() {
+                            @Override
+                            public void actionPerformed(
+                                    java.awt.event.ActionEvent e) {
+
+                                DebugConsoleDialog dialog =
+                                        new DebugConsoleDialog(
+                                                ApplicationFrame.this
+                                        );
+                                dialog.setVisible(true);
+                            }
+                        }
+                );
     }
 
     public void showLogin() {
@@ -78,10 +172,12 @@ public final class ApplicationFrame extends JFrame {
 
     public void showFrameSelection() {
         DebugLog.info("Navigation -> FRAME_SELECTION");
+
         replace(
                 "FRAME_SELECTION",
                 new FrameSelectionScreen(this)
         );
+
         cards.show(root, "FRAME_SELECTION");
     }
 
@@ -89,7 +185,11 @@ public final class ApplicationFrame extends JFrame {
         if (AppContext.settings().getPhotoEffectSettings().isEnabled()
                 && AppContext.session() != null
                 && !AppContext.session().getPhotos().isEmpty()) {
-            DebugLog.info("Photo effects enabled -> Navigation -> EFFECT");
+
+            DebugLog.info(
+                    "Photo effects enabled -> Navigation -> EFFECT"
+            );
+
             EffectScreen effect = new EffectScreen(this);
             replace("EFFECT", effect);
             cards.show(root, "EFFECT");
@@ -101,39 +201,55 @@ public final class ApplicationFrame extends JFrame {
 
     public void showFinalResult() {
         DebugLog.info("Navigation -> RESULT");
+
         ResultScreen result = new ResultScreen(this);
+
         replace("RESULT", result);
         cards.show(root, "RESULT");
+
         SwingUtilities.invokeLater(result::prepareResult);
     }
 
     public void showSettings() {
         DebugLog.info("Navigation -> SETTINGS");
+
         replace(
                 "SETTINGS",
                 new SettingsScreen(this, this::showStart)
         );
+
         cards.show(root, "SETTINGS");
     }
 
-    private void addScreen(String name, Component component) {
+    private void addScreen(
+            String name,
+            Component component) {
+
         component.setName(name);
         root.add(component, name);
     }
 
-    private void replace(String name, Component component) {
-        Component old = null;
-
-        for (Component c : root.getComponents()) {
-            if (name.equals(c.getName())) {
-                old = c;
-                break;
+    private Component findScreen(String name) {
+        for (Component component : root.getComponents()) {
+            if (name.equals(component.getName())) {
+                return component;
             }
         }
+        return null;
+    }
+
+    private void replace(
+            String name,
+            Component component) {
+
+        Component old = findScreen(name);
 
         if (old != null) {
             if (old instanceof MainScreen) {
-                DebugLog.info("Replacing MainScreen -> shutting down old instance.");
+                DebugLog.info(
+                        "Replacing MainScreen -> "
+                                + "shutting down old instance."
+                );
                 ((MainScreen) old).shutdown();
             }
 

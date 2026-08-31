@@ -1,5 +1,6 @@
 package com.phomoria.app;
 
+import com.phomoria.ui.UpdateScreen;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -9,11 +10,17 @@ public final class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                UIManager.setLookAndFeel(
+                        UIManager.getSystemLookAndFeelClassName()
+                );
             } catch (Exception ignored) {
             }
+
             AppContext.initialize();
-            new ApplicationFrame().setVisible(true);
+
+            ApplicationFrame frame = new ApplicationFrame();
+            frame.setVisible(true);
+            frame.startupUpdateCheck();
         });
     }
 }
