@@ -5,6 +5,7 @@ com\phomoria\cloud\UploadService.class
 com\phomoria\print\PrinterService.class
 com\phomoria\app\ApplicationFrame$2.class
 com\phomoria\frame\FrameCatalog$1.class
+com\phomoria\update\UpdateLauncher.class
 com\phomoria\ui\MainScreen.class
 com\phomoria\debug\DebugConsoleDialog.class
 com\phomoria\ui\ResultFramePanel.class
@@ -70,6 +71,7 @@ com\phomoria\update\AppVersion.class
 com\phomoria\camera\CameraDevice.class
 com\phomoria\ui\FramePreviewPanel$SelectionListener.class
 com\phomoria\ui\FrameSelectionScreen.class
+com\phomoria\update\UpdateLauncher$Arguments.class
 com\phomoria\ui\ResultRenderer.class
 com\phomoria\ui\StartScreen.class
 com\phomoria\frame\FrameDefinition.class
