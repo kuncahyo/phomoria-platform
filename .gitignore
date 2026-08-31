@@ -25,3 +25,9 @@ replay_pid*
 
 # Maven build output
 target/
+# .NET build artifacts
+updater/**/bin/
+updater/**/obj/
+
+# Published binaries are generated during packaging
+updater/publish/
