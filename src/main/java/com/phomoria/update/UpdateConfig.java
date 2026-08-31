@@ -14,7 +14,7 @@ public final class UpdateConfig {
      *
      * When the final Windows/JAR packaging is ready, set this to false.
      */
-    public static final boolean SIMULATION_MODE = true;
+    public static final boolean SIMULATION_MODE = false;
 
     private UpdateConfig() {}
 }

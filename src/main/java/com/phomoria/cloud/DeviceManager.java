@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.UUID;
+import com.phomoria.debug.DebugLog;
 
 public final class DeviceManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -41,6 +42,7 @@ public final class DeviceManager {
 
             if (device == null || device.getUuid().isBlank()) create();
         } catch (Exception ex) {
+            DebugLog.error("Failed to load device information: " + FILE.getAbsolutePath(), ex);
             create();
         }
     }
@@ -62,7 +64,7 @@ public final class DeviceManager {
                 GSON.toJson(getDevice(), writer);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            DebugLog.error("Failed to save device information: " + FILE.getAbsolutePath(), ex);
         }
     }
 }

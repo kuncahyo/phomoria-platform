@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import com.phomoria.debug.DebugLog;
 
 public final class SettingsStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -21,6 +22,7 @@ public final class SettingsStore {
                 return settings == null ? new AppSettings() : settings;
             }
         } catch (Exception ex) {
+            DebugLog.error("Failed to load application settings: " + FILE.getAbsolutePath(), ex);
             return new AppSettings();
         }
     }
@@ -32,7 +34,7 @@ public final class SettingsStore {
                 GSON.toJson(settings, w);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            DebugLog.error("Failed to save application settings: " + FILE.getAbsolutePath(), ex);
         }
     }
 }

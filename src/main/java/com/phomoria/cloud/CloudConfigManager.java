@@ -6,6 +6,7 @@ import com.google.gson.GsonBuilder;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import com.phomoria.debug.DebugLog;
 
 public final class CloudConfigManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -41,6 +42,7 @@ public final class CloudConfigManager {
 
             if (config == null) config = new CloudConfig();
         } catch (Exception ex) {
+            DebugLog.error("Failed to load cloud configuration: " + FILE.getAbsolutePath(), ex);
             config = new CloudConfig();
         }
     }
@@ -52,7 +54,7 @@ public final class CloudConfigManager {
                 GSON.toJson(getConfig(), writer);
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            DebugLog.error("Failed to save cloud configuration: " + FILE.getAbsolutePath(), ex);
         }
     }
 }

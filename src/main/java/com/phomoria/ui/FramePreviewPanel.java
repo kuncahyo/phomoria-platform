@@ -9,6 +9,7 @@ import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import com.phomoria.debug.DebugLog;
 
 public final class FramePreviewPanel extends JPanel {
 
@@ -73,8 +74,8 @@ public final class FramePreviewPanel extends JPanel {
 
         repaint();
 
-        System.out.println(
-                "[FramePreviewPanel] Frame definition changed: "
+        DebugLog.info(
+                "Frame definition changed: "
                         + definition.getName()
                         + ", placements="
                         + definition.getPlacements().size()
