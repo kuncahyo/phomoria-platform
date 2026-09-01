@@ -22,25 +22,13 @@ for (int i = 0; i < args.Length; i++)
 
         case "--install":
             if (i + 1 < args.Length)
-                launcher = args[++i];
+                installDirectory = args[++i];
             break;
 
         case "--launch":
             if (i + 1 < args.Length)
                 launcher = args[++i];
             break;
-    }
-}
-
-if (installDirectory == null)
-{
-    for (int i = 0; i < args.Length - 1; i++)
-    {
-        if (args[i].Equals("--install", StringComparison.OrdinalIgnoreCase))
-        {
-            installDirectory = args[i + 1];
-            break;
-        }
     }
 }
 
@@ -121,18 +109,34 @@ try
         using (ZipArchive archive =
                ZipFile.OpenRead(packageFile))
         {
-            bool hasApp =
-                archive.Entries.Any(e =>
-                    e.FullName.Equals(
+            Log($"ZIP entry count: {archive.Entries.Count}");
+
+            bool hasApp = false;
+
+            foreach (ZipArchiveEntry entry in archive.Entries)
+            {
+                Log(
+                    $"ZIP ENTRY: [{entry.FullName}] " +
+                    $"Length={entry.Length}"
+                );
+
+                if (
+                    entry.FullName.Equals(
                         "app/",
                         StringComparison.OrdinalIgnoreCase
                     )
                     ||
-                    e.FullName.StartsWith(
+                    entry.FullName.StartsWith(
                         "app/",
                         StringComparison.OrdinalIgnoreCase
                     )
-                );
+                )
+                {
+                    hasApp = true;
+                }
+            }
+
+            Log($"ZIP app directory detected: {hasApp}");
 
             if (!hasApp)
             {
@@ -509,4 +513,3 @@ static void Log(string message)
         // Logging failure must never stop updater.
     }
 }
-
