@@ -95,12 +95,15 @@ public final class UpdateInstaller {
     ) throws IOException {
 
         if (packageFile == null) {
-            throw new IOException("Update package path is null.");
+            throw new IOException(
+                    "Update package path is null."
+            );
         }
 
         if (!Files.isRegularFile(packageFile)) {
             throw new IOException(
-                    "Update package not found: " + packageFile
+                    "Update package not found: "
+                            + packageFile
             );
         }
 
@@ -108,67 +111,103 @@ public final class UpdateInstaller {
 
         if (!isPackagedLayout(applicationJar)) {
             throw new IOException(
-                    "Production updater requires a jpackage application image. "
-                            + "Expected <install-root>\\app\\<application>.jar "
-                            + "and <install-root>\\Phomoria.exe."
+                    "Production updater requires a jpackage "
+                            + "application image. "
+                            + "Expected <install-root>\\app\\"
+                            + "<application>.jar and "
+                            + "<install-root>\\Phomoria.exe."
             );
         }
 
-        Path appDirectory = applicationJar.getParent();
-        Path installationDirectory = appDirectory == null
-                ? null
-                : appDirectory.getParent();
+        Path appDirectory =
+                applicationJar.getParent();
+
+        Path installationDirectory =
+                appDirectory == null
+                        ? null
+                        : appDirectory.getParent();
 
         if (installationDirectory == null) {
             throw new IOException(
-                    "Unable to determine Phomoria installation directory."
+                    "Unable to determine Phomoria "
+                            + "installation directory."
             );
         }
 
-        Path launcher = findApplicationLauncher(installationDirectory);
-        Path javaExecutable = findJavaExecutable();
+        Path launcher =
+                findApplicationLauncher(
+                        installationDirectory
+                );
 
-        DebugLog.info("Starting production UpdateLauncher.");
-        DebugLog.info("Application JAR=" + applicationJar);
+        Path updater =
+                installationDirectory.resolve(
+                        "PhomoriaUpdater.exe"
+                );
+
+        if (!Files.isRegularFile(updater)) {
+            throw new IOException(
+                    "PhomoriaUpdater.exe not found: "
+                            + updater
+            );
+        }
+
+        DebugLog.info(
+                "Starting production updater."
+        );
+
+        DebugLog.info(
+                "Application JAR=" + applicationJar
+        );
+
         DebugLog.info(
                 "Installation root="
                         + installationDirectory
         );
-        DebugLog.info("Application directory=" + appDirectory);
-        DebugLog.info("Launcher=" + launcher);
-        DebugLog.info("Java executable=" + javaExecutable);
-
-        ProcessBuilder builder = new ProcessBuilder(
-                javaExecutable.toString(),
-
-                "-cp",
-                applicationJar.toString(),
-
-                UpdateLauncher.class.getName(),
-
-                "--pid",
-                Long.toString(ProcessHandle.current().pid()),
-
-                "--package",
-                packageFile.toAbsolutePath().toString(),
-
-                "--install",
-                installationDirectory.toAbsolutePath().toString(),
-
-                "--launch",
-                launcher.toAbsolutePath().toString(),
-
-                "--java",
-                javaExecutable.toAbsolutePath().toString()
-        );
-
-        builder.directory(installationDirectory.toFile());
-        builder.redirectErrorStream(true);
-
-        Process process = builder.start();
 
         DebugLog.info(
-                "Production UpdateLauncher started. pid="
+                "Launcher=" + launcher
+        );
+
+        DebugLog.info(
+                "Updater=" + updater
+        );
+
+        ProcessBuilder builder =
+                new ProcessBuilder(
+                        updater.toAbsolutePath().toString(),
+
+                        "--pid",
+                        Long.toString(
+                                ProcessHandle.current().pid()
+                        ),
+
+                        "--package",
+                        packageFile
+                                .toAbsolutePath()
+                                .toString(),
+
+                        "--install",
+                        installationDirectory
+                                .toAbsolutePath()
+                                .toString(),
+
+                        "--launch",
+                        launcher
+                                .toAbsolutePath()
+                                .toString()
+                );
+
+        builder.directory(
+                installationDirectory.toFile()
+        );
+
+        builder.redirectErrorStream(true);
+
+        Process process =
+                builder.start();
+
+        DebugLog.info(
+                "Production updater started. pid="
                         + process.pid()
         );
     }
@@ -279,91 +318,6 @@ public final class UpdateInstaller {
         }
 
         return launcher;
-    }
-
-    /**
-     * Finds the Java executable belonging to the current JVM.
-     *
-     * In a jpackage image this resolves to:
-     * <install-root>/runtime/bin/java.exe
-     */
-    private static Path findJavaExecutable()
-            throws IOException {
-
-        /*
-         * For the current production-update test, use the JVM
-         * that is running Phomoria.
-         *
-         * The jpackage runtime in this build is a runtime image
-         * without java.exe, so we must not assume:
-         *
-         *     <install-root>\runtime\bin\java.exe
-         */
-
-        Path javaHome = Path.of(
-                System.getProperty("java.home")
-        ).toAbsolutePath().normalize();
-
-        DebugLog.info(
-                "Searching Java executable. java.home="
-                        + javaHome
-        );
-
-        Path javaExe = javaHome
-                .resolve("bin")
-                .resolve("java.exe");
-
-        if (Files.isRegularFile(javaExe)) {
-
-            DebugLog.info(
-                    "Java executable found: "
-                            + javaExe
-            );
-
-            return javaExe;
-        }
-
-        Path javaUnix = javaHome
-                .resolve("bin")
-                .resolve("java");
-
-        if (Files.isRegularFile(javaUnix)) {
-
-            DebugLog.info(
-                    "Java executable found: "
-                            + javaUnix
-            );
-
-            return javaUnix;
-        }
-
-        /*
-         * On Windows, java.home may point to the JRE/runtime
-         * directory rather than the JDK root. Try its parent.
-         */
-        Path parent = javaHome.getParent();
-
-        if (parent != null) {
-
-            Path parentJavaExe = parent
-                    .resolve("bin")
-                    .resolve("java.exe");
-
-            if (Files.isRegularFile(parentJavaExe)) {
-
-                DebugLog.info(
-                        "Java executable found from parent java.home: "
-                                + parentJavaExe
-                );
-
-                return parentJavaExe;
-            }
-        }
-
-        throw new IOException(
-                "Java executable not found. "
-                        + "java.home=" + javaHome
-        );
     }
 
     private static Path getCodeSourcePath()

@@ -69,11 +69,40 @@ if errorlevel 1 (
 )
 
 echo.
+echo [5/5] Building PhomoriaUpdater...
+
+dotnet publish updater\PhomoriaUpdater\PhomoriaUpdater.csproj ^
+    -c Release ^
+    -r win-x64 ^
+    --self-contained true ^
+    -p:PublishSingleFile=true ^
+    -p:PublishTrimmed=false ^
+    -o target\Phomoria\updater-publish
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: PhomoriaUpdater publish failed.
+    exit /b 1
+)
+
+copy /y target\Phomoria\updater-publish\PhomoriaUpdater.exe ^
+    target\Phomoria\PhomoriaUpdater.exe >nul
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Failed to copy PhomoriaUpdater.exe.
+    exit /b 1
+)
+
+rmdir /s /q target\Phomoria\updater-publish
+
 echo ============================================
 echo BUILD SUCCESSFUL
 echo ============================================
 echo Application:
 echo target\Phomoria\Phomoria.exe
+echo Updater:
+echo target\Phomoria\PhomoriaUpdater.exe
 echo.
 echo Run:
 echo target\Phomoria\Phomoria.exe
