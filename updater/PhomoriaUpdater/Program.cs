@@ -41,43 +41,29 @@ Log($"Launcher={launcher}");
 Log("============================================");
 
 if (pid <= 0)
-{
     Fail("Invalid --pid argument.", 2);
-}
 
 if (string.IsNullOrWhiteSpace(packageFile))
-{
     Fail("Missing --package argument.", 2);
-}
 
 if (string.IsNullOrWhiteSpace(installDirectory))
-{
     Fail("Missing --install argument.", 2);
-}
 
 if (string.IsNullOrWhiteSpace(launcher))
-{
     Fail("Missing --launch argument.", 2);
-}
 
 packageFile = Path.GetFullPath(packageFile!);
 installDirectory = Path.GetFullPath(installDirectory!);
 launcher = Path.GetFullPath(launcher!);
 
 if (!File.Exists(packageFile))
-{
     Fail($"Update package not found: {packageFile}", 3);
-}
 
 if (!Directory.Exists(installDirectory))
-{
     Fail($"Installation directory not found: {installDirectory}", 4);
-}
 
 if (!File.Exists(launcher))
-{
     Fail($"Phomoria launcher not found: {launcher}", 5);
-}
 
 try
 {
@@ -85,29 +71,24 @@ try
 
     string tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "PhomoriaUpdate-" + Guid.NewGuid().ToString("N")
-    );
+        "PhomoriaUpdate-" + Guid.NewGuid().ToString("N"));
 
-    string extractedDirectory =
-        Path.Combine(tempDirectory, "extracted");
+    string extractedDirectory = Path.Combine(
+        tempDirectory,
+        "extracted");
 
-    string backupDirectory =
-        Path.Combine(
-            Path.GetDirectoryName(installDirectory)!,
-            "Phomoria-backup-" +
-            DateTime.Now.ToString("yyyyMMdd-HHmmss")
-        );
+    string backupDirectory = Path.Combine(
+        Path.GetDirectoryName(installDirectory)!,
+        "Phomoria-backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 
     Directory.CreateDirectory(tempDirectory);
 
     try
     {
         Log($"Temporary directory: {tempDirectory}");
-
         Log("Validating update ZIP.");
 
-        using (ZipArchive archive =
-               ZipFile.OpenRead(packageFile))
+        using (ZipArchive archive = ZipFile.OpenRead(packageFile))
         {
             Log($"ZIP entry count: {archive.Entries.Count}");
 
@@ -115,22 +96,22 @@ try
 
             foreach (ZipArchiveEntry entry in archive.Entries)
             {
-                Log(
-                    $"ZIP ENTRY: [{entry.FullName}] " +
-                    $"Length={entry.Length}"
-                );
+                Log($"ZIP ENTRY: [{entry.FullName}] Length={entry.Length}");
 
-                if (
-                    entry.FullName.Equals(
+                // ZIP files created by the Windows tar tool can expose
+                // entry paths with backslashes instead of forward slashes.
+                // Normalize both forms before checking the package layout.
+                string normalizedEntryName =
+                    entry.FullName
+                        .Replace('\\', '/')
+                        .TrimStart('/');
+
+                if (normalizedEntryName.Equals(
                         "app/",
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                    ||
-                    entry.FullName.StartsWith(
+                        StringComparison.OrdinalIgnoreCase)
+                    || normalizedEntryName.StartsWith(
                         "app/",
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     hasApp = true;
                 }
@@ -141,8 +122,7 @@ try
             if (!hasApp)
             {
                 throw new Exception(
-                    "Update package does not contain an app directory."
-                );
+                    "Update package does not contain an app directory.");
             }
         }
 
@@ -154,20 +134,16 @@ try
 
         ZipFile.ExtractToDirectory(
             packageFile,
-            extractedDirectory
-        );
+            extractedDirectory);
 
-        string extractedApp =
-            Path.Combine(
-                extractedDirectory,
-                "app"
-            );
+        string extractedApp = Path.Combine(
+            extractedDirectory,
+            "app");
 
         if (!Directory.Exists(extractedApp))
         {
             throw new Exception(
-                "Extracted package does not contain app directory."
-            );
+                "Extracted package does not contain app directory.");
         }
 
         Log($"Extracted app directory: {extractedApp}");
@@ -176,40 +152,28 @@ try
 
         CopyDirectory(
             Path.Combine(installDirectory, "app"),
-            Path.Combine(backupDirectory, "app")
-        );
+            Path.Combine(backupDirectory, "app"));
 
         Log("Backup completed.");
 
-        string liveApp =
-            Path.Combine(
-                installDirectory,
-                "app"
-            );
+        string liveApp = Path.Combine(
+            installDirectory,
+            "app");
 
-        string oldApp =
-            Path.Combine(
-                installDirectory,
-                "app.old"
-            );
+        string oldApp = Path.Combine(
+            installDirectory,
+            "app.old");
 
         Log("Preparing application replacement.");
 
         DeleteDirectoryWithRetry(oldApp);
-
-        MoveDirectoryWithRetry(
-            liveApp,
-            oldApp
-        );
+        MoveDirectoryWithRetry(liveApp, oldApp);
 
         try
         {
             Log("Installing new application files.");
 
-            CopyDirectory(
-                extractedApp,
-                liveApp
-            );
+            CopyDirectory(extractedApp, liveApp);
 
             Log("New application installed.");
 
@@ -223,11 +187,7 @@ try
             Log("Attempting rollback.");
 
             DeleteDirectoryWithRetry(liveApp);
-
-            MoveDirectoryWithRetry(
-                oldApp,
-                liveApp
-            );
+            MoveDirectoryWithRetry(oldApp, liveApp);
 
             Log("Rollback completed.");
 
@@ -235,33 +195,25 @@ try
         }
 
         Log("Cleaning temporary files.");
-
         DeleteDirectoryWithRetry(tempDirectory);
 
         Log("Starting updated Phomoria.");
 
-        Process? newProcess =
-            Process.Start(
-                new ProcessStartInfo
-                {
-                    FileName = launcher,
-                    WorkingDirectory =
-                        installDirectory,
-                    UseShellExecute = true
-                }
-            );
+        Process? newProcess = Process.Start(
+            new ProcessStartInfo
+            {
+                FileName = launcher,
+                WorkingDirectory = installDirectory,
+                UseShellExecute = true
+            });
 
         if (newProcess == null)
         {
             throw new Exception(
-                "Unable to start updated Phomoria."
-            );
+                "Unable to start updated Phomoria.");
         }
 
-        Log(
-            $"Updated Phomoria started. PID={newProcess.Id}"
-        );
-
+        Log($"Updated Phomoria started. PID={newProcess.Id}");
         Log("Update completed successfully.");
 
         Environment.Exit(0);
@@ -293,12 +245,9 @@ static void WaitForProcess(int processId)
 {
     try
     {
-        Process process =
-            Process.GetProcessById(processId);
+        Process process = Process.GetProcessById(processId);
 
-        Log(
-            $"Waiting for Phomoria PID {processId} to exit..."
-        );
+        Log($"Waiting for Phomoria PID {processId} to exit...");
 
         process.WaitForExit();
 
@@ -306,53 +255,36 @@ static void WaitForProcess(int processId)
     }
     catch (ArgumentException)
     {
-        Log(
-            "Phomoria process already exited."
-        );
+        Log("Phomoria process already exited.");
     }
 }
 
-static void CopyDirectory(
-    string source,
-    string destination)
+static void CopyDirectory(string source, string destination)
 {
     if (!Directory.Exists(source))
     {
         throw new DirectoryNotFoundException(
-            $"Source directory not found: {source}"
-        );
+            $"Source directory not found: {source}");
     }
 
     Directory.CreateDirectory(destination);
 
-    foreach (string file in
-             Directory.GetFiles(source))
+    foreach (string file in Directory.GetFiles(source))
     {
-        string target =
-            Path.Combine(
-                destination,
-                Path.GetFileName(file)
-            );
+        string target = Path.Combine(
+            destination,
+            Path.GetFileName(file));
 
-        CopyFileWithRetry(
-            file,
-            target
-        );
+        CopyFileWithRetry(file, target);
     }
 
-    foreach (string directory in
-             Directory.GetDirectories(source))
+    foreach (string directory in Directory.GetDirectories(source))
     {
-        string target =
-            Path.Combine(
-                destination,
-                Path.GetFileName(directory)
-            );
+        string target = Path.Combine(
+            destination,
+            Path.GetFileName(directory));
 
-        CopyDirectory(
-            directory,
-            target
-        );
+        CopyDirectory(directory, target);
     }
 }
 
@@ -366,12 +298,7 @@ static void CopyFileWithRetry(
     {
         try
         {
-            File.Copy(
-                source,
-                destination,
-                true
-            );
-
+            File.Copy(source, destination, true);
             return;
         }
         catch (Exception ex)
@@ -380,8 +307,7 @@ static void CopyFileWithRetry(
 
             Log(
                 $"File copy retry {attempt}/10: " +
-                $"{Path.GetFileName(source)}"
-            );
+                $"{Path.GetFileName(source)}");
 
             Thread.Sleep(500);
         }
@@ -389,8 +315,7 @@ static void CopyFileWithRetry(
 
     throw new IOException(
         $"Unable to copy file: {source}",
-        lastException
-    );
+        lastException);
 }
 
 static void MoveDirectoryWithRetry(
@@ -403,11 +328,7 @@ static void MoveDirectoryWithRetry(
     {
         try
         {
-            Directory.Move(
-                source,
-                destination
-            );
-
+            Directory.Move(source, destination);
             return;
         }
         catch (Exception ex)
@@ -415,9 +336,7 @@ static void MoveDirectoryWithRetry(
             lastException = ex;
 
             Log(
-                $"Directory move retry {attempt}/10: " +
-                $"{source}"
-            );
+                $"Directory move retry {attempt}/10: {source}");
 
             Thread.Sleep(500);
         }
@@ -425,12 +344,10 @@ static void MoveDirectoryWithRetry(
 
     throw new IOException(
         $"Unable to move directory: {source}",
-        lastException
-    );
+        lastException);
 }
 
-static void DeleteDirectoryWithRetry(
-    string directory)
+static void DeleteDirectoryWithRetry(string directory)
 {
     if (!Directory.Exists(directory))
         return;
@@ -441,11 +358,7 @@ static void DeleteDirectoryWithRetry(
     {
         try
         {
-            Directory.Delete(
-                directory,
-                true
-            );
-
+            Directory.Delete(directory, true);
             return;
         }
         catch (Exception ex)
@@ -453,9 +366,7 @@ static void DeleteDirectoryWithRetry(
             lastException = ex;
 
             Log(
-                $"Directory delete retry {attempt}/10: " +
-                $"{directory}"
-            );
+                $"Directory delete retry {attempt}/10: {directory}");
 
             Thread.Sleep(500);
         }
@@ -463,13 +374,10 @@ static void DeleteDirectoryWithRetry(
 
     throw new IOException(
         $"Unable to delete directory: {directory}",
-        lastException
-    );
+        lastException);
 }
 
-static void Fail(
-    string message,
-    int exitCode)
+static void Fail(string message, int exitCode)
 {
     Log("ERROR: " + message);
     Environment.Exit(exitCode);
@@ -478,38 +386,28 @@ static void Fail(
 static void Log(string message)
 {
     string line =
-        $"[{DateTime.Now:HH:mm:ss.fff}] " +
-        $"[UPDATER] {message}";
+        $"[{DateTime.Now:HH:mm:ss.fff}] [UPDATER] {message}";
 
     Console.WriteLine(line);
 
     try
     {
-        string logDirectory =
-            Path.Combine(
-                Environment.GetFolderPath(
-                    Environment.SpecialFolder.ApplicationData
-                ),
-                "Phomoria"
-            );
+        string logDirectory = Path.Combine(
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.ApplicationData),
+            "Phomoria");
 
-        Directory.CreateDirectory(
-            logDirectory
-        );
+        Directory.CreateDirectory(logDirectory);
 
-        string logFile =
-            Path.Combine(
-                logDirectory,
-                "updater.log"
-            );
+        string logFile = Path.Combine(
+            logDirectory,
+            "updater.log");
 
         File.AppendAllText(
             logFile,
-            line + Environment.NewLine
-        );
+            line + Environment.NewLine);
     }
     catch
     {
-        // Logging failure must never stop updater.
     }
 }

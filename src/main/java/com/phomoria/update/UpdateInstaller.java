@@ -86,9 +86,13 @@ public final class UpdateInstaller {
     }
 
     /**
-     * Starts UpdateLauncher as a separate JVM process.
+     * Starts PhomoriaUpdater.exe as a separate process.
      *
      * The current Phomoria process must terminate after this method returns.
+     *
+     * The updater's stdout and stderr are redirected to updater.log in the
+     * installation root so that production-update failures remain available
+     * after the Phomoria process has exited.
      */
     public static void launchProductionUpdater(
             Path packageFile
@@ -151,6 +155,11 @@ public final class UpdateInstaller {
             );
         }
 
+        Path updaterLog =
+                installationDirectory.resolve(
+                        "updater.log"
+                );
+
         DebugLog.info(
                 "Starting production updater."
         );
@@ -170,6 +179,10 @@ public final class UpdateInstaller {
 
         DebugLog.info(
                 "Updater=" + updater
+        );
+
+        DebugLog.info(
+                "Updater log=" + updaterLog
         );
 
         ProcessBuilder builder =
@@ -201,7 +214,19 @@ public final class UpdateInstaller {
                 installationDirectory.toFile()
         );
 
+        /*
+         * Keep the updater output after Phomoria exits.
+         *
+         * The updater is a separate process, so its stdout/stderr cannot
+         * depend on the lifetime of the Phomoria console. Append to the
+         * same file so repeated update attempts leave a continuous record.
+         */
         builder.redirectErrorStream(true);
+        builder.redirectOutput(
+                ProcessBuilder.Redirect.appendTo(
+                        updaterLog.toFile()
+                )
+        );
 
         Process process =
                 builder.start();
@@ -291,7 +316,7 @@ public final class UpdateInstaller {
          * The current jpackage image contains the Java runtime,
          * but java.exe is not necessarily present in this layout.
          *
-         * The updater will determine the JVM executable separately.
+         * The standalone PhomoriaUpdater.exe handles the update.
          */
         boolean packaged =
                 launcherExists;
@@ -308,7 +333,10 @@ public final class UpdateInstaller {
             Path installationDirectory
     ) throws IOException {
 
-        Path launcher = installationDirectory.resolve("Phomoria.exe");
+        Path launcher =
+                installationDirectory.resolve(
+                        "Phomoria.exe"
+                );
 
         if (!Files.isRegularFile(launcher)) {
             throw new IOException(
