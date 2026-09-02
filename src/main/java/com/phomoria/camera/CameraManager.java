@@ -2,139 +2,104 @@ package com.phomoria.camera;
 
 import com.github.sarxos.webcam.Webcam;
 import com.phomoria.debug.DebugLog;
-import static com.phomoria.frame.FrameCatalog.find;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public final class CameraManager {
+
     private static Webcam current;
 
-    private CameraManager() {}
+    private CameraManager() {
+    }
 
     public static List<Webcam> list() {
-        List<Webcam> cameras = Webcam.getWebcams();
-        DebugLog.info("CameraManager.list -> " + cameras.size() + " camera(s)");
-        return cameras;
-    }
-    
-    /**
-    * Mencari kamera berdasarkan nama.
-    *
-    * Pencarian tidak membedakan huruf besar/kecil
-    * dan menggunakan pencarian sebagian nama.
-    */
-   public static Webcam find(String name) {
-
-       if (name == null || name.isBlank()) {
-
-           DebugLog.warn(
-                   "CameraManager.find -> "
-                           + "empty camera name."
-           );
-
-           return null;
-       }
-
-       String keyword =
-               name.trim().toLowerCase();
-
-       DebugLog.info(
-               "CameraManager.find -> searching: "
-                       + name
-       );
-
-       List<Webcam> cameras = list();
-
-       for (Webcam webcam : cameras) {
-
-           if (webcam == null) {
-               continue;
-           }
-
-           String cameraName =
-                   webcam.getName();
-
-           if (cameraName == null) {
-               continue;
-           }
-
-           if (cameraName
-                   .toLowerCase()
-                   .contains(keyword)) {
-
-               DebugLog.info(
-                       "CameraManager.find -> matched: "
-                               + cameraName
-               );
-
-               return webcam;
-           }
-       }
-
-       DebugLog.warn(
-               "CameraManager.find -> "
-                       + "no camera matched: "
-                       + name
-       );
-
-       return null;
-   }
-
-    public static Webcam current() {
-        return current;
-    }
-
-    /**
-     * Checks whether the named webcam is currently detectable.
-     *
-     * This method is intentionally separate from open(), so Settings can
-     * poll availability without opening/closing the camera.
-     */
-    public static boolean isAvailable(
-            String name
-    ) {
-        if (name == null || name.isBlank()) {
-            return false;
-        }
-
         try {
-            for (Webcam webcam : list()) {
-                if (webcam == null) {
-                    continue;
-                }
+            List<Webcam> cameras = Webcam.getWebcams();
 
-                String detectedName =
-                        webcam.getName();
+            DebugLog.info(
+                    "CameraManager.list -> "
+                            + cameras.size()
+                            + " camera(s)"
+            );
 
-                if (detectedName != null
-                        && detectedName.equals(name)) {
-                    return true;
-                }
-            }
+            return cameras;
+
         } catch (Exception ex) {
-            DebugLog.warn(
-                    "CameraManager.isAvailable failed: "
-                            + ex.getMessage()
+            DebugLog.error(
+                    "CameraManager.list failed.",
+                    ex
+            );
+            return List.of();
+        }
+    }
+
+    public static List<CameraDevice> listDevices() {
+        List<CameraDevice> devices = new ArrayList<>();
+
+        for (Webcam webcam : list()) {
+            devices.add(
+                    new CameraDevice(
+                            webcam.getName(),
+                            webcam.getName(),
+                            "webcam",
+                            true
+                    )
             );
         }
 
-        return false;
+        for (String name : GPhoto2CameraBackend.detectCameraNames()) {
+            devices.add(
+                    new CameraDevice(
+                            "gphoto2:" + name,
+                            name + " [gPhoto2]",
+                            "gphoto2",
+                            true
+                    )
+            );
+        }
+
+        DebugLog.info(
+                "CameraManager.listDevices -> "
+                        + devices.size()
+                        + " device(s)"
+        );
+
+        return devices;
     }
 
-    /** Opens the exact camera saved in Settings. No silent fallback. */
-    public static Webcam openConfigured(String configuredName) {
-        if (configuredName == null || configuredName.isBlank()) {
-            DebugLog.warn("CameraManager.openConfigured -> no camera configured.");
+    public static Webcam find(String name) {
+        if (name == null || name.isBlank()) {
             return null;
         }
 
-        DebugLog.info("Configured camera requested: " + configuredName);
+        for (Webcam webcam : list()) {
+            if (webcam.getName().equalsIgnoreCase(name)
+                    || webcam.getName()
+                    .toLowerCase()
+                    .contains(name.toLowerCase())) {
+                return webcam;
+            }
+        }
 
-        Webcam webcam = find(configuredName);
+        return null;
+    }
+
+    public static boolean isAvailable(String name) {
+        return find(name) != null;
+    }
+
+    public static Webcam openConfigured(String name) {
+        Webcam webcam = find(name);
+
         if (webcam == null) {
-            DebugLog.error("Configured camera not found: " + configuredName, null);
+            DebugLog.warn(
+                    "CameraManager.openConfigured -> camera not found: "
+                            + name
+            );
             return null;
         }
 
@@ -143,58 +108,65 @@ public final class CameraManager {
     }
 
     public static void open(Webcam webcam) {
-        close();
-        current = webcam;
-
         if (webcam == null) {
-            DebugLog.warn("CameraManager.open called with null webcam.");
             return;
         }
 
-        try {
-            Dimension[] sizes = webcam.getViewSizes();
+        close();
 
-            if (sizes.length > 0) {
-                Dimension selected = sizes[sizes.length - 1];
-                webcam.setViewSize(selected);
-                DebugLog.info(
-                        "Camera resolution selected="
-                                + selected.width + "x" + selected.height
-                );
-            }
+        Dimension best =
+                List.of(webcam.getViewSizes())
+                        .stream()
+                        .filter(
+                                d -> d != null
+                                        && d.width > 0
+                                        && d.height > 0
+                        )
+                        .max(
+                                Comparator.comparingLong(
+                                        d -> (long) d.width * d.height
+                                )
+                        )
+                        .orElse(null);
 
-            webcam.open();
-            DebugLog.info("Camera opened: " + webcam.getName());
-        } catch (Exception ex) {
-            current = null;
-            DebugLog.error("Camera open failed.", ex);
-            throw ex;
+        if (best != null) {
+            webcam.setViewSize(best);
+        }
+
+        if (webcam.open()) {
+            current = webcam;
+
+            DebugLog.info(
+                    "CameraManager.open -> "
+                            + webcam.getName()
+            );
+        } else {
+            DebugLog.warn(
+                    "CameraManager.open -> failed: "
+                            + webcam.getName()
+            );
         }
     }
 
     public static BufferedImage capture() {
-        BufferedImage image = current == null ? null : current.getImage();
-
-        if (image != null) {
-            DebugLog.info(
-                    "CameraManager.capture -> "
-                            + image.getWidth() + "x" + image.getHeight()
-            );
-        } else {
-            DebugLog.warn("CameraManager.capture -> null");
+        if (current == null) {
+            return null;
         }
 
-        return image;
+        return current.getImage();
+    }
+
+    public static Webcam current() {
+        return current;
     }
 
     public static void close() {
         if (current != null) {
-            DebugLog.info("Closing camera: " + current.getName());
             try {
                 current.close();
-            } catch (Exception ex) {
-                DebugLog.error("Camera close failed.", ex);
+            } catch (Exception ignored) {
             }
+
             current = null;
         }
     }

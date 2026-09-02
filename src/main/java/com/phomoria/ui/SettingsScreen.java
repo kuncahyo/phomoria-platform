@@ -1,8 +1,8 @@
 package com.phomoria.ui;
 
-import com.github.sarxos.webcam.Webcam;
 import com.phomoria.app.AppContext;
 import com.phomoria.app.ApplicationFrame;
+import com.phomoria.camera.CameraDevice;
 import com.phomoria.camera.CameraManager;
 import com.phomoria.config.AppSettings;
 import com.phomoria.debug.DebugLog;
@@ -495,6 +495,12 @@ public final class SettingsScreen extends JPanel {
         }
     }
 
+    /**
+     * Loads both normal UVC webcams and cameras detected by gPhoto2.
+     *
+     * The display name is intentionally stored directly in AppSettings so
+     * existing settings files remain compatible.
+     */
     private void reloadCameraList() {
 
         String configured =
@@ -506,17 +512,17 @@ public final class SettingsScreen extends JPanel {
 
         try {
 
-            List<Webcam> webcams =
-                    CameraManager.list();
+            List<CameraDevice> devices =
+                    CameraManager.listDevices();
 
-            for (Webcam webcam : webcams) {
+            for (CameraDevice device : devices) {
 
-                if (webcam == null) {
+                if (device == null) {
                     continue;
                 }
 
                 String name =
-                        webcam.getName();
+                        device.displayName();
 
                 if (name != null
                         && !name.isBlank()
@@ -576,7 +582,7 @@ public final class SettingsScreen extends JPanel {
             }
 
             DebugLog.info(
-                    "Settings camera list refreshed. "
+                    "Settings camera device list refreshed. "
                             + "count="
                             + names.size()
             );
@@ -606,7 +612,7 @@ public final class SettingsScreen extends JPanel {
             );
 
             DebugLog.error(
-                    "Settings camera list failed.",
+                    "Settings camera device list failed.",
                     ex
             );
 
@@ -622,17 +628,17 @@ public final class SettingsScreen extends JPanel {
 
     private void showCameraSelectionDialog() {
 
-        List<Webcam> webcams;
+        List<CameraDevice> devices;
 
         try {
 
-            webcams =
-                    CameraManager.list();
+            devices =
+                    CameraManager.listDevices();
 
         } catch (Exception ex) {
 
             DebugLog.error(
-                    "Could not scan cameras for selection dialog.",
+                    "Could not scan camera devices for selection dialog.",
                     ex
             );
 
@@ -647,11 +653,43 @@ public final class SettingsScreen extends JPanel {
             return;
         }
 
-        if (webcams.isEmpty()) {
+        if (devices.isEmpty()) {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Tidak ada kamera yang terdeteksi oleh sistem.",
+                    "Tidak ada kamera yang terdeteksi.",
+                    "Pilih Kamera",
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            return;
+        }
+
+        List<String> deviceNames =
+                new ArrayList<>();
+
+        for (CameraDevice device : devices) {
+
+            if (device == null) {
+                continue;
+            }
+
+            String name =
+                    device.displayName();
+
+            if (name != null
+                    && !name.isBlank()
+                    && !deviceNames.contains(name)) {
+
+                deviceNames.add(name);
+            }
+        }
+
+        if (deviceNames.isEmpty()) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Tidak ada nama kamera yang valid.",
                     "Pilih Kamera",
                     JOptionPane.WARNING_MESSAGE
             );
@@ -660,16 +698,9 @@ public final class SettingsScreen extends JPanel {
         }
 
         String[] names =
-                webcams.stream()
-                        .filter(
-                                w -> w != null
-                        )
-                        .map(
-                                Webcam::getName
-                        )
-                        .toArray(
-                                String[]::new
-                        );
+                deviceNames.toArray(
+                        String[]::new
+                );
 
         String currentName =
                 (String) cameraDisplay
@@ -750,9 +781,9 @@ public final class SettingsScreen extends JPanel {
         JLabel hint =
                 new JLabel(
                         "<html>"
-                                + "Kamera DSLR hanya akan muncul "
-                                + "jika Windows mengenalinya sebagai "
-                                + "perangkat webcam/UVC."
+                                + "Webcam/UVC dan kamera DSLR yang "
+                                + "terdeteksi melalui gPhoto2 akan muncul "
+                                + "di daftar ini."
                                 + "</html>"
                 );
 

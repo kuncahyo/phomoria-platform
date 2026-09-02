@@ -52,7 +52,7 @@ public final class WebcamCameraBackend
     }
 
     @Override
-    public BufferedImage capture() {
+    public BufferedImage capture() throws Exception {
 
         return CameraManager.capture();
     }

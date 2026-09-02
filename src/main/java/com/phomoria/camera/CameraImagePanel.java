@@ -7,7 +7,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 
-/** Displays a captured photo using the same crop-to-fill presentation style as live view. */
+/** Displays a captured/live image using the same crop-to-fill presentation style. */
 public final class CameraImagePanel extends JPanel {
 
     private BufferedImage image;
@@ -22,26 +22,72 @@ public final class CameraImagePanel extends JPanel {
         repaint();
     }
 
+    public BufferedImage getImage() {
+        return image;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (image == null || getWidth() <= 0 || getHeight() <= 0) return;
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        if (image == null
+                || getWidth() <= 0
+                || getHeight() <= 0) {
+            return;
+        }
 
-        double scale = Math.max(
-                getWidth() / (double) image.getWidth(),
-                getHeight() / (double) image.getHeight()
+        Graphics2D g2 =
+                (Graphics2D) g.create();
+
+        g2.setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC
         );
 
-        int dw = Math.max(1, (int) Math.round(image.getWidth() * scale));
-        int dh = Math.max(1, (int) Math.round(image.getHeight() * scale));
-        int x = (getWidth() - dw) / 2;
-        int y = (getHeight() - dh) / 2;
+        g2.setRenderingHint(
+                RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY
+        );
 
-        g2.drawImage(image, x, y, dw, dh, null);
+        double scale =
+                Math.max(
+                        getWidth()
+                                / (double) image.getWidth(),
+                        getHeight()
+                                / (double) image.getHeight()
+                );
+
+        int dw =
+                Math.max(
+                        1,
+                        (int) Math.round(
+                                image.getWidth() * scale
+                        )
+                );
+
+        int dh =
+                Math.max(
+                        1,
+                        (int) Math.round(
+                                image.getHeight() * scale
+                        )
+                );
+
+        int x =
+                (getWidth() - dw) / 2;
+
+        int y =
+                (getHeight() - dh) / 2;
+
+        g2.drawImage(
+                image,
+                x,
+                y,
+                dw,
+                dh,
+                null
+        );
+
         g2.dispose();
     }
 }

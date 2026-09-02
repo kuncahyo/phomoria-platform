@@ -7,19 +7,36 @@ import javax.swing.*;
 import java.awt.image.BufferedImage;
 
 public final class CaptureController {
+
     public interface Listener {
-        void onCountdown(int seconds, boolean retake, int targetIndex);
-        void onCaptured(BufferedImage image, boolean retake, int targetIndex);
+        void onCountdown(
+                int seconds,
+                boolean retake,
+                int targetIndex
+        );
+
+        void onCaptured(
+                BufferedImage image,
+                boolean retake,
+                int targetIndex
+        );
+
         void onCaptureError(Exception error);
     }
 
     private final Listener listener;
+
     private Timer timer;
+
     private int countdown;
+
     private boolean retake;
+
     private int targetIndex = -1;
 
-    public CaptureController(Listener listener) {
+    public CaptureController(
+            Listener listener
+    ) {
         this.listener = listener;
     }
 
@@ -31,7 +48,11 @@ public final class CaptureController {
         start(true, index);
     }
 
-    private void start(boolean retake, int targetIndex) {
+    private void start(
+            boolean retake,
+            int targetIndex
+    ) {
+
         stop();
 
         this.retake = retake;
@@ -39,52 +60,135 @@ public final class CaptureController {
         this.countdown = 3;
 
         DebugLog.info(
-                "Countdown started. mode=" + (retake ? "RETAKE" : "NEW")
-                        + ", targetIndex=" + targetIndex
+                "Countdown started. mode="
+                        + (retake ? "RETAKE" : "NEW")
+                        + ", targetIndex="
+                        + targetIndex
         );
 
-        listener.onCountdown(countdown, retake, targetIndex);
+        listener.onCountdown(
+                countdown,
+                retake,
+                targetIndex
+        );
 
-        timer = new Timer(1000, e -> tick());
+        timer = new Timer(
+                1000,
+                e -> tick()
+        );
+
         timer.setInitialDelay(1000);
         timer.start();
     }
 
     private void tick() {
+
         countdown--;
 
         if (countdown <= 0) {
+
             stop();
-            capture();
+
+            captureAsync();
+
             return;
         }
 
-        DebugLog.info("Countdown tick: " + countdown);
-        listener.onCountdown(countdown, retake, targetIndex);
+        DebugLog.info(
+                "Countdown tick: "
+                        + countdown
+        );
+
+        listener.onCountdown(
+                countdown,
+                retake,
+                targetIndex
+        );
     }
 
-    private void capture() {
-        try {
-            BufferedImage image = CameraManager.capture();
+    /**
+     * Capture is executed away from the Swing EDT.
+     * This is important for gPhoto2 because a physical DSLR capture can
+     * take several seconds while the camera writes/downloads the JPEG.
+     */
+    private void captureAsync() {
 
-            if (image == null) {
-                throw new IllegalStateException("Camera returned null image.");
-            }
+        final boolean captureRetake =
+                retake;
 
-            DebugLog.info(
-                    "Capture success: " + image.getWidth() + "x" + image.getHeight()
-                            + ", mode=" + (retake ? "RETAKE" : "NEW")
-                            + ", targetIndex=" + targetIndex
-            );
+        final int captureTargetIndex =
+                targetIndex;
 
-            listener.onCaptured(image, retake, targetIndex);
-        } catch (Exception ex) {
-            DebugLog.error("Capture failed.", ex);
-            listener.onCaptureError(ex);
-        }
+        SwingWorker<BufferedImage, Void> worker =
+                new SwingWorker<>() {
+
+                    @Override
+                    protected BufferedImage doInBackground()
+                            throws Exception {
+
+                        return CameraManager.capture();
+                    }
+
+                    @Override
+                    protected void done() {
+
+                        try {
+
+                            BufferedImage image =
+                                    get();
+
+                            if (image == null) {
+                                throw new IllegalStateException(
+                                        "Camera returned null image."
+                                );
+                            }
+
+                            DebugLog.info(
+                                    "Capture success: "
+                                            + image.getWidth()
+                                            + "x"
+                                            + image.getHeight()
+                                            + ", mode="
+                                            + (captureRetake
+                                                    ? "RETAKE"
+                                                    : "NEW")
+                                            + ", targetIndex="
+                                            + captureTargetIndex
+                            );
+
+                            listener.onCaptured(
+                                    image,
+                                    captureRetake,
+                                    captureTargetIndex
+                            );
+
+                        } catch (Exception ex) {
+
+                            Throwable cause =
+                                    ex.getCause();
+
+                            Exception error =
+                                    cause instanceof Exception
+                                            ? (Exception) cause
+                                            : ex;
+
+                            DebugLog.error(
+                                    "Capture failed.",
+                                    error
+                            );
+
+                            listener.onCaptureError(
+                                    error
+                            );
+                        }
+                    }
+                };
+
+        worker.execute();
     }
 
     public void stop() {
+
         if (timer != null) {
             timer.stop();
             timer = null;
