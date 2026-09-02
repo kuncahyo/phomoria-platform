@@ -1,5 +1,4 @@
 package com.phomoria.ui;
-
 import com.github.sarxos.webcam.Webcam;
 import com.phomoria.app.AppContext;
 import com.phomoria.app.ApplicationFrame;
@@ -12,12 +11,10 @@ import com.phomoria.frame.FrameDefinition;
 import com.phomoria.frame.FramePreset;
 import com.phomoria.session.CaptureController;
 import com.phomoria.session.PhotoSession;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
-
 public final class MainScreen extends JPanel implements CaptureController.Listener {
     private final ApplicationFrame frame;
     private final JLabel status = new JLabel("MENYIAPKAN KAMERA...");
@@ -25,10 +22,9 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
     private final LiveCameraPanel cameraView = new LiveCameraPanel();
     private final CountdownOverlay countdownOverlay = new CountdownOverlay();
     private final FramePreviewPanel preview = new FramePreviewPanel();
-    private final JPanel cameraLayer = new JPanel();
+    private final JPanel cameraLayer = new OverlayPanel();
     private final FrameDefinition selectedFrameDefinition;
     private final CaptureController captureController;
-
     private Webcam activeWebcam;
     private Timer starterTimer;
     private Timer freezeTimer;
@@ -41,7 +37,6 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
     public MainScreen(ApplicationFrame frame) {
         this.frame = frame;
         this.captureController = new CaptureController(this);
-
         setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         setBackground(new Color(18, 18, 22));
@@ -52,7 +47,6 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
         cameraLayer.add(cameraView);
 
         add(createTopBar(), BorderLayout.NORTH);
-
         JSplitPane split = new JSplitPane(
                 JSplitPane.HORIZONTAL_SPLIT,
                 cameraLayer,
@@ -63,7 +57,6 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
         add(split, BorderLayout.CENTER);
 
         add(createBottomBar(), BorderLayout.SOUTH);
-
         preview.setSelectionListener(index -> {
             selectedIndex = index;
             DebugLog.info("Preview selected photo index=" + index);
@@ -71,13 +64,9 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
         });
 
         FramePreset selectedPreset =
-                FrameCatalog.find(
-                        AppContext.settings().getSelectedFrameId()
-                );
-
+                FrameCatalog.find(AppContext.settings().getSelectedFrameId());
         if (selectedPreset == null) {
-            selectedPreset =
-                    FrameCatalog.find("standard_vertical");
+            selectedPreset = FrameCatalog.find("standard_vertical");
         }
 
         selectedFrameDefinition =
@@ -85,7 +74,6 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
                         selectedPreset,
                         AppContext.settings().getPhotoSlotCount()
                 );
-
         DebugLog.info(
                 "MainScreen frame="
                         + selectedPreset.id()
@@ -102,13 +90,10 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
     private JPanel createTopBar() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-
         JLabel title = new JLabel("PHOMORIA  •  PHOTO BOOTH");
         title.setForeground(Color.WHITE);
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
-
         status.setForeground(new Color(120, 220, 150));
-
         panel.add(title, BorderLayout.WEST);
         panel.add(status, BorderLayout.EAST);
         return panel;
@@ -117,10 +102,8 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
     private JPanel createBottomBar() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 8));
         panel.setOpaque(false);
-
         JButton retake = new JButton("RETAKE FOTO TERPILIH");
         retake.addActionListener(e -> startRetake());
-
         panel.add(counter);
         panel.add(retake);
         return panel;
@@ -131,56 +114,38 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
             DebugLog.warn("startCamera ignored because MainScreen is inactive.");
             return;
         }
-
         DebugLog.info("Starting camera screen.");
-
         SwingUtilities.invokeLater(() -> {
             try {
-                String configuredName =
-                        AppContext.settings().getCameraName();
-
-                DebugLog.info(
-                        "Camera configured in Settings=" + configuredName
-                );
-
+                String configuredName = AppContext.settings().getCameraName();
+                DebugLog.info("Camera configured in Settings=" + configuredName);
                 if (configuredName == null || configuredName.isBlank()) {
                     List<Webcam> cameras = CameraManager.list();
                     DebugLog.info("Camera count detected=" + cameras.size());
-
                     if (cameras.isEmpty()) {
                         showCameraError("Camera tidak ditemukan.");
                         return;
                     }
-
                     activeWebcam = cameras.get(0);
-                    DebugLog.warn(
-                            "No camera saved in Settings. Using first detected camera: "
-                                    + activeWebcam.getName()
-                    );
+                    DebugLog.warn("No camera saved in Settings. Using first detected camera: " + activeWebcam.getName());
                     CameraManager.open(activeWebcam);
                 } else {
-                    activeWebcam =
-                            CameraManager.openConfigured(configuredName);
-
+                    activeWebcam = CameraManager.openConfigured(configuredName);
                     if (activeWebcam == null) {
-                        showCameraError(
-                                "Kamera yang dipilih tidak tersedia: "
-                                        + configuredName
-                        );
+                        showCameraError("Kamera yang dipilih tidak tersedia: " + configuredName);
                         return;
                     }
                 }
+                cameraView.setCropGuide(selectedFrameDefinition, 0);
                 cameraView.attach(activeWebcam);
-
+                cameraView.showCropGuide();
                 status.setText("SIAP — SESSION OTOMATIS DIMULAI");
-
                 starterTimer = new Timer(1200, e -> {
                     starterTimer.stop();
                     startNextCapture();
                 });
                 starterTimer.setRepeats(false);
                 starterTimer.start();
-
             } catch (Exception ex) {
                 DebugLog.error("Camera initialization failed.", ex);
                 showCameraError("Camera gagal dibuka: " + ex.getMessage());
@@ -193,22 +158,21 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
             DebugLog.warn("startNextCapture ignored because MainScreen is inactive.");
             return;
         }
-
         PhotoSession session = AppContext.session();
-
         if (session.isComplete()) {
             DebugLog.info("Session complete. Showing result.");
             showResult();
             return;
         }
-
         retakeMode = false;
         selectedIndex = -1;
         preview.clearSelection();
-
-        // Live camera is guaranteed to be visible before countdown starts.
+        // The current slot determines the crop guide shown over live view.
+        cameraView.setCropGuide(
+                selectedFrameDefinition,
+                session.getCapturedCount()
+        );
         showLiveCamera();
-
         captureController.startNewPhoto();
     }
 
@@ -217,41 +181,30 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
             DebugLog.warn("startRetake ignored because MainScreen is inactive.");
             return;
         }
-
-        // Cancel EVERY pending operation before entering retake.
         stopAllTimers();
         captureController.stop();
-
         PhotoSession session = AppContext.session();
-
         if (selectedIndex < 0 || selectedIndex >= session.getCapturedCount()) {
             status.setText("PILIH FOTO DI PANEL KANAN TERLEBIH DAHULU");
             DebugLog.warn("Retake requested without valid selection. selectedIndex=" + selectedIndex);
             return;
         }
-
         if (freezeTimer != null) {
             freezeTimer.stop();
             freezeTimer = null;
         }
-
         retakeMode = true;
         final int retakeIndex = selectedIndex;
-
         DebugLog.info("Retake requested for photo index=" + retakeIndex);
-
-        // LIVE CAMERA must be visible before the retake countdown.
+        cameraView.setCropGuide(selectedFrameDefinition, retakeIndex);
         showLiveCamera();
         status.setText("LIVE CAMERA — SIAP RETAKE FOTO " + (retakeIndex + 1));
-
         Timer prepare = new Timer(700, e -> {
             ((Timer) e.getSource()).stop();
-
             if (!active || shuttingDown) {
                 DebugLog.warn("Retake countdown cancelled because MainScreen is inactive.");
                 return;
             }
-
             captureController.startRetake(retakeIndex);
         });
         prepare.setRepeats(false);
@@ -261,92 +214,63 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
     @Override
     public void onCountdown(int seconds, boolean retake, int targetIndex) {
         if (!active || shuttingDown) return;
-
         countdownOverlay.showNumber(seconds);
-
         if (retake) {
-            status.setText(
-                    "RETAKE FOTO " + (targetIndex + 1) + "  •  " + seconds
-            );
+            status.setText("RETAKE FOTO " + (targetIndex + 1) + "  •  " + seconds);
         } else {
-            status.setText(
-                    "FOTO " + (AppContext.session().getCapturedCount() + 1)
-                            + "  •  " + seconds
-            );
+            status.setText("FOTO " + (AppContext.session().getCapturedCount() + 1) + "  •  " + seconds);
         }
     }
 
     @Override
-    public void onCaptured(
-            BufferedImage image,
-            boolean retake,
-            int targetIndex
-    ) {
+    public void onCaptured(BufferedImage image, boolean retake, int targetIndex) {
         if (!active || shuttingDown) {
             DebugLog.warn("onCaptured ignored because MainScreen is inactive.");
             return;
         }
-
         countdownOverlay.hideOverlay();
-
+        cameraView.hideCropGuide();
         PhotoSession session = AppContext.session();
-
-        // The live camera remains visually mirrored for natural posing.
-        // The captured/stored photo is mirrored here according to Settings.
         BufferedImage storedImage =
                 CameraMirrorProcessor.process(
                         image,
                         AppContext.settings().isMirrorPhoto()
                 );
-
-        DebugLog.info(
-                "Capture orientation applied: mirror="
-                        + AppContext.settings().isMirrorPhoto()
-        );
-
+        DebugLog.info("Capture orientation applied: mirror=" + AppContext.settings().isMirrorPhoto());
         if (retake) {
             boolean replaced = session.replacePhoto(targetIndex, storedImage);
-
             if (!replaced) {
                 DebugLog.error("Retake failed: invalid targetIndex=" + targetIndex);
                 status.setText("RETAKE GAGAL");
                 return;
             }
-
             DebugLog.info("Photo replaced at index=" + targetIndex);
             selectedIndex = -1;
             preview.clearSelection();
             status.setText("FOTO " + (targetIndex + 1) + " DIGANTI");
         } else {
             session.addPhoto(storedImage);
-            DebugLog.info(
-                    "Photo added. count=" + session.getCapturedCount()
-                            + "/" + session.getSlotCount()
-            );
+            DebugLog.info("Photo added. count=" + session.getCapturedCount() + "/" + session.getSlotCount());
         }
-
         refreshPreview();
         showCapturedPhoto(storedImage);
     }
 
     @Override
     public void onCaptureError(Exception error) {
-        if (!active || shuttingDown) {
-            DebugLog.warn("onCaptureError ignored because MainScreen is inactive.");
-            return;
-        }
-
+        if (!active || shuttingDown) return;
         countdownOverlay.hideOverlay();
+        cameraView.hideCropGuide();
         status.setText("GAGAL MENGAMBIL FOTO — MENCOBA LAGI");
         DebugLog.error("Capture error. Retrying.", error);
-
         Timer retry = new Timer(1000, e -> {
             ((Timer) e.getSource()).stop();
             showLiveCamera();
-
             if (retakeMode) {
+                cameraView.setCropGuide(selectedFrameDefinition, selectedIndex);
                 captureController.startRetake(selectedIndex);
             } else {
+                cameraView.setCropGuide(selectedFrameDefinition, AppContext.session().getCapturedCount());
                 captureController.startNewPhoto();
             }
         });
@@ -356,30 +280,19 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
 
     private void showCapturedPhoto(BufferedImage image) {
         countdownOverlay.hideOverlay();
-        cameraView.showCapturedImage(scale(image, 900, 650));
-
+        cameraView.showCapturedImage(image);
         freezeSeconds = 5;
-        status.setText(
-                "FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI "
-                        + freezeSeconds + " DETIK"
-        );
-
+        status.setText("FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI " + freezeSeconds + " DETIK");
         if (freezeTimer != null) freezeTimer.stop();
-
         freezeTimer = new Timer(1000, e -> {
             freezeSeconds--;
-
             if (freezeSeconds <= 0) {
                 freezeTimer.stop();
                 resumeAfterFreeze();
             } else {
-                status.setText(
-                        "FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI "
-                                + freezeSeconds + " DETIK"
-                );
+                status.setText("FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI " + freezeSeconds + " DETIK");
             }
         });
-
         freezeTimer.start();
     }
 
@@ -388,21 +301,14 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
             DebugLog.warn("resumeAfterFreeze ignored because MainScreen is inactive.");
             return;
         }
-
         PhotoSession session = AppContext.session();
-
-        DebugLog.info(
-                "5-second photo review finished. complete="
-                        + session.isComplete()
-        );
-
+        DebugLog.info("5-second photo review finished. complete=" + session.isComplete());
         if (session.isComplete()) {
             showResult();
             return;
         }
-
+        // The next call to startNextCapture() will set the exact slot guide.
         showLiveCamera();
-
         Timer next = new Timer(700, e -> {
             ((Timer) e.getSource()).stop();
             startNextCapture();
@@ -413,13 +319,18 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
 
     private void showLiveCamera() {
         countdownOverlay.hideOverlay();
-
+        int guideSlot = retakeMode
+                ? Math.max(0, selectedIndex)
+                : AppContext.session().getCapturedCount();
+        cameraView.setCropGuide(selectedFrameDefinition, guideSlot);
         if (activeWebcam != null && CameraManager.current() == activeWebcam) {
             cameraView.attach(activeWebcam);
+            cameraView.showCropGuide();
             DebugLog.info("LIVE CAMERA restored.");
         } else if (CameraManager.current() != null) {
             activeWebcam = CameraManager.current();
             cameraView.attach(activeWebcam);
+            cameraView.showCropGuide();
             DebugLog.info("LIVE CAMERA restored from current camera.");
         } else {
             DebugLog.warn("Cannot restore live camera: no active webcam.");
@@ -437,7 +348,6 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
             starterTimer.stop();
             starterTimer = null;
         }
-
         if (freezeTimer != null) {
             freezeTimer.stop();
             freezeTimer = null;
@@ -446,90 +356,36 @@ public final class MainScreen extends JPanel implements CaptureController.Listen
 
     public void shutdown() {
         if (shuttingDown) return;
-
         shuttingDown = true;
         active = false;
-
         DebugLog.info("MainScreen shutdown started.");
-
         captureController.stop();
         stopAllTimers();
-
         CameraManager.close();
-
         cameraView.clear();
-
         DebugLog.info("MainScreen shutdown complete.");
     }
 
     @Override
     public void removeNotify() {
-        // Safety net: if ApplicationFrame removes this screen,
-        // no countdown or camera operation may remain alive.
         shutdown();
         super.removeNotify();
     }
 
     private void refreshPreview() {
         PhotoSession session = AppContext.session();
-
-        preview.setFrameDefinition(
-                selectedFrameDefinition
-        );
-
-        preview.setPhotos(
-                session.getPhotos(),
-                session.getSlotCount()
-        );
-
-        counter.setText(
-                session.getCapturedCount()
-                        + " / "
-                        + session.getSlotCount()
-        );
+        preview.setFrameDefinition(selectedFrameDefinition);
+        preview.setPhotos(session.getPhotos(), session.getSlotCount());
+        counter.setText(session.getCapturedCount() + " / " + session.getSlotCount());
     }
 
     private void showCameraError(String message) {
         status.setText("CAMERA ERROR");
         cameraView.clear();
-
-        JLabel error = new JLabel(
-                "<html><center>" + message + "</center></html>",
-                SwingConstants.CENTER
-        );
+        JLabel error = new JLabel("<html><center>" + message + "</center></html>", SwingConstants.CENTER);
         error.setForeground(Color.WHITE);
-
         cameraView.add(error, BorderLayout.CENTER);
         cameraView.revalidate();
         cameraView.repaint();
-    }
-
-    private BufferedImage scale(
-            BufferedImage image,
-            int maxW,
-            int maxH
-    ) {
-        double scale = Math.min(
-                1.0,
-                Math.min(
-                        maxW / (double) image.getWidth(),
-                        maxH / (double) image.getHeight()
-                )
-        );
-
-        int w = Math.max(1, (int) Math.round(image.getWidth() * scale));
-        int h = Math.max(1, (int) Math.round(image.getHeight() * scale));
-
-        BufferedImage out = new BufferedImage(
-                w,
-                h,
-                BufferedImage.TYPE_INT_RGB
-        );
-
-        Graphics2D g = out.createGraphics();
-        g.drawImage(image, 0, 0, w, h, null);
-        g.dispose();
-
-        return out;
     }
 }
