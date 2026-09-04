@@ -238,7 +238,44 @@ public final class MainScreen
         panel.add(counter);
         panel.add(retake);
 
+        if (AppContext.settings().isShowCancelSession()) {
+            JButton cancelSession =
+                    new JButton("PILIH ULANG FRAME");
+
+            cancelSession.addActionListener(
+                    e -> cancelPhotoSession()
+            );
+
+            panel.add(cancelSession);
+        }
+
         return panel;
+    }
+
+    private void cancelPhotoSession() {
+        if (!active || shuttingDown) {
+            return;
+        }
+
+        if (!AppContext.settings().isShowCancelSession()) {
+            DebugLog.warn(
+                    "Cancel session ignored because feature is disabled."
+            );
+            return;
+        }
+
+        DebugLog.info(
+                "Cancel photo session requested."
+        );
+
+        stopAllTimers();
+        captureController.stop();
+
+        if (reconnectController != null) {
+            reconnectController.stop();
+        }
+
+        frame.cancelPhotoSession();
     }
 
     private void startCamera() {

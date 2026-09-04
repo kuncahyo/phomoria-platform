@@ -310,9 +310,25 @@ int main(int argc, char **argv) {
         gp_file_free(preview);
 
         if (ret < GP_OK) {
-            fprintf(stderr, "ERROR preview %s (%d)\n", gp_result_as_string(ret), ret);
+            /*
+             * A preview failure can mean the USB camera disappeared.
+             * Do not keep spinning inside libgphoto2: the Java side would
+             * remain blocked waiting for the next protocol header while
+             * stderr is flooded with repeated preview errors.
+             *
+             * Send the failure through the stdout protocol first, then
+             * terminate this helper. Java will receive ERROR immediately,
+             * classify it as a connection failure, dispose this stale
+             * session, and start a fresh autodetect/reconnect cycle.
+             */
+            fprintf(stdout, "ERROR preview %s (%d)\n",
+                    gp_result_as_string(ret), ret);
+            fflush(stdout);
+
+            fprintf(stderr, "ERROR preview %s (%d)\n",
+                    gp_result_as_string(ret), ret);
             fflush(stderr);
-            /* Keep the persistent session alive; retry next loop. */
+            break;
         }
     }
 

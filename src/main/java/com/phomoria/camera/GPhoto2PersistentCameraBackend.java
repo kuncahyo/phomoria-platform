@@ -301,7 +301,9 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
 
                 String text = message.toLowerCase();
 
-                if (text.contains("eof")
+                if (text.contains("error preview")
+                        || text.contains("preview connection")
+                        || text.contains("eof")
                         || text.contains("helper berhenti")
                         || text.contains("persistent libgphoto2 camera belum terbuka")
                         || text.contains("broken pipe")

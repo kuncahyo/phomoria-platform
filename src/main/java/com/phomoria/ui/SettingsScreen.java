@@ -41,6 +41,7 @@ public final class SettingsScreen extends JPanel {
     private final JSpinner slots;
     private final JSpinner price;
     private final JCheckBox remember;
+    private final JCheckBox showCancelSession;
 
     private final MirrorPhotoSettingsPanel mirrorPhotoSettingsPanel;
     private final PhotoEffectSettingsPanel effectSettingsPanel;
@@ -121,6 +122,12 @@ public final class SettingsScreen extends JPanel {
                 new JCheckBox(
                         "Remember login",
                         settings.isRememberLogin()
+                );
+
+        showCancelSession =
+                new JCheckBox(
+                        "Tampilkan tombol PILIH ULANG FRAME",
+                        settings.isShowCancelSession()
                 );
 
         mirrorPhotoSettingsPanel =
@@ -387,11 +394,18 @@ public final class SettingsScreen extends JPanel {
         );
 
         g.gridx = 1;
-        g.gridy = row;
+        g.gridy = row++;
         g.weightx = 1;
 
         form.add(
                 remember,
+                g
+        );
+
+        g.gridy = row;
+
+        form.add(
+                showCancelSession,
                 g
         );
 
@@ -927,6 +941,10 @@ public final class SettingsScreen extends JPanel {
 
         settings.setRememberLogin(
                 remember.isSelected()
+        );
+
+        settings.setShowCancelSession(
+                showCancelSession.isSelected()
         );
 
         settings.setPhotoEffectSettings(

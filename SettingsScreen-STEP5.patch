@@ -1,0 +1,39 @@
+--- a/src/main/java/com/phomoria/ui/SettingsScreen.java
++++ b/src/main/java/com/phomoria/ui/SettingsScreen.java
+@@
+     private final JSpinner price;
+     private final JCheckBox remember;
++    private final JCheckBox showCancelSession;
+@@
+         remember =
+                 new JCheckBox(
+                         "Remember login",
+                         settings.isRememberLogin()
+                 );
++
++        showCancelSession =
++                new JCheckBox(
++                        "Tampilkan tombol PILIH ULANG FRAME",
++                        settings.isShowCancelSession()
++                );
+@@
+         form.add(
+                 remember,
+                 g
+         );
++
++        g.gridy = row + 1;
++
++        form.add(
++                showCancelSession,
++                g
++        );
+@@
+         settings.setRememberLogin(
+                 remember.isSelected()
+         );
++
++        settings.setShowCancelSession(
++                showCancelSession.isSelected()
++        );
+*** End Patch
