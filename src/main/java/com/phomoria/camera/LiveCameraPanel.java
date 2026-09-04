@@ -20,9 +20,7 @@ import java.awt.image.BufferedImage;
 
 public final class LiveCameraPanel extends JPanel {
 
-    private final JPanel content =
-            new OverlayPanel();
-
+    private final JPanel content = new OverlayPanel();
     private final CropGuideOverlay cropGuideOverlay =
             new CropGuideOverlay();
 
@@ -31,7 +29,6 @@ public final class LiveCameraPanel extends JPanel {
 
     private WebcamPanel webcamPanel;
     private CameraImagePanel backendImagePanel;
-
     private CameraBackend backend;
 
     private FrameDefinition frameDefinition;
@@ -40,40 +37,36 @@ public final class LiveCameraPanel extends JPanel {
     private Timer backendPreviewTimer;
     private SwingWorker<BufferedImage, Void> backendPreviewWorker;
 
+    private Runnable cameraConnectionLostListener;
+
     public LiveCameraPanel() {
         super(new BorderLayout());
 
         setBackground(Color.BLACK);
 
         content.setBackground(Color.BLACK);
-        content.setLayout(
-                new OverlayLayout(content)
-        );
+        content.setLayout(new OverlayLayout(content));
 
-        add(
-                content,
-                BorderLayout.CENTER
-        );
+        add(content, BorderLayout.CENTER);
+    }
+
+    public void setCameraConnectionLostListener(Runnable listener) {
+        this.cameraConnectionLostListener = listener;
     }
 
     public void setCropGuide(
             FrameDefinition definition,
             int sourceSlotIndex
     ) {
-
         this.frameDefinition = definition;
-        this.guideSlotIndex =
-                Math.max(0, sourceSlotIndex);
+        this.guideSlotIndex = Math.max(0, sourceSlotIndex);
 
         if (webcamPanel != null
                 && webcamPanel.getWebcam() != null) {
 
-            updateCropGuide(
-                    webcamPanel.getWebcam()
-            );
+            updateCropGuide(webcamPanel.getWebcam());
 
         } else if (backendImagePanel != null) {
-
             updateBackendCropGuide();
         }
     }
@@ -83,20 +76,14 @@ public final class LiveCameraPanel extends JPanel {
     }
 
     public void showCropGuide() {
-
-        cropGuideOverlay.setShadeAlpha(
-                liveGuideShadeAlpha
-        );
+        cropGuideOverlay.setShadeAlpha(liveGuideShadeAlpha);
 
         if (webcamPanel != null
                 && webcamPanel.getWebcam() != null) {
 
-            updateCropGuide(
-                    webcamPanel.getWebcam()
-            );
+            updateCropGuide(webcamPanel.getWebcam());
 
         } else if (backendImagePanel != null) {
-
             updateBackendCropGuide();
         }
     }
@@ -105,7 +92,6 @@ public final class LiveCameraPanel extends JPanel {
      * Existing webcam path. Kept intact for v21.4.
      */
     public void attach(Webcam webcam) {
-
         stopBackendPreview();
 
         backend = null;
@@ -117,10 +103,7 @@ public final class LiveCameraPanel extends JPanel {
         cropGuideOverlay.hideGuide();
 
         if (webcam == null) {
-
-            showMessage(
-                    "CAMERA TIDAK TERSEDIA"
-            );
+            showMessage("CAMERA TIDAK TERSEDIA");
 
             DebugLog.warn(
                     "LiveCameraPanel.attach(): webcam is null."
@@ -134,8 +117,7 @@ public final class LiveCameraPanel extends JPanel {
                         + webcam.getName()
         );
 
-        webcamPanel =
-                new WebcamPanel(webcam);
+        webcamPanel = new WebcamPanel(webcam);
 
         cropGuideOverlay.setShadeAlpha(
                 liveGuideShadeAlpha
@@ -143,22 +125,12 @@ public final class LiveCameraPanel extends JPanel {
 
         webcamPanel.setMirrored(true);
         webcamPanel.setFillArea(true);
-
-        /*
-         * v21.4 flicker fix:
-         * keep WebcamPanel rendering at a stable 25 FPS.
-         */
         webcamPanel.setFPSLimit(25.0);
         webcamPanel.setFPSLimited(true);
         webcamPanel.setBackground(Color.BLACK);
 
-        content.add(
-                cropGuideOverlay
-        );
-
-        content.add(
-                webcamPanel
-        );
+        content.add(cropGuideOverlay);
+        content.add(webcamPanel);
 
         revalidate();
         repaint();
@@ -177,7 +149,6 @@ public final class LiveCameraPanel extends JPanel {
      * A new request is started only after the previous one finishes.
      */
     public void attach(CameraBackend cameraBackend) {
-
         stopBackendPreview();
 
         backend = cameraBackend;
@@ -189,10 +160,7 @@ public final class LiveCameraPanel extends JPanel {
         cropGuideOverlay.hideGuide();
 
         if (cameraBackend == null) {
-
-            showMessage(
-                    "CAMERA TIDAK TERSEDIA"
-            );
+            showMessage("CAMERA TIDAK TERSEDIA");
 
             DebugLog.warn(
                     "LiveCameraPanel.attach(): backend is null."
@@ -206,16 +174,10 @@ public final class LiveCameraPanel extends JPanel {
                         + cameraBackend.getDisplayName()
         );
 
-        backendImagePanel =
-                new CameraImagePanel(null);
+        backendImagePanel = new CameraImagePanel(null);
 
-        content.add(
-                cropGuideOverlay
-        );
-
-        content.add(
-                backendImagePanel
-        );
+        content.add(cropGuideOverlay);
+        content.add(backendImagePanel);
 
         revalidate();
         repaint();
@@ -228,7 +190,6 @@ public final class LiveCameraPanel extends JPanel {
     }
 
     private void startBackendPreview() {
-
         stopBackendPreview();
 
         if (backend == null) {
@@ -244,24 +205,18 @@ public final class LiveCameraPanel extends JPanel {
         backendPreviewTimer.setRepeats(true);
         backendPreviewTimer.setCoalesce(true);
 
-        /*
-         * First frame immediately, then approximately 8 FPS maximum.
-         * Actual rate depends on the camera/gPhoto2 response time.
-         */
         requestBackendPreview();
         backendPreviewTimer.start();
     }
 
     private void requestBackendPreview() {
-
         if (backend == null
                 || backendPreviewWorker != null
                 || backendImagePanel == null) {
             return;
         }
 
-        CameraBackend requestedBackend =
-                backend;
+        CameraBackend requestedBackend = backend;
 
         backendPreviewWorker =
                 new SwingWorker<>() {
@@ -275,39 +230,43 @@ public final class LiveCameraPanel extends JPanel {
 
                     @Override
                     protected void done() {
-
                         try {
-
                             if (backend != requestedBackend) {
                                 return;
                             }
 
-                            BufferedImage image =
-                                    get();
+                            BufferedImage image = get();
 
                             if (image == null) {
                                 return;
                             }
 
-                            backendImagePanel.setImage(
-                                    image
-                            );
+                            backendImagePanel.setImage(image);
 
-                            updateBackendCropGuide(
-                                    image
-                            );
+                            updateBackendCropGuide(image);
 
                         } catch (Exception ex) {
-
                             DebugLog.warn(
                                     "gPhoto2 preview frame failed: "
                                             + ex.getMessage()
                             );
 
-                        } finally {
+                            if (backend == requestedBackend
+                                    && GPhoto2PersistentCameraBackend
+                                    .isConnectionFailure(ex)) {
 
-                            backendPreviewWorker =
-                                    null;
+                                DebugLog.warn(
+                                        "gPhoto2 preview connection "
+                                                + "lost."
+                                );
+
+                                if (cameraConnectionLostListener != null) {
+                                    cameraConnectionLostListener.run();
+                                }
+                            }
+
+                        } finally {
+                            backendPreviewWorker = null;
                         }
                     }
                 };
@@ -316,7 +275,6 @@ public final class LiveCameraPanel extends JPanel {
     }
 
     private void stopBackendPreview() {
-
         if (backendPreviewTimer != null) {
             backendPreviewTimer.stop();
             backendPreviewTimer = null;
@@ -328,19 +286,13 @@ public final class LiveCameraPanel extends JPanel {
         }
     }
 
-    private void updateCropGuide(
-            Webcam webcam
-    ) {
-
-        if (frameDefinition == null
-                || webcam == null) {
-
+    private void updateCropGuide(Webcam webcam) {
+        if (frameDefinition == null || webcam == null) {
             cropGuideOverlay.hideGuide();
             return;
         }
 
-        Dimension viewSize =
-                webcam.getViewSize();
+        Dimension viewSize = webcam.getViewSize();
 
         cropGuideOverlay.setGuide(
                 frameDefinition,
@@ -350,7 +302,6 @@ public final class LiveCameraPanel extends JPanel {
     }
 
     private void updateBackendCropGuide() {
-
         if (backendImagePanel == null
                 || backendImagePanel.getImage() == null) {
             return;
@@ -364,10 +315,7 @@ public final class LiveCameraPanel extends JPanel {
     private void updateBackendCropGuide(
             BufferedImage image
     ) {
-
-        if (frameDefinition == null
-                || image == null) {
-
+        if (frameDefinition == null || image == null) {
             cropGuideOverlay.hideGuide();
             return;
         }
@@ -382,10 +330,7 @@ public final class LiveCameraPanel extends JPanel {
         );
     }
 
-    public void showCapturedImage(
-            BufferedImage image
-    ) {
-
+    public void showCapturedImage(BufferedImage image) {
         stopBackendPreview();
 
         content.removeAll();
@@ -397,7 +342,6 @@ public final class LiveCameraPanel extends JPanel {
         cropGuideOverlay.hideGuide();
 
         if (image == null) {
-
             showMessage("NO IMAGE");
 
             DebugLog.warn(
@@ -424,13 +368,8 @@ public final class LiveCameraPanel extends JPanel {
                 )
         );
 
-        content.add(
-                cropGuideOverlay
-        );
-
-        content.add(
-                imagePanel
-        );
+        content.add(cropGuideOverlay);
+        content.add(imagePanel);
 
         revalidate();
         repaint();
@@ -443,14 +382,10 @@ public final class LiveCameraPanel extends JPanel {
         );
     }
 
-    private void showMessage(
-            String message
-    ) {
-
+    private void showMessage(String message) {
         content.removeAll();
 
-        JLabel label =
-                new JLabel();
+        JLabel label = new JLabel();
 
         label.setHorizontalAlignment(
                 SwingConstants.CENTER
@@ -480,7 +415,6 @@ public final class LiveCameraPanel extends JPanel {
     }
 
     public void clear() {
-
         stopBackendPreview();
 
         content.removeAll();
