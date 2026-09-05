@@ -20,8 +20,7 @@ public final class AppContext {
         settings = SettingsStore.load();
 
         String cloudServer = CloudConfigManager.getConfig().getServer();
-        if (cloudServer != null && !cloudServer.isBlank()
-                && !cloudServer.equals("http://127.0.0.1:8000")) {
+        if (cloudServer != null && !cloudServer.isBlank()) {
             settings.setApiServer(cloudServer);
             SettingsStore.save(settings);
         }
@@ -30,13 +29,8 @@ public final class AppContext {
         effectSession = new PhotoEffectSession(settings.getPhotoSlotCount());
     }
 
-    public static AppSettings settings() {
-        return settings;
-    }
-
-    public static void saveSettings() {
-        SettingsStore.save(settings);
-    }
+    public static AppSettings settings() { return settings; }
+    public static void saveSettings() { SettingsStore.save(settings); }
 
     public static PhotoSession newSession() {
         session = new PhotoSession(settings.getPhotoSlotCount());
@@ -44,18 +38,15 @@ public final class AppContext {
         return session;
     }
 
-    public static PhotoSession session() {
-        return session;
-    }
+    public static PhotoSession session() { return session; }
 
     public static PhotoEffectSession effectSession() {
         if (effectSession == null) {
-            effectSession = new PhotoEffectSession(session == null ? settings.getPhotoSlotCount() : session.getSlotCount());
+            effectSession = new PhotoEffectSession(
+                    session == null ? settings.getPhotoSlotCount() : session.getSlotCount());
         }
         return effectSession;
     }
 
-    public static void setEffectSession(PhotoEffectSession value) {
-        effectSession = value;
-    }
+    public static void setEffectSession(PhotoEffectSession value) { effectSession = value; }
 }
