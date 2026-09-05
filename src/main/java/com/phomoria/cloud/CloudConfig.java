@@ -1,18 +1,22 @@
 package com.phomoria.cloud;
 
 public final class CloudConfig {
-    private String server = "http://127.0.0.1:8000";
+    public static final String DEFAULT_SERVER = "https://phomoria.com/sub";
+
+    private String server = DEFAULT_SERVER;
     private String token = "";
     private boolean rememberLogin = true;
     private String userName = "";
     private String email = "";
 
     public String getServer() {
-        return server == null ? "" : server;
+        return server == null || server.isBlank() ? DEFAULT_SERVER : server.trim();
     }
 
     public void setServer(String server) {
-        this.server = server == null ? "" : server.trim();
+        this.server = server == null || server.isBlank()
+                ? DEFAULT_SERVER
+                : server.trim();
     }
 
     public String getToken() {

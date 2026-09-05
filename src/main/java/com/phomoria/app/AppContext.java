@@ -1,11 +1,11 @@
 package com.phomoria.app;
 
-import com.phomoria.config.AppSettings;
-import com.phomoria.config.SettingsStore;
 import com.phomoria.cloud.CloudConfigManager;
 import com.phomoria.cloud.DeviceManager;
-import com.phomoria.session.PhotoSession;
+import com.phomoria.config.AppSettings;
+import com.phomoria.config.SettingsStore;
 import com.phomoria.effects.PhotoEffectSession;
+import com.phomoria.session.PhotoSession;
 
 public final class AppContext {
     private static AppSettings settings;
@@ -20,14 +20,15 @@ public final class AppContext {
         settings = SettingsStore.load();
 
         String cloudServer = CloudConfigManager.getConfig().getServer();
-        if (cloudServer != null && !cloudServer.isBlank()
-                && !cloudServer.equals("http://127.0.0.1:8000")) {
+        if (cloudServer != null && !cloudServer.isBlank()) {
             settings.setApiServer(cloudServer);
             SettingsStore.save(settings);
         }
 
         session = new PhotoSession(settings.getPhotoSlotCount());
-        effectSession = new PhotoEffectSession(settings.getPhotoSlotCount());
+        effectSession = new PhotoEffectSession(
+                settings.getPhotoSlotCount()
+        );
     }
 
     public static AppSettings settings() {
@@ -40,7 +41,9 @@ public final class AppContext {
 
     public static PhotoSession newSession() {
         session = new PhotoSession(settings.getPhotoSlotCount());
-        effectSession = new PhotoEffectSession(settings.getPhotoSlotCount());
+        effectSession = new PhotoEffectSession(
+                settings.getPhotoSlotCount()
+        );
         return session;
     }
 
@@ -50,7 +53,11 @@ public final class AppContext {
 
     public static PhotoEffectSession effectSession() {
         if (effectSession == null) {
-            effectSession = new PhotoEffectSession(session == null ? settings.getPhotoSlotCount() : session.getSlotCount());
+            effectSession = new PhotoEffectSession(
+                    session == null
+                            ? settings.getPhotoSlotCount()
+                            : session.getSlotCount()
+            );
         }
         return effectSession;
     }

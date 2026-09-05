@@ -3,16 +3,14 @@ package com.phomoria.update;
 public final class UpdateConfig {
 
     /*
-     * Development endpoint.
-     * Replace with Laravel production endpoint later.
+     * Production update metadata endpoint.
+     * The update.json file will be hosted by Phomoria Cloud.
      */
     public static final String UPDATE_URL =
-            "http://127.0.0.1:8099/update.json";
+            "https://phomoria.com/sub/update.json";
 
     /*
-     * Keep true while running from NetBeans.
-     *
-     * When the final Windows/JAR packaging is ready, set this to false.
+     * Production mode.
      */
     public static final boolean SIMULATION_MODE = false;
 

@@ -25,57 +25,39 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
         this.requestedCameraName = normalize(cameraName);
     }
 
-    @Override public String getId() {
-        return "gphoto2:" + requestedCameraName;
-    }
+    @Override public String getId() { return "gphoto2:" + requestedCameraName; }
 
     @Override public String getDisplayName() {
-        return (requestedCameraName.isBlank()
-                ? "gPhoto2 Camera"
-                : requestedCameraName) + " [gPhoto2]";
+        return (requestedCameraName.isBlank() ? "gPhoto2 Camera" : requestedCameraName) + " [gPhoto2]";
     }
 
     @Override public boolean isAvailable() {
-        return detectCameraNames()
-                .stream()
-                .anyMatch(n -> n.equalsIgnoreCase(requestedCameraName));
+        return detectCameraNames().stream().anyMatch(n -> n.equalsIgnoreCase(requestedCameraName));
     }
 
     @Override public void open() throws Exception {
         synchronized (ioLock) {
-            if (opened) {
-                return;
-            }
-
+            if (opened) return;
             Path helper = helperPath();
-
             if (!Files.isRegularFile(helper)) {
-                throw new FileNotFoundException(
-                        "Native gPhoto2 helper tidak ditemukan: " + helper
-                );
+                throw new FileNotFoundException("Native gPhoto2 helper tidak ditemukan: " + helper);
             }
 
             ProcessBuilder pb = new ProcessBuilder(
                     helper.toAbsolutePath().normalize().toString(),
                     requestedCameraName
             );
-
-            configureMsys2Environment(pb.environment());
+            configureRuntimeEnvironment(pb.environment(), helper);
             pb.redirectErrorStream(false);
 
-            DebugLog.info(
-                    "Starting persistent libgphoto2 camera helper directly: "
-                            + helper.toAbsolutePath().normalize()
-                            + " '" + requestedCameraName + "'"
-            );
+            DebugLog.info("Starting persistent libgphoto2 camera helper directly: "
+                    + helper.toAbsolutePath().normalize() + " '" + requestedCameraName + "'");
 
             process = pb.start();
 
             InputStream stdout = process.getInputStream();
             InputStream stderr = process.getErrorStream();
-
             drainStderr(stderr);
-
             binaryReader = stdout;
             commandWriter = process.getOutputStream();
 
@@ -84,19 +66,11 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
 
             while (System.nanoTime() < deadline) {
                 String line = readLineWithDeadline(deadline);
-
-                if (line == null) {
-                    break;
-                }
+                if (line == null) break;
 
                 if (line.startsWith("READY ")) {
                     opened = true;
-
-                    DebugLog.info(
-                            "Persistent libgphoto2 camera ready: "
-                                    + line.substring(6)
-                    );
-
+                    DebugLog.info("Persistent libgphoto2 camera ready: " + line.substring(6));
                     return;
                 }
 
@@ -106,42 +80,89 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             }
 
             close();
-
             throw new IllegalStateException(
                     "Persistent libgphoto2 helper tidak mengirim READY."
             );
         }
     }
 
-    private static void configureMsys2Environment(
-            java.util.Map<String, String> environment
-    ) {
-        String ucrtBin = "C:\\msys64\\ucrt64\\bin";
-        String usrBin = "C:\\msys64\\usr\\bin";
-        String existingPath = environment.get("PATH");
+    /**
+     * Configure the portable runtime.
+     *
+     * The runtime is resolved relative to the helper itself, so development
+     * and packaged layouts are both supported:
+     *
+     * tools/gphoto2/runtime/bin/helper.exe
+     * native/gphoto2/bin/helper.exe
+     */
+    private static void configureRuntimeEnvironment(
+            java.util.Map<String, String> environment,
+            Path helper) {
 
-        StringBuilder path = new StringBuilder();
-        path.append(ucrtBin).append(';').append(usrBin);
+        Path helperDir = helper.toAbsolutePath().normalize().getParent();
+        Path runtime;
 
-        if (existingPath != null && !existingPath.isBlank()) {
-            path.append(';').append(existingPath);
+        if (helperDir != null
+                && helperDir.getFileName() != null
+                && helperDir.getFileName().toString().equalsIgnoreCase("bin")) {
+            runtime = helperDir.getParent();
+        } else {
+            runtime = helperDir;
         }
 
-        environment.put("PATH", path.toString());
-        environment.put("MSYSTEM", "UCRT64");
-        environment.put("MSYS2_PATH_TYPE", "inherit");
-        environment.put("CHERE_INVOKING", "1");
+        if (runtime == null) {
+            runtime = Path.of(".").toAbsolutePath().normalize();
+        }
+
+        Path bin = runtime.resolve("bin");
+        Path lib = runtime.resolve("lib");
+        Path share = runtime.resolve("share");
+
+        String existingPath = environment.get("PATH");
+
+        environment.put(
+                "PATH",
+                bin + File.pathSeparator
+                        + (existingPath == null ? "" : existingPath)
+        );
+
+        environment.remove("MSYSTEM");
+        environment.remove("MSYS2_PATH_TYPE");
+        environment.remove("CHERE_INVOKING");
+
+        environment.put(
+                "PHOMORIA_GPHOTO2_RUNTIME",
+                runtime.toString()
+        );
+
         environment.put(
                 "CAMLIBS",
-                "C:\\msys64\\ucrt64\\lib\\libgphoto2\\2.5.34"
+                lib.resolve("libgphoto2")
+                        .resolve("2.5.34")
+                        .toString()
         );
+
         environment.put(
                 "IOLIBS",
-                "C:\\msys64\\ucrt64\\lib\\libgphoto2_port\\0.12.2"
+                lib.resolve("libgphoto2_port")
+                        .resolve("0.12.2")
+                        .toString()
         );
+
+        String appData = System.getenv("APPDATA");
+
+        if (appData == null || appData.isBlank()) {
+            appData = System.getProperty("user.home");
+        }
+
         environment.put(
                 "GPHOTO2_CACHEDIR",
-                "C:\\Users\\HP\\.gphoto"
+                Paths.get(appData, "Phomoria", ".gphoto").toString()
+        );
+
+        environment.put(
+                "GPHOTO2_DATADIR",
+                share.resolve("libgphoto2").toString()
         );
     }
 
@@ -156,8 +177,7 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
                     );
                     commandWriter.flush();
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) { }
 
             commandWriter = null;
             binaryReader = null;
@@ -165,8 +185,7 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             if (process != null) {
                 try {
                     process.waitFor(3, TimeUnit.SECONDS);
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) { }
 
                 if (process.isAlive()) {
                     process.destroyForcibly();
@@ -187,17 +206,13 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             commandWriter.flush();
 
             long deadline = System.nanoTime()
-                    + TimeUnit.SECONDS.toNanos(
-                            CAPTURE_TIMEOUT_SECONDS
-                    );
+                    + TimeUnit.SECONDS.toNanos(CAPTURE_TIMEOUT_SECONDS);
 
             while (true) {
                 String line = readLineWithDeadline(deadline);
 
                 if (line == null) {
-                    throw new EOFException(
-                            "Helper berhenti saat capture."
-                    );
+                    throw new EOFException("Helper berhenti saat capture.");
                 }
 
                 if (line.startsWith("FRAME ")) {
@@ -208,22 +223,17 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
                 if (line.startsWith("CAPTURE ")) {
                     byte[] jpeg = readFully(parseLength(line));
 
-                    BufferedImage image =
-                            ImageIO.read(
-                                    new ByteArrayInputStream(jpeg)
-                            );
+                    BufferedImage image = ImageIO.read(
+                            new ByteArrayInputStream(jpeg)
+                    );
 
                     if (image == null) {
-                        throw new IOException(
-                                "Hasil capture bukan JPEG valid."
-                        );
+                        throw new IOException("Hasil capture bukan JPEG valid.");
                     }
 
                     DebugLog.info(
                             "Persistent gPhoto2 capture decoded: "
-                                    + image.getWidth()
-                                    + "x"
-                                    + image.getHeight()
+                                    + image.getWidth() + "x" + image.getHeight()
                     );
 
                     return image;
@@ -247,27 +257,23 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
                 String line = readLineWithDeadline(deadline);
 
                 if (line == null) {
-                    throw new EOFException(
-                            "Helper berhenti saat preview."
-                    );
+                    throw new EOFException("Helper berhenti saat preview.");
                 }
 
                 if (line.startsWith("FRAME ")) {
-                    byte[] jpeg =
-                            readFully(parseLength(line));
+                    byte[] jpeg = readFully(parseLength(line));
 
-                    BufferedImage image =
-                            ImageIO.read(
-                                    new ByteArrayInputStream(jpeg)
-                            );
+                    BufferedImage image = ImageIO.read(
+                            new ByteArrayInputStream(jpeg)
+                    );
 
                     if (image != null) {
                         return image;
                     }
 
                     DebugLog.warn(
-                            "gPhoto2 returned a non-decodable preview "
-                                    + "frame; waiting for next frame."
+                            "gPhoto2 returned a non-decodable preview frame; "
+                                    + "waiting for next frame."
                     );
 
                     continue;
@@ -280,10 +286,6 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
         }
     }
 
-    /**
-     * Identifies transport/process failures that indicate the persistent
-     * gPhoto2 session is no longer usable and must be recreated.
-     */
     public static boolean isConnectionFailure(Throwable error) {
         Throwable current = error;
 
@@ -321,24 +323,21 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
 
     private void drainStderr(InputStream stderr) {
         Thread thread = new Thread(() -> {
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(
-                            stderr,
-                            StandardCharsets.UTF_8
-                    ))) {
+            try (BufferedReader reader =
+                         new BufferedReader(
+                                 new InputStreamReader(
+                                         stderr,
+                                         StandardCharsets.UTF_8))) {
 
                 String line;
 
                 while ((line = reader.readLine()) != null) {
                     if (!line.isBlank()) {
-                        DebugLog.warn(
-                                "gPhoto2 helper: " + line
-                        );
+                        DebugLog.warn("gPhoto2 helper: " + line);
                     }
                 }
 
-            } catch (IOException ignored) {
-            }
+            } catch (IOException ignored) { }
         }, "phomoria-gphoto2-stderr");
 
         thread.setDaemon(true);
@@ -346,27 +345,21 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
     }
 
     private void ensureOpen() throws IOException {
-        if (!opened
-                || process == null
-                || !process.isAlive()) {
+        if (!opened || process == null || !process.isAlive()) {
             throw new IOException(
                     "Persistent libgphoto2 camera belum terbuka."
             );
         }
     }
 
-    private String readLineWithDeadline(long deadline)
-            throws IOException {
-
+    private String readLineWithDeadline(long deadline) throws IOException {
         StringBuilder line = new StringBuilder();
 
         while (System.nanoTime() < deadline) {
             int value = binaryReader.read();
 
             if (value < 0) {
-                throw new EOFException(
-                        "EOF membaca header helper."
-                );
+                throw new EOFException("EOF membaca header helper.");
             }
 
             if (value == '\n') {
@@ -378,22 +371,16 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             }
 
             if (line.length() > 1024) {
-                throw new IOException(
-                        "Protocol header terlalu panjang."
-                );
+                throw new IOException("Protocol header terlalu panjang.");
             }
         }
 
-        throw new SocketTimeoutException(
-                "Timeout membaca response helper."
-        );
+        throw new IOException("Timeout membaca response helper.");
     }
 
     private byte[] readFully(int length) throws IOException {
         if (length < 0 || length > 50_000_000) {
-            throw new IOException(
-                    "Invalid binary length: " + length
-            );
+            throw new IOException("Invalid binary length: " + length);
         }
 
         byte[] data = new byte[length];
@@ -407,9 +394,7 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             );
 
             if (n < 0) {
-                throw new EOFException(
-                        "EOF membaca frame/capture."
-                );
+                throw new EOFException("EOF membaca frame/capture.");
             }
 
             off += n;
@@ -418,15 +403,11 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
         return data;
     }
 
-    private static int parseLength(String line)
-            throws IOException {
-
+    private static int parseLength(String line) throws IOException {
         String[] p = line.split(" ");
 
         if (p.length != 2) {
-            throw new IOException(
-                    "Invalid protocol line: " + line
-            );
+            throw new IOException("Invalid protocol line: " + line);
         }
 
         try {
@@ -439,114 +420,186 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
         }
     }
 
+    /**
+     * Detect cameras using the bundled native helper.
+     *
+     * This no longer calls MSYS2 bash or gphoto2.exe.
+     */
     public static java.util.List<String> detectCameraNames() {
+        java.util.List<String> result = new java.util.ArrayList<>();
+
+        Path helper = helperPath();
+
+        if (!Files.isRegularFile(helper)) {
+            DebugLog.warn(
+                    "Portable gPhoto2 helper tidak ditemukan: "
+                            + helper.toAbsolutePath()
+            );
+            return result;
+        }
+
+        Process process = null;
+
         try {
-            String bash =
-                    System.getProperty(
-                            "phomoria.msys2.bash"
-                    );
-
-            if (bash == null || bash.isBlank()) {
-                bash = System.getenv(
-                        "PHOMORIA_MSYS2_BASH"
-                );
-            }
-
-            if (bash == null || bash.isBlank()) {
-                bash = "C:\\msys64\\usr\\bin\\bash.exe";
-            }
-
-            ProcessBuilder builder =
-                    new ProcessBuilder(
-                            bash,
-                            "--login",
-                            "-c",
-                            "/ucrt64/bin/gphoto2.exe --auto-detect"
-                    );
-
-            builder.environment().put(
-                    "MSYSTEM",
-                    "UCRT64"
-            );
-            builder.environment().put(
-                    "MSYS2_PATH_TYPE",
-                    "inherit"
-            );
-            builder.environment().put(
-                    "CHERE_INVOKING",
-                    "1"
+            ProcessBuilder builder = new ProcessBuilder(
+                    helper.toAbsolutePath().normalize().toString(),
+                    "DETECT"
             );
 
-            Process p =
-                    builder
-                            .redirectErrorStream(true)
-                            .start();
-
-            String out =
-                    new String(
-                            p.getInputStream().readAllBytes(),
-                            StandardCharsets.UTF_8
-                    );
-
-            p.waitFor(
-                    15,
-                    TimeUnit.SECONDS
+            configureRuntimeEnvironment(
+                    builder.environment(),
+                    helper
             );
 
-            java.util.List<String> names =
-                    new java.util.ArrayList<>();
+            builder.redirectErrorStream(false);
 
-            for (String raw :
-                    out.replace("\r", "")
-                            .split("\n")) {
+            DebugLog.info(
+                    "Detecting cameras using portable gPhoto2 helper: "
+                            + helper.toAbsolutePath()
+            );
 
-                String line = raw.trim();
-                int idx = line.lastIndexOf("usb:");
+            process = builder.start();
 
-                if (idx > 0) {
-                    String name =
-                            line.substring(0, idx).trim();
+            final Process detectProcess = process;
 
-                    String port =
-                            line.substring(idx).trim();
+            Thread stderrThread = new Thread(() -> {
+                try (BufferedReader reader =
+                             new BufferedReader(
+                                     new InputStreamReader(
+                                             detectProcess.getErrorStream(),
+                                             StandardCharsets.UTF_8))) {
 
-                    if (!name.isBlank()
-                            && port.matches(
-                                    "usb:\\d+,\\d+"
-                            )) {
-                        names.add(name);
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        if (!line.isBlank()) {
+                            DebugLog.warn(
+                                    "gPhoto2 detect stderr: " + line
+                            );
+                        }
+                    }
+
+                } catch (IOException ignored) { }
+            }, "phomoria-gphoto2-detect-stderr");
+
+            stderrThread.setDaemon(true);
+            stderrThread.start();
+
+            try (BufferedReader reader =
+                         new BufferedReader(
+                                 new InputStreamReader(
+                                         process.getInputStream(),
+                                         StandardCharsets.UTF_8))) {
+
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    DebugLog.info("gPhoto2 detect: " + line);
+
+                    if (!line.startsWith("CAMERA\t")) {
+                        continue;
+                    }
+
+                    String[] parts = line.split("\t", 3);
+
+                    if (parts.length >= 2) {
+                        String model = parts[1].trim();
+
+                        if (!model.isEmpty()
+                                && !result.contains(model)) {
+                            result.add(model);
+                        }
                     }
                 }
             }
 
-            return names;
+            int exitCode = process.waitFor();
 
-        } catch (Exception ex) {
-            DebugLog.error(
-                    "gPhoto2 detection failed.",
-                    ex
+            DebugLog.info(
+                    "Portable gPhoto2 detection finished: "
+                            + "exitCode=" + exitCode
+                            + ", cameras=" + result.size()
             );
 
-            return java.util.List.of();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+
+            DebugLog.warn(
+                    "Portable gPhoto2 camera detection interrupted: "
+                            + ex.getMessage()
+            );
+
+        } catch (Exception ex) {
+            DebugLog.warn(
+                    "Portable gPhoto2 camera detection failed: "
+                            + ex.getMessage()
+            );
+
+        } finally {
+            if (process != null && process.isAlive()) {
+                process.destroyForcibly();
+            }
         }
+
+        return result;
     }
 
     private static Path helperPath() {
         String configured =
-                System.getProperty(
-                        "phomoria.gphoto2.helper"
-                );
+                System.getProperty("phomoria.gphoto2.helper");
 
         if (configured == null || configured.isBlank()) {
             configured =
-                    System.getenv(
-                            "PHOMORIA_GPHOTO2_HELPER"
-                    );
+                    System.getenv("PHOMORIA_GPHOTO2_HELPER");
         }
 
-        if (configured != null
-                && !configured.isBlank()) {
+        if (configured != null && !configured.isBlank()) {
             return Path.of(configured);
+        }
+
+        String appDir = System.getProperty("phomoria.app.dir");
+
+        if (appDir == null || appDir.isBlank()) {
+            appDir = System.getenv("PHOMORIA_APP_DIR");
+        }
+
+        if (appDir != null && !appDir.isBlank()) {
+            Path root = Path.of(appDir)
+                    .toAbsolutePath()
+                    .normalize();
+
+            Path packaged = root
+                    .resolve("native")
+                    .resolve("gphoto2")
+                    .resolve("bin")
+                    .resolve("phomoria-gphoto2-camera.exe");
+
+            if (Files.isRegularFile(packaged)) {
+                return packaged;
+            }
+        }
+
+        Path localRuntime = Path.of(
+                "tools",
+                "gphoto2",
+                "runtime",
+                "bin",
+                "phomoria-gphoto2-camera.exe"
+        );
+
+        if (Files.isRegularFile(localRuntime)) {
+            return localRuntime;
+        }
+
+        Path packaged = Path.of(
+                "native",
+                "gphoto2",
+                "bin",
+                "phomoria-gphoto2-camera.exe"
+        );
+
+        if (Files.isRegularFile(packaged)) {
+            return packaged;
         }
 
         return Path.of(
@@ -557,9 +610,7 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
     }
 
     private static String normalize(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
 
         String v = s.trim();
 
@@ -568,20 +619,9 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
         }
 
         if (v.endsWith(" [gPhoto2]")) {
-            v = v.substring(
-                    0,
-                    v.length() - 10
-            ).trim();
+            v = v.substring(0, v.length() - 10).trim();
         }
 
         return v;
-    }
-
-    private static final class SocketTimeoutException
-            extends IOException {
-
-        SocketTimeoutException(String message) {
-            super(message);
-        }
     }
 }
