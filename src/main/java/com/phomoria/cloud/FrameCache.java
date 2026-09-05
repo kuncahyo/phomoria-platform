@@ -12,20 +12,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * V22.6 - Local frame cache.
- *
- * Penyimpanan lokal frame cloud:
- *
- * %APPDATA%\Phomoria\frames\
- *   <frame-id>\
- *      frame.png
- *      metadata.json
- *
- * V22.6 hanya menyediakan penyimpanan dan pembacaan cache.
- * Keputusan frame mana yang harus di-download/dihapus dilakukan
- * oleh Frame Sync pada tahap berikutnya.
- */
 public final class FrameCache {
 
     private static final Gson GSON =
@@ -40,29 +26,15 @@ public final class FrameCache {
             "frames"
     );
 
-    private FrameCache() {
-    }
+    private FrameCache() {}
 
-    public static Path getRoot() {
-        return ROOT;
-    }
+    public static Path getRoot() { return ROOT; }
 
-    /**
-     * Menyimpan PNG dan metadata secara aman.
-     *
-     * File ditulis ke temporary file terlebih dahulu lalu dipindahkan
-     * ke nama final, sehingga cache tidak meninggalkan frame.png
-     * setengah tertulis jika proses berhenti di tengah download.
-     */
     public static synchronized Path save(
             FrameCloudService.CloudFrame frame,
             byte[] png
     ) throws IOException {
-
-        if (frame == null) {
-            throw new IllegalArgumentException("Frame tidak boleh null.");
-        }
-
+        if (frame == null) throw new IllegalArgumentException("Frame tidak boleh null.");
         if (png == null || png.length == 0) {
             throw new IllegalArgumentException("Data PNG kosong.");
         }
@@ -72,27 +44,19 @@ public final class FrameCache {
 
         Path pngPath = directory.resolve("frame.png");
         Path metadataPath = directory.resolve("metadata.json");
-
         Path pngTemp = directory.resolve("frame.png.tmp");
         Path metadataTemp = directory.resolve("metadata.json.tmp");
 
         try {
             Files.write(pngTemp, png);
-
             CacheMetadata metadata = CacheMetadata.from(frame, png.length);
-            Files.writeString(
-                    metadataTemp,
-                    GSON.toJson(metadata)
-            );
-
+            Files.writeString(metadataTemp, GSON.toJson(metadata));
             moveReplace(pngTemp, pngPath);
             moveReplace(metadataTemp, metadataPath);
 
-            DebugLog.info(
-                    "Frame cache saved: id=" + frame.getId() +
-                    ", bytes=" + png.length
-            );
-
+            DebugLog.info("Frame cache saved: id=" + frame.getId() +
+                    ", bytes=" + png.length +
+                    ", placements=" + frame.getPlacements().size());
             return pngPath;
         } finally {
             Files.deleteIfExists(pngTemp);
@@ -100,75 +64,36 @@ public final class FrameCache {
         }
     }
 
-    /**
-     * Memeriksa apakah frame sudah tersedia di cache.
-     */
     public static synchronized boolean contains(long frameId) {
-        if (frameId <= 0) {
-            return false;
-        }
-
+        if (frameId <= 0) return false;
         Path directory = frameDirectory(frameId);
-
         return Files.isRegularFile(directory.resolve("frame.png"))
                 && Files.isRegularFile(directory.resolve("metadata.json"));
     }
 
-    /**
-     * Mengambil file PNG dari cache.
-     *
-     * Mengembalikan null jika belum tersedia.
-     */
     public static synchronized Path getPng(long frameId) {
-        if (frameId <= 0) {
-            return null;
-        }
-
+        if (frameId <= 0) return null;
         Path png = frameDirectory(frameId).resolve("frame.png");
         return Files.isRegularFile(png) ? png : null;
     }
 
-    /**
-     * Membaca metadata cache.
-     *
-     * Mengembalikan null jika metadata belum tersedia atau rusak.
-     */
     public static synchronized CacheMetadata readMetadata(long frameId) {
-        if (frameId <= 0) {
-            return null;
-        }
-
+        if (frameId <= 0) return null;
         Path file = frameDirectory(frameId).resolve("metadata.json");
-
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-
+        if (!Files.isRegularFile(file)) return null;
         try {
-            String json = Files.readString(file);
-            return GSON.fromJson(json, CacheMetadata.class);
+            return GSON.fromJson(Files.readString(file), CacheMetadata.class);
         } catch (Exception ex) {
-            DebugLog.warn(
-                    "Failed to read frame cache metadata for id=" +
-                    frameId + ": " + ex.getMessage()
-            );
+            DebugLog.warn("Failed to read frame cache metadata for id=" +
+                    frameId + ": " + ex.getMessage());
             return null;
         }
     }
 
-    /**
-     * Menghapus satu frame dari cache.
-     */
     public static synchronized boolean delete(long frameId) throws IOException {
-        if (frameId <= 0) {
-            return false;
-        }
-
+        if (frameId <= 0) return false;
         Path directory = frameDirectory(frameId);
-
-        if (!Files.exists(directory)) {
-            return false;
-        }
+        if (!Files.exists(directory)) return false;
 
         Files.walk(directory)
                 .sorted(Comparator.reverseOrder())
@@ -184,37 +109,18 @@ public final class FrameCache {
         return true;
     }
 
-    /**
-     * Membaca ID frame yang sudah memiliki folder cache.
-     *
-     * Ini hanya inspeksi cache; tidak melakukan sinkronisasi cloud.
-     */
-    public static synchronized List<Long> listCachedFrameIds()
-            throws IOException {
-
-        if (!Files.isDirectory(ROOT)) {
-            return List.of();
-        }
+    public static synchronized List<Long> listCachedFrameIds() throws IOException {
+        if (!Files.isDirectory(ROOT)) return List.of();
 
         List<Long> result = new ArrayList<>();
-
         try (var stream = Files.list(ROOT)) {
-            stream.filter(Files::isDirectory)
-                    .forEach(directory -> {
-                        try {
-                            long id = Long.parseLong(
-                                    directory.getFileName().toString()
-                            );
-
-                            if (contains(id)) {
-                                result.add(id);
-                            }
-                        } catch (NumberFormatException ignored) {
-                            // Folder lain diabaikan.
-                        }
-                    });
+            stream.filter(Files::isDirectory).forEach(directory -> {
+                try {
+                    long id = Long.parseLong(directory.getFileName().toString());
+                    if (contains(id)) result.add(id);
+                } catch (NumberFormatException ignored) {}
+            });
         }
-
         result.sort(Long::compareTo);
         return List.copyOf(result);
     }
@@ -223,24 +129,13 @@ public final class FrameCache {
         return ROOT.resolve(Long.toString(frameId));
     }
 
-    private static void moveReplace(Path source, Path target)
-            throws IOException {
-
+    private static void moveReplace(Path source, Path target) throws IOException {
         try {
-            Files.move(
-                    source,
-                    target,
+            Files.move(source, target,
                     StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE
-            );
+                    StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException ex) {
-            // Beberapa filesystem Windows tidak mendukung ATOMIC_MOVE
-            // untuk semua kombinasi file. Tetap gunakan replace biasa.
-            Files.move(
-                    source,
-                    target,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -255,16 +150,15 @@ public final class FrameCache {
         private int height;
         private String status;
         private long cachedBytes;
+        private List<FrameCloudService.CloudPlacement> placements = List.of();
 
-        public CacheMetadata() {
-        }
+        public CacheMetadata() {}
 
         private static CacheMetadata from(
                 FrameCloudService.CloudFrame frame,
                 long cachedBytes
         ) {
             CacheMetadata metadata = new CacheMetadata();
-
             metadata.id = frame.getId();
             metadata.name = frame.getName();
             metadata.category = frame.getCategory();
@@ -275,56 +169,30 @@ public final class FrameCache {
             metadata.height = frame.getHeight();
             metadata.status = frame.getStatus();
             metadata.cachedBytes = cachedBytes;
-
+            metadata.placements = frame.getPlacements();
             return metadata;
         }
 
-        public long getId() {
-            return id;
+        public long getId() { return id; }
+        public String getName() { return name == null ? "" : name; }
+        public String getCategory() { return category == null ? "" : category; }
+        public String getImagePath() { return imagePath == null ? "" : imagePath; }
+        public int getVersion() { return version; }
+        public String getSha256() { return sha256 == null ? "" : sha256; }
+        public int getWidth() { return width; }
+        public int getHeight() { return height; }
+        public String getStatus() { return status == null ? "" : status; }
+        public long getCachedBytes() { return cachedBytes; }
+        public List<FrameCloudService.CloudPlacement> getPlacements() {
+            return placements == null ? List.of() : List.copyOf(placements);
         }
-
-        public String getName() {
-            return name == null ? "" : name;
-        }
-
-        public String getCategory() {
-            return category == null ? "" : category;
-        }
-
-        public String getImagePath() {
-            return imagePath == null ? "" : imagePath;
-        }
-
-        public int getVersion() {
-            return version;
-        }
-
-        public String getSha256() {
-            return sha256 == null ? "" : sha256;
-        }
-
-        public int getWidth() {
-            return width;
-        }
-
-        public int getHeight() {
-            return height;
-        }
-
-        public String getStatus() {
-            return status == null ? "" : status;
-        }
-
-        public long getCachedBytes() {
-            return cachedBytes;
+        public boolean hasPlacementMetadata() {
+            return placements != null && !placements.isEmpty();
         }
     }
 
     private static final class CacheDeleteRuntimeException
             extends RuntimeException {
-
-        private CacheDeleteRuntimeException(IOException cause) {
-            super(cause);
-        }
+        CacheDeleteRuntimeException(IOException cause) { super(cause); }
     }
 }
