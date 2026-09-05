@@ -9,6 +9,7 @@ import com.phomoria.camera.CameraMirrorProcessor;
 import com.phomoria.camera.CameraReconnectController;
 import com.phomoria.camera.GPhoto2PersistentCameraBackend;
 import com.phomoria.camera.LiveCameraPanel;
+import com.phomoria.cloud.CloudFrameSupport;
 import com.phomoria.debug.DebugLog;
 import com.phomoria.frame.FrameCatalog;
 import com.phomoria.frame.FrameDefinition;
@@ -20,6 +21,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
+
+
+
 
 public final class MainScreen
         extends JPanel
@@ -131,34 +135,57 @@ public final class MainScreen
                 }
         );
 
-        FramePreset selectedPreset =
-                FrameCatalog.find(
-                        AppContext.settings()
-                                .getSelectedFrameId()
-                );
-
-        if (selectedPreset == null) {
-            selectedPreset =
-                    FrameCatalog.find(
-                            "standard_vertical"
-                    );
-        }
-
-        selectedFrameDefinition =
-                FrameCatalog.createDefinition(
-                        selectedPreset,
+        FrameDefinition cloudDefinition =
+                CloudFrameSupport.selectedDefinition(
                         AppContext.settings()
                                 .getPhotoSlotCount()
                 );
 
-        DebugLog.info(
-                "MainScreen frame="
-                        + selectedPreset.id()
-                        + ", placements="
-                        + selectedFrameDefinition
-                        .getPlacements()
-                        .size()
-        );
+        if (cloudDefinition != null
+                && !cloudDefinition.getPlacements().isEmpty()) {
+
+            selectedFrameDefinition = cloudDefinition;
+
+            DebugLog.info(
+                    "MainScreen using cloud frame definition: name="
+                            + cloudDefinition.getName()
+                            + ", placements="
+                            + cloudDefinition
+                                    .getPlacements()
+                                    .size()
+            );
+
+        } else {
+
+            FramePreset selectedPreset =
+                    FrameCatalog.find(
+                            AppContext.settings()
+                                    .getSelectedFrameId()
+                    );
+
+            if (selectedPreset == null) {
+                selectedPreset =
+                        FrameCatalog.find(
+                                "standard_vertical"
+                        );
+            }
+
+            selectedFrameDefinition =
+                    FrameCatalog.createDefinition(
+                            selectedPreset,
+                            AppContext.settings()
+                                    .getPhotoSlotCount()
+                    );
+
+            DebugLog.info(
+                    "MainScreen frame="
+                            + selectedPreset.id()
+                            + ", placements="
+                            + selectedFrameDefinition
+                                    .getPlacements()
+                                    .size()
+            );
+        }
 
         refreshPreview();
 

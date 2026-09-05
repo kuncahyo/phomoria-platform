@@ -2,6 +2,8 @@ package com.phomoria.ui;
 
 import com.phomoria.app.AppContext;
 import com.phomoria.cloud.AuthService;
+import com.phomoria.cloud.FrameSyncService;
+import com.phomoria.debug.DebugLog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -74,27 +76,86 @@ public final class LoginScreen extends JPanel {
     private void doLogin() {
         String e = email.getText().trim();
         String p = new String(password.getPassword());
+
         if (e.isBlank() || p.isBlank()) {
             status.setText("Email dan password wajib diisi.");
             return;
         }
+
         status.setText("Menghubungkan ke API...");
         setButtonsEnabled(false);
-        new SwingWorker<Boolean, Void>() {
-            protected Boolean doInBackground() throws Exception {
-                return auth.login(AppContext.settings().getApiServer(), e, p);
+
+        new SwingWorker<Boolean, String>() {
+            private Exception failure;
+
+            @Override
+            protected Boolean doInBackground() {
+                try {
+                    boolean loggedIn = auth.login(
+                            AppContext.settings().getApiServer(),
+                            e,
+                            p
+                    );
+
+                    if (!loggedIn) {
+                        return false;
+                    }
+
+                    publish("Login berhasil. Sinkronisasi frame...");
+                    DebugLog.info("Login succeeded. Starting frame cache sync.");
+
+                    /*
+                     * The token is already stored by AuthService.login().
+                     * Run sync before entering START so FrameSelectionScreen
+                     * immediately sees the latest assignments from cloud.
+                     */
+                    FrameSyncService syncService = new FrameSyncService();
+                    FrameSyncService.SyncResult result = syncService.sync();
+
+                    DebugLog.info(
+                            "Login frame sync completed: " +
+                            "downloaded=" + result.count(FrameSyncService.Action.DOWNLOADED) +
+                            ", updated=" + result.count(FrameSyncService.Action.UPDATED) +
+                            ", unchanged=" + result.count(FrameSyncService.Action.UNCHANGED) +
+                            ", deleted=" + result.count(FrameSyncService.Action.DELETED)
+                    );
+
+                    return true;
+                } catch (Exception ex) {
+                    failure = ex;
+                    DebugLog.error("Login/frame sync failed.", ex);
+                    return false;
+                }
             }
+
+            @Override
+            protected void process(java.util.List<String> messages) {
+                if (!messages.isEmpty()) {
+                    status.setText(messages.get(messages.size() - 1));
+                }
+            }
+
+            @Override
             protected void done() {
                 setButtonsEnabled(true);
+
                 try {
                     if (get()) {
-                        status.setText("Login berhasil.");
+                        status.setText("Login berhasil. Frame cloud sudah diperbarui.");
                         success.run();
+                    } else if (failure != null) {
+                        status.setText(
+                                "Login berhasil, tetapi sinkronisasi frame gagal: " +
+                                failure.getMessage()
+                        );
                     } else {
                         status.setText(auth.getLastError());
                     }
                 } catch (Exception ex) {
-                    status.setText("API tidak dapat dihubungi: " + ex.getMessage());
+                    status.setText(
+                            "Proses login/sinkronisasi gagal: " +
+                            ex.getMessage()
+                    );
                 }
             }
         }.execute();
