@@ -7,6 +7,7 @@ import com.phomoria.debug.DebugLog;
 
 import javax.swing.*;
 import java.awt.*;
+import com.phomoria.cloud.DeviceCloudService;
 
 public final class LoginScreen extends JPanel {
     private final JFrame owner;
@@ -101,8 +102,27 @@ public final class LoginScreen extends JPanel {
                         return false;
                     }
 
-                    publish("Login berhasil. Sinkronisasi frame...");
-                    DebugLog.info("Login succeeded. Starting frame cache sync.");
+                    publish("Login berhasil. Mendaftarkan device...");
+                    DebugLog.info(
+                            "Login succeeded. Starting device registration."
+                    );
+
+                    /*
+                     * Device harus didaftarkan setelah login berhasil karena
+                     * endpoint register membutuhkan token Sanctum.
+                     *
+                     * Device baru akan dibuat otomatis oleh server.
+                     * Device yang sudah ada akan diperbarui informasinya.
+                     */
+                    DeviceCloudService deviceCloudService =
+                            new DeviceCloudService();
+
+                    deviceCloudService.register();
+
+                    publish("Device terdaftar. Sinkronisasi frame...");
+                    DebugLog.info(
+                            "Device registration succeeded. Starting frame cache sync."
+                    );
 
                     /*
                      * The token is already stored by AuthService.login().

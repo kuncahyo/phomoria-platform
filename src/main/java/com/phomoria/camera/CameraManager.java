@@ -31,6 +31,15 @@ public final class CameraManager {
      */
     private static final List<String> cachedGPhoto2Names = new ArrayList<>();
 
+    /*
+     * Prevent repeated "CameraManager.list -> N camera(s)" messages from
+     * flooding the debug log while SettingsScreen polls camera availability.
+     *
+     * The actual camera polling remains active. We only log when the number
+     * of cameras changes.
+     */
+    private static int lastLoggedCameraCount = -1;
+
     private CameraManager() {
     }
 
@@ -38,11 +47,17 @@ public final class CameraManager {
         try {
             List<Webcam> cameras = Webcam.getWebcams();
 
-            DebugLog.info(
-                    "CameraManager.list -> "
-                            + cameras.size()
-                            + " camera(s)"
-            );
+            int count = cameras.size();
+
+            if (count != lastLoggedCameraCount) {
+                DebugLog.info(
+                        "CameraManager.list -> "
+                                + count
+                                + " camera(s)"
+                );
+
+                lastLoggedCameraCount = count;
+            }
 
             return cameras;
 
