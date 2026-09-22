@@ -69,7 +69,34 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/5] Building PhomoriaUpdater...
+echo [5/6] Collecting native gPhoto2 runtime...
+
+if not exist native\gphoto2\bin\phomoria-gphoto2-camera.exe (
+    echo.
+    echo ERROR: gPhoto2 helper not found.
+    echo native\gphoto2\bin\phomoria-gphoto2-camera.exe
+    exit /b 1
+)
+
+if exist target\Phomoria\native\gphoto2 rmdir /s /q target\Phomoria\native\gphoto2
+
+mkdir target\Phomoria\native\gphoto2
+
+xcopy /E /I /Y native\gphoto2\bin target\Phomoria\native\gphoto2\bin
+if errorlevel 1 exit /b 1
+
+xcopy /E /I /Y native\gphoto2\lib target\Phomoria\native\gphoto2\lib
+if errorlevel 1 exit /b 1
+
+if exist native\gphoto2\share (
+    xcopy /E /I /Y native\gphoto2\share target\Phomoria\native\gphoto2\share
+    if errorlevel 1 exit /b 1
+)
+
+echo gPhoto2 runtime copied successfully.
+
+echo.
+echo [6/6] Building PhomoriaUpdater...
 
 dotnet publish updater\PhomoriaUpdater\PhomoriaUpdater.csproj ^
     -c Release ^
