@@ -69,6 +69,20 @@ try
 {
     WaitForProcess(pid);
 
+    // IMPORTANT:
+    // Phomoria.exe is a launcher and can return before Windows has
+    // completely released the executable file. Wait until the file
+    // itself is no longer locked before replacing the application.
+    string liveApp = Path.Combine(
+        installDirectory,
+        "app");
+
+    string launcherInApp = Path.Combine(
+        liveApp,
+        "Phomoria.exe");
+
+    WaitForFileReleased(launcherInApp);
+
     string tempDirectory = Path.Combine(
         Path.GetTempPath(),
         "PhomoriaUpdate-" + Guid.NewGuid().ToString("N"));
@@ -98,9 +112,6 @@ try
             {
                 Log($"ZIP ENTRY: [{entry.FullName}] Length={entry.Length}");
 
-                // ZIP files created by the Windows tar tool can expose
-                // entry paths with backslashes instead of forward slashes.
-                // Normalize both forms before checking the package layout.
                 string normalizedEntryName =
                     entry.FullName
                         .Replace('\\', '/')
@@ -156,10 +167,6 @@ try
 
         Log("Backup completed.");
 
-        string liveApp = Path.Combine(
-            installDirectory,
-            "app");
-
         string oldApp = Path.Combine(
             installDirectory,
             "app.old");
@@ -167,6 +174,7 @@ try
         Log("Preparing application replacement.");
 
         DeleteDirectoryWithRetry(oldApp);
+
         MoveDirectoryWithRetry(liveApp, oldApp);
 
         try
@@ -238,6 +246,37 @@ catch (Exception ex)
     Log(ex.ToString());
     Log("============================================");
 
+    Log("Attempting to restart original Phomoria.");
+
+    try
+    {
+        if (!string.IsNullOrWhiteSpace(launcher)
+            && File.Exists(launcher))
+        {
+            Process? restoredProcess = Process.Start(
+                new ProcessStartInfo
+                {
+                    FileName = launcher,
+                    WorkingDirectory = installDirectory,
+                    UseShellExecute = true
+                });
+
+            if (restoredProcess != null)
+            {
+                Log(
+                    $"Original Phomoria restarted. PID={restoredProcess.Id}");
+            }
+        }
+    }
+    catch (Exception restartException)
+    {
+        Log(
+            $"Unable to restart original Phomoria: " +
+            $"{restartException}");
+    }
+
+    Log("============================================");
+
     Environment.Exit(10);
 }
 
@@ -257,6 +296,55 @@ static void WaitForProcess(int processId)
     {
         Log("Phomoria process already exited.");
     }
+}
+
+static void WaitForFileReleased(string file)
+{
+    if (!File.Exists(file))
+    {
+        Log($"Launcher file does not exist, no file-lock wait required: {file}");
+        return;
+    }
+
+    Log($"Waiting for launcher file to be released: {file}");
+
+    Exception? lastException = null;
+
+    // 60 attempts × 500 ms = up to 30 seconds.
+    for (int attempt = 1; attempt <= 60; attempt++)
+    {
+        try
+        {
+            using FileStream stream = new FileStream(
+                file,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            Log(
+                $"Launcher file released after " +
+                $"{attempt} check(s).");
+
+            return;
+        }
+        catch (Exception ex)
+        {
+            lastException = ex;
+
+            if (attempt == 1 || attempt % 5 == 0)
+            {
+                Log(
+                    $"Launcher file still locked " +
+                    $"({attempt}/60).");
+            }
+
+            Thread.Sleep(500);
+        }
+    }
+
+    throw new IOException(
+        $"Launcher file is still locked after waiting: {file}",
+        lastException);
 }
 
 static void CopyDirectory(string source, string destination)
@@ -354,7 +442,7 @@ static void DeleteDirectoryWithRetry(string directory)
 
     Exception? lastException = null;
 
-    for (int attempt = 1; attempt <= 10; attempt++)
+    for (int attempt = 1; attempt <= 20; attempt++)
     {
         try
         {
@@ -366,7 +454,7 @@ static void DeleteDirectoryWithRetry(string directory)
             lastException = ex;
 
             Log(
-                $"Directory delete retry {attempt}/10: {directory}");
+                $"Directory delete retry {attempt}/20: {directory}");
 
             Thread.Sleep(500);
         }
