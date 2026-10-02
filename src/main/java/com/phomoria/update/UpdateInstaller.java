@@ -94,148 +94,215 @@ public final class UpdateInstaller {
      * installation root so that production-update failures remain available
      * after the Phomoria process has exited.
      */
-    public static void launchProductionUpdater(
-            Path packageFile
-    ) throws IOException {
+        public static void launchProductionUpdater(
+                Path packageFile
+        ) throws IOException {
 
-        if (packageFile == null) {
-            throw new IOException(
-                    "Update package path is null."
-            );
-        }
+                if (packageFile == null) {
+                        throw new IOException(
+                                "Update package path is null."
+                        );
+                }
 
-        if (!Files.isRegularFile(packageFile)) {
-            throw new IOException(
-                    "Update package not found: "
-                            + packageFile
-            );
-        }
+                if (!Files.isRegularFile(packageFile)) {
+                        throw new IOException(
+                                "Update package not found: "
+                                        + packageFile
+                        );
+                }
 
-        Path applicationJar = getCodeSourcePath();
+                Path applicationJar = getCodeSourcePath();
 
-        if (!isPackagedLayout(applicationJar)) {
-            throw new IOException(
-                    "Production updater requires a jpackage "
-                            + "application image. "
-                            + "Expected <install-root>\\app\\"
-                            + "<application>.jar and "
-                            + "<install-root>\\Phomoria.exe."
-            );
-        }
+                if (!isPackagedLayout(applicationJar)) {
+                        throw new IOException(
+                                "Production updater requires a jpackage "
+                                        + "application image."
+                        );
+                }
 
-        Path appDirectory =
-                applicationJar.getParent();
+                Path appDirectory =
+                        applicationJar.getParent();
 
-        Path installationDirectory =
-                appDirectory == null
-                        ? null
-                        : appDirectory.getParent();
+                Path installationDirectory =
+                        appDirectory == null
+                                ? null
+                                : appDirectory.getParent();
 
-        if (installationDirectory == null) {
-            throw new IOException(
-                    "Unable to determine Phomoria "
-                            + "installation directory."
-            );
-        }
+                if (installationDirectory == null) {
+                        throw new IOException(
+                                "Unable to determine Phomoria "
+                                        + "installation directory."
+                        );
+                }
 
-        Path launcher =
-                findApplicationLauncher(
-                        installationDirectory
-                );
+                Path launcher =
+                        findApplicationLauncher(
+                                installationDirectory
+                        );
 
-        Path updater =
-                installationDirectory.resolve(
-                        "PhomoriaUpdater.exe"
-                );
+                Path updater =
+                        installationDirectory.resolve(
+                                "PhomoriaUpdater.exe"
+                        );
 
-        if (!Files.isRegularFile(updater)) {
-            throw new IOException(
-                    "PhomoriaUpdater.exe not found: "
-                            + updater
-            );
-        }
+                if (!Files.isRegularFile(updater)) {
+                        throw new IOException(
+                                "PhomoriaUpdater.exe not found: "
+                                        + updater
+                        );
+                }
 
-        Path updaterLog =
-                installationDirectory.resolve(
-                        "updater.log"
-                );
-
-        DebugLog.info(
-                "Starting production updater."
-        );
-
-        DebugLog.info(
-                "Application JAR=" + applicationJar
-        );
-
-        DebugLog.info(
-                "Installation root="
-                        + installationDirectory
-        );
-
-        DebugLog.info(
-                "Launcher=" + launcher
-        );
-
-        DebugLog.info(
-                "Updater=" + updater
-        );
-
-        DebugLog.info(
-                "Updater log=" + updaterLog
-        );
-
-        ProcessBuilder builder =
-                new ProcessBuilder(
-                        updater.toAbsolutePath().toString(),
-
-                        "--pid",
+                String pid =
                         Long.toString(
                                 ProcessHandle.current().pid()
-                        ),
+                        );
 
-                        "--package",
+                String packagePath =
                         packageFile
                                 .toAbsolutePath()
-                                .toString(),
+                                .toString();
 
-                        "--install",
+                String installPath =
                         installationDirectory
                                 .toAbsolutePath()
-                                .toString(),
+                                .toString();
 
-                        "--launch",
+                String launcherPath =
                         launcher
                                 .toAbsolutePath()
-                                .toString()
+                                .toString();
+
+                DebugLog.info(
+                        "Starting production updater."
                 );
 
-        builder.directory(
-                installationDirectory.toFile()
-        );
+                DebugLog.info(
+                        "Application JAR=" + applicationJar
+                );
 
-        /*
-         * Keep the updater output after Phomoria exits.
-         *
-         * The updater is a separate process, so its stdout/stderr cannot
-         * depend on the lifetime of the Phomoria console. Append to the
-         * same file so repeated update attempts leave a continuous record.
-         */
-        builder.redirectErrorStream(true);
-        builder.redirectOutput(
-                ProcessBuilder.Redirect.appendTo(
-                        updaterLog.toFile()
-                )
-        );
+                DebugLog.info(
+                        "Installation root=" + installPath
+                );
 
-        Process process =
-                builder.start();
+                DebugLog.info(
+                        "Launcher=" + launcherPath
+                );
 
-        DebugLog.info(
-                "Production updater started. pid="
-                        + process.pid()
-        );
-    }
+                DebugLog.info(
+                        "Updater=" + updater
+                );
+
+                /*
+                * Create a temporary CMD bridge.
+                *
+                * The CMD file is started through PowerShell with UAC elevation.
+                * This avoids PowerShell Start-Process argument parsing problems
+                * with paths containing spaces such as:
+                *
+                *     C:\Program Files\Phomoria
+                */
+
+                Path script =
+                        Files.createTempFile(
+                                "phomoria-updater-",
+                                ".cmd"
+                        );
+
+                String scriptContent =
+                        "@echo off\r\n"
+                                + "setlocal\r\n"
+                                + "cd /d "
+                                + quoteCmdArgument(installPath)
+                                + "\r\n"
+                                + "start \"\" "
+                                + quoteCmdArgument(
+                                        updater
+                                                .toAbsolutePath()
+                                                .toString()
+                                )
+                                + " "
+                                + "--pid "
+                                + pid
+                                + " "
+                                + "--package "
+                                + quoteCmdArgument(packagePath)
+                                + " "
+                                + "--install "
+                                + quoteCmdArgument(installPath)
+                                + " "
+                                + "--launch "
+                                + quoteCmdArgument(launcherPath)
+                                + "\r\n";
+
+                Files.writeString(
+                        script,
+                        scriptContent
+                );
+
+                DebugLog.info(
+                        "Production updater bridge created: "
+                                + script
+                );
+
+                String powershellCommand =
+                        "Start-Process "
+                                + "-FilePath "
+                                + quotePowerShellLiteral(
+                                        script
+                                                .toAbsolutePath()
+                                                .toString()
+                                )
+                                + " "
+                                + "-WorkingDirectory "
+                                + quotePowerShellLiteral(
+                                        installPath
+                                )
+                                + " "
+                                + "-Verb RunAs";
+
+                ProcessBuilder builder =
+                        new ProcessBuilder(
+                                "powershell.exe",
+                                "-NoProfile",
+                                "-ExecutionPolicy",
+                                "Bypass",
+                                "-Command",
+                                powershellCommand
+                        );
+
+                Process process =
+                        builder.start();
+
+                DebugLog.info(
+                        "Production updater elevation request started. "
+                                + "bridgePid="
+                                + process.pid()
+                );
+        }
+
+        private static String quoteCmdArgument(
+                String value
+        ) {
+                if (value == null) {
+                        return "\"\"";
+                }
+
+                return "\""
+                        + value.replace("\"", "\"\"")
+                        + "\"";
+        }
+
+        private static String quotePowerShellLiteral(
+                String value
+        ) {
+                if (value == null) {
+                        return "''";
+                }
+
+                return "'"
+                        + value.replace("'", "''")
+                        + "'";
+        }
 
     private static boolean isPackagedLayout(Path applicationJar) {
 
