@@ -130,7 +130,7 @@ public final class ApplicationFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE,
                 null,
                 options,
-                options[1]
+                options[0]
         );
 
         if (result == JOptionPane.OK_OPTION) {
