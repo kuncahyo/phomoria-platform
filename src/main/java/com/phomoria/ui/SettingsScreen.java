@@ -7,6 +7,7 @@ import com.phomoria.camera.CameraManager;
 import com.phomoria.config.AppSettings;
 import com.phomoria.debug.DebugLog;
 import com.phomoria.print.PrinterService;
+import com.phomoria.theme.ThemeEditorPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -57,9 +58,8 @@ public final class SettingsScreen extends JPanel {
         AppSettings settings =
                 AppContext.settings();
 
-        setLayout(
-                new BorderLayout(15, 15)
-        );
+        setLayout(new CardLayout());
+        JPanel settingsView = new JPanel(new BorderLayout(15, 15));
 
         setBorder(
                 BorderFactory.createEmptyBorder(
@@ -83,7 +83,7 @@ public final class SettingsScreen extends JPanel {
                 )
         );
 
-        add(
+        settingsView.add(
                 title,
                 BorderLayout.NORTH
         );
@@ -205,7 +205,7 @@ public final class SettingsScreen extends JPanel {
         scroll.getVerticalScrollBar()
                 .setUnitIncrement(16);
 
-        add(
+        settingsView.add(
                 scroll,
                 BorderLayout.CENTER
         );
@@ -221,6 +221,7 @@ public final class SettingsScreen extends JPanel {
                 new JButton(
                         "SAVE SETTINGS"
                 );
+        JButton themeEditorButton = new JButton("THEME EDITOR");
 
         JButton testPrint =
                 new JButton(
@@ -233,13 +234,22 @@ public final class SettingsScreen extends JPanel {
                 );
 
         bottom.add(cancel);
+        bottom.add(themeEditorButton);
         bottom.add(testPrint);
         bottom.add(save);
 
-        add(
-                bottom,
-                BorderLayout.SOUTH
-        );
+        settingsView.add(bottom, BorderLayout.SOUTH);
+        add(settingsView, "SETTINGS");
+        ThemeEditorPanel themeEditorPanel = new ThemeEditorPanel(() -> {
+            ((CardLayout) getLayout()).show(this, "SETTINGS");
+            if (!cameraStatusTimer.isRunning()) cameraStatusTimer.start();
+        });
+        add(themeEditorPanel, "THEME_EDITOR");
+        ((CardLayout) getLayout()).show(this, "SETTINGS");
+        themeEditorButton.addActionListener(e -> {
+            cameraStatusTimer.stop();
+            ((CardLayout) getLayout()).show(this, "THEME_EDITOR");
+        });
 
         cancel.addActionListener(
                 e -> back.run()

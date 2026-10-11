@@ -2,14 +2,36 @@
   "designWidth": 1920,
   "designHeight": 1080,
   "screens": {
-    "start": { "background": "start.png" },
-    "frame-selection": { "background": "frame-selection.png" },
-    "main": { "background": "main.png" },
-    "effect": { "background": "effect.png" },
-    "result": { "background": "result.png" }
+    "start": {
+      "background": "start.gif"
+    },
+    "frame-selection": {
+      "background": "frame-selection.png"
+    },
+    "main": {
+      "background": "main.png"
+    },
+    "effect": {
+      "background": "effect.png"
+    },
+    "result": {
+      "background": "result.png"
+    }
   },
   "elements": {
-    "start-payment": { "image": "start-payment.png", "x": 810, "y": 650, "width": 300, "height": 70 },
-    "start-settings": { "image": "start-settings.png", "x": 900, "y": 735, "width": 120, "height": 48 }
+    "start-payment": {
+      "image": "start-payment.png",
+      "x": 828,
+      "y": 621,
+      "width": 300,
+      "height": 70
+    },
+    "start-settings": {
+      "image": "start-settings.png",
+      "x": 828,
+      "y": 706,
+      "width": 300,
+      "height": 70
+    }
   }
 }

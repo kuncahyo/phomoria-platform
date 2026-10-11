@@ -3,62 +3,43 @@ package com.phomoria.ui;
 import com.phomoria.app.ApplicationFrame;
 import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeButton;
-
+import com.phomoria.theme.ThemeConfig;
+import com.phomoria.theme.ThemeManager;
 import javax.swing.*;
 import java.awt.*;
 
+/** Start page whose background and button geometry are controlled by the external theme. */
 public final class StartScreen extends JPanel {
-    private final ApplicationFrame frame;
+    private final ThemeBackgroundPanel background;
+    private final ThemeButton pay;
+    private final ThemeButton settings;
 
     public StartScreen(ApplicationFrame frame) {
-        this.frame = frame;
         setLayout(new BorderLayout());
-
-        JPanel background = new ThemeBackgroundPanel("start", 0.25f);
-        background.setLayout(new BorderLayout());
-
-        // Posisi vertikal tombol masih mengikuti pengaturan StartScreen lama.
-        int BUTTON_POSITION_Y = 300;
-        int SETTINGS_GAP = 12;
-
-        JPanel center = new JPanel(new GridBagLayout());
-        center.setOpaque(false);
-
-        JPanel buttonContainer = new JPanel();
-        buttonContainer.setOpaque(false);
-        buttonContainer.setLayout(new BoxLayout(buttonContainer, BoxLayout.Y_AXIS));
-
-        ThemeButton pay = new ThemeButton("start-payment", "BAYAR & MULAI FOTO");
-        pay.setAlignmentX(Component.CENTER_ALIGNMENT);
+        background = new ThemeBackgroundPanel("start", 0.25f);
+        background.setLayout(null);
+        pay = new ThemeButton("start-payment", "BAYAR & MULAI FOTO");
+        settings = new ThemeButton("start-settings", "SETTINGS");
         pay.setFont(new Font("SansSerif", Font.BOLD, 22));
-        pay.setPreferredSize(new Dimension(300, 60));
-        pay.setMinimumSize(new Dimension(300, 60));
-        pay.setMaximumSize(new Dimension(300, 60));
-
-        ThemeButton settings = new ThemeButton("start-settings", "SETTINGS");
-        settings.setAlignmentX(Component.CENTER_ALIGNMENT);
-        settings.setPreferredSize(new Dimension(160, 48));
-        settings.setMinimumSize(new Dimension(160, 48));
-        settings.setMaximumSize(new Dimension(160, 48));
-
-        buttonContainer.add(pay);
-        buttonContainer.add(Box.createVerticalStrut(SETTINGS_GAP));
-        buttonContainer.add(settings);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.insets = new Insets(BUTTON_POSITION_Y, 0, 0, 0);
-        center.add(buttonContainer, gbc);
-
-        background.add(center, BorderLayout.CENTER);
+        settings.setFont(new Font("SansSerif", Font.BOLD, 16));
+        background.add(pay);
+        background.add(settings);
         add(background, BorderLayout.CENTER);
-
-        // Aset visual tidak mengubah perilaku tombol.
         pay.addActionListener(e -> new PaymentDialog(frame, frame::showFrameSelection).setVisible(true));
         settings.addActionListener(e -> frame.showSettings());
+        background.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutThemeElements(); }
+        });
+        layoutThemeElements();
+    }
+
+    private void layoutThemeElements() {
+        ThemeConfig config = ThemeManager.config();
+        double sx = background.getWidth() / (double) config.designWidth;
+        double sy = background.getHeight() / (double) config.designHeight;
+        ThemeConfig.Element p = config.elements.get("start-payment");
+        ThemeConfig.Element s = config.elements.get("start-settings");
+        if (p != null) pay.setBounds((int)(p.x*sx), (int)(p.y*sy), Math.max(1,(int)(p.width*sx)), Math.max(1,(int)(p.height*sy)));
+        if (s != null) settings.setBounds((int)(s.x*sx), (int)(s.y*sy), Math.max(1,(int)(s.width*sx)), Math.max(1,(int)(s.height*sy)));
     }
 }
