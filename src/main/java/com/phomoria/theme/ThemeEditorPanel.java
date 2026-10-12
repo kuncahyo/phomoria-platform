@@ -296,8 +296,16 @@ public final class ThemeEditorPanel extends JPanel {
                     int left=(int)Math.round(el.x*sx), top=(int)Math.round(el.y*sy);
                     int w=(int)Math.round(el.width*sx), h=(int)Math.round(el.height*sy);
                     if (!el.transparent && imagePath!=null && Files.isRegularFile(imagePath)) {
-                        Image image = new ImageIcon(imagePath.toString()).getImage();
-                        g.drawImage(image,left,top,w,h,this);
+                        // Decode the current file directly through ImageIO. ImageIcon caches
+                        // images by URL/path, so replacing a PNG at the same path can leave
+                        // the editor showing the old image even after repaint().
+                        BufferedImage image = loadButtonImage(id, imagePath);
+                        if (image != null) {
+                            g.drawImage(image,left,top,w,h,this);
+                        } else {
+                            g.setColor(new Color(65,65,75)); g.fillRoundRect(left,top,w,h,10,10);
+                            g.setColor(Color.WHITE); g.drawString(id,left+8,top+Math.max(18,h/2));
+                        }
                     } else if (!el.transparent) {
                         g.setColor(new Color(65,65,75)); g.fillRoundRect(left,top,w,h,10,10);
                         g.setColor(Color.WHITE); g.drawString(id,left+8,top+Math.max(18,h/2));
