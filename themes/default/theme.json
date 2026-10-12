@@ -23,17 +23,17 @@
       "image": "start-payment.png",
       "defaultImage": "start-payment.png",
       "transparent": false,
-      "x": 821,
-      "y": 0,
+      "x": 803,
+      "y": 654,
       "width": 300,
       "height": 70
     },
     "start-settings": {
       "image": "start-settings.png",
       "defaultImage": "start-settings.png",
-      "transparent": false,
-      "x": 1605,
-      "y": 0,
+      "transparent": true,
+      "x": 1598,
+      "y": 994,
       "width": 300,
       "height": 70
     }
