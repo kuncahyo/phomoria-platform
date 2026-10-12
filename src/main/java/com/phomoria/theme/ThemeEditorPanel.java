@@ -24,7 +24,6 @@ public final class ThemeEditorPanel extends JPanel {
     private final JSpinner width = new JSpinner(new SpinnerNumberModel(300, 1, 10000, 1));
     private final JSpinner height = new JSpinner(new SpinnerNumberModel(70, 1, 10000, 1));
     private String selectedElement;
-    /** Prevent loading a selected element into the controls from writing stale values back. */
     private boolean updatingControls;
 
     public ThemeEditorPanel(Runnable back) {
@@ -79,8 +78,6 @@ public final class ThemeEditorPanel extends JPanel {
         updatingControls = true;
         try {
             elementChoice.removeAllItems();
-            // Element-to-screen mapping is not yet part of ThemeConfig. The current theme
-            // defines the two start-screen controls, so list all configured elements there.
             if ("start".equals(screen)) {
                 for (String id : ThemeManager.config().elements.keySet()) elementChoice.addItem(id);
             }
@@ -132,13 +129,8 @@ public final class ThemeEditorPanel extends JPanel {
         if (el == null) return;
         el.transparent = !el.transparent;
         canvas.repaint();
-        try {
-            ThemeManager.save();
-        } catch (IOException ex) {
-            el.transparent = !el.transparent;
-            canvas.repaint();
-            showError(ex);
-        }
+        try { ThemeManager.save(); }
+        catch (IOException ex) { el.transparent = !el.transparent; canvas.repaint(); showError(ex); }
     }
 
     private void restoreSelectedDefault() {
@@ -153,9 +145,7 @@ public final class ThemeEditorPanel extends JPanel {
             canvas.repaint();
             JOptionPane.showMessageDialog(this, "Gambar tombol berhasil dikembalikan ke default.",
                     "Theme Editor", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) {
-            showError(ex);
-        }
+        } catch (IOException ex) { showError(ex); }
     }
 
     private void chooseBackground() {
@@ -181,8 +171,6 @@ public final class ThemeEditorPanel extends JPanel {
         try {
             ThemeManager.replaceAsset(source, ThemeManager.root().resolve("buttons").resolve(filename));
             ThemeManager.config().elements.get(selectedElement).image = filename;
-            // The asset is replaced at the same path; invalidate the editor preview cache
-            // so the newly selected PNG appears immediately without leaving the editor.
             canvas.invalidateButtonImage(selectedElement);
             canvas.repaint();
         } catch (IOException ex) { showError(ex); }
@@ -205,12 +193,9 @@ public final class ThemeEditorPanel extends JPanel {
     private void showError(Exception ex) { JOptionPane.showMessageDialog(this, "Gagal memproses aset tema:\n"+ex.getMessage(), "Theme Editor", JOptionPane.ERROR_MESSAGE); }
 
     private final class CanvasPanel extends JPanel {
-        /** Cached decoded PNGs for fast painting; explicitly invalidated when an asset changes. */
         private final Map<String, BufferedImage> buttonImageCache = new HashMap<>();
 
-        void invalidateButtonImage(String elementId) {
-            buttonImageCache.remove(elementId);
-        }
+        void invalidateButtonImage(String elementId) { buttonImageCache.remove(elementId); }
 
         private BufferedImage loadButtonImage(String elementId, Path imagePath) {
             if (buttonImageCache.containsKey(elementId)) return buttonImageCache.get(elementId);
@@ -218,9 +203,7 @@ public final class ThemeEditorPanel extends JPanel {
                 BufferedImage image = ImageIO.read(imagePath.toFile());
                 if (image != null) buttonImageCache.put(elementId, image);
                 return image;
-            } catch (IOException ex) {
-                return null;
-            }
+            } catch (IOException ex) { return null; }
         }
 
         CanvasPanel() {
@@ -237,7 +220,6 @@ public final class ThemeEditorPanel extends JPanel {
                     double sy = getHeight() / (double) ThemeManager.config().designHeight;
                     java.util.List<java.util.Map.Entry<String, ThemeConfig.Element>> entries =
                             new java.util.ArrayList<>(ThemeManager.config().elements.entrySet());
-                    // Reverse order: the last-painted item is the topmost hit target.
                     for (int i = entries.size() - 1; i >= 0; i--) {
                         var entry = entries.get(i);
                         ThemeConfig.Element el = entry.getValue();
@@ -249,8 +231,7 @@ public final class ThemeEditorPanel extends JPanel {
                             elementChoice.setSelectedItem(draggingElement);
                             selectedElement = draggingElement;
                             originalX = el.x; originalY = el.y; dragStart = e.getPoint();
-                            repaint();
-                            return;
+                            repaint(); return;
                         }
                     }
                 }
@@ -261,8 +242,6 @@ public final class ThemeEditorPanel extends JPanel {
                     if (el == null) return;
                     double sx = getWidth() / (double) ThemeManager.config().designWidth;
                     double sy = getHeight() / (double) ThemeManager.config().designHeight;
-                    // Update only the element captured on mousePressed; do not route drag
-                    // changes through the currently selected spinner/listener state.
                     el.x = originalX + (int)Math.round((e.getX() - dragStart.x) / sx);
                     el.y = originalY + (int)Math.round((e.getY() - dragStart.y) / sy);
                     syncControlsFromElement(el);
@@ -287,7 +266,6 @@ public final class ThemeEditorPanel extends JPanel {
                 if (!"start".equals(screen)) return;
                 double sx=getWidth()/(double)ThemeManager.config().designWidth;
                 double sy=getHeight()/(double)ThemeManager.config().designHeight;
-                // Always render every element on the page. Selection only adds an outline.
                 for (java.util.Map.Entry<String, ThemeConfig.Element> entry : ThemeManager.config().elements.entrySet()) {
                     String id = entry.getKey();
                     ThemeConfig.Element el = entry.getValue();
@@ -309,9 +287,6 @@ public final class ThemeEditorPanel extends JPanel {
                     } else if (!el.transparent) {
                         g.setColor(new Color(65,65,75)); g.fillRoundRect(left,top,w,h,10,10);
                         g.setColor(Color.WHITE); g.drawString(id,left+8,top+Math.max(18,h/2));
-                    }
-                    if (id.equals(selectedElement)) {
-                        g.setColor(Color.YELLOW); g.setStroke(new BasicStroke(2)); g.drawRect(left,top,w,h);
                     }
                 }
             } finally { g.dispose(); }
