@@ -3,7 +3,7 @@ package com.phomoria.theme;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** JSON model. Coordinates and dimensions use the 1920x1080 design canvas. */
+/** Theme JSON model. Coordinates use the 1920x1080 design canvas. */
 public final class ThemeConfig {
     public int designWidth = 1920;
     public int designHeight = 1080;
@@ -25,9 +25,10 @@ public final class ThemeConfig {
         if (screens == null) screens = defaults.screens;
         else defaults.screens.forEach(screens::putIfAbsent);
         if (elements == null) elements = defaults.elements;
-        else defaults.elements.forEach(elements::putIfAbsent);
+        else defaults.elements.forEach((id, value) -> elements.putIfAbsent(id, value));
         if (designWidth <= 0) designWidth = 1920;
         if (designHeight <= 0) designHeight = 1080;
+        elements.values().forEach(e -> { if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image; });
         return this;
     }
 
@@ -39,10 +40,15 @@ public final class ThemeConfig {
 
     public static final class Element {
         public String image;
+        /** Immutable reference filename copied to defaults/buttons on first upgrade. */
+        public String defaultImage;
+        /** Hides the visual only; the Swing component remains enabled and clickable. */
+        public boolean transparent;
         public int x, y, width, height;
         public Element() {}
         public Element(String image, int x, int y, int width, int height) {
-            this.image = image; this.x = x; this.y = y; this.width = width; this.height = height;
+            this.image = image; this.defaultImage = image;
+            this.x = x; this.y = y; this.width = width; this.height = height;
         }
     }
 }
