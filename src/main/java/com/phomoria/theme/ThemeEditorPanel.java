@@ -128,9 +128,55 @@ public final class ThemeEditorPanel extends JPanel {
         CanvasPanel() {
             setPreferredSize(new Dimension(960, 540)); setBackground(new Color(35,35,40)); setBorder(new LineBorder(Color.GRAY));
             MouseAdapter mouse = new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e) { if (selectedElement != null) { dragStart=e.getPoint(); originalX=(Integer)x.getValue(); originalY=(Integer)y.getValue(); } }
-                @Override public void mouseDragged(MouseEvent e) { if (dragStart != null) { double sx=getWidth()/(double)ThemeManager.config().designWidth, sy=getHeight()/(double)ThemeManager.config().designHeight; x.setValue(originalX+(int)((e.getX()-dragStart.x)/sx)); y.setValue(originalY+(int)((e.getY()-dragStart.y)/sy)); } }
-                @Override public void mouseReleased(MouseEvent e) { dragStart=null; }
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    dragStart = null;
+                    String screen = (String) screenChoice.getSelectedItem();
+                    if (!"start".equals(screen)) return;
+
+                    double sx = getWidth() / (double) ThemeManager.config().designWidth;
+                    double sy = getHeight() / (double) ThemeManager.config().designHeight;
+
+                    // Only the element physically under the pointer may be dragged.
+                    java.util.List<java.util.Map.Entry<String, ThemeConfig.Element>> entries =
+                            new java.util.ArrayList<>(ThemeManager.config().elements.entrySet());
+
+                    for (int i = entries.size() - 1; i >= 0; i--) {
+                        var entry = entries.get(i);
+                        ThemeConfig.Element el = entry.getValue();
+                        if (el == null) continue;
+
+                        int left = (int) Math.round(el.x * sx);
+                        int top = (int) Math.round(el.y * sy);
+                        int right = left + (int) Math.round(el.width * sx);
+                        int bottom = top + (int) Math.round(el.height * sy);
+
+                        if (e.getX() >= left && e.getX() <= right
+                                && e.getY() >= top && e.getY() <= bottom) {
+                            elementChoice.setSelectedItem(entry.getKey());
+                            selectedElement = entry.getKey();
+                            originalX = el.x;
+                            originalY = el.y;
+                            dragStart = e.getPoint();
+                            repaint();
+                            return;
+                        }
+                    }
+                }
+
+                @Override
+                public void mouseDragged(MouseEvent e) {
+                    if (dragStart == null || selectedElement == null) return;
+                    double sx = getWidth() / (double) ThemeManager.config().designWidth;
+                    double sy = getHeight() / (double) ThemeManager.config().designHeight;
+                    x.setValue(originalX + (int) Math.round((e.getX() - dragStart.x) / sx));
+                    y.setValue(originalY + (int) Math.round((e.getY() - dragStart.y) / sy));
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    dragStart = null;
+                }
             };
             addMouseListener(mouse); addMouseMotionListener(mouse);
         }
@@ -140,28 +186,12 @@ public final class ThemeEditorPanel extends JPanel {
                 String screen=(String)screenChoice.getSelectedItem(); Path bg=ThemeManager.background(screen);
                 if (bg!=null && Files.isRegularFile(bg)) { ImageIcon icon=new ImageIcon(bg.toString()); Image im=icon.getImage(); g.drawImage(im,0,0,getWidth(),getHeight(),this); }
                 double sx=getWidth()/(double)ThemeManager.config().designWidth, sy=getHeight()/(double)ThemeManager.config().designHeight;
-                // Draw every element on the current screen. Selection only controls
-                // which element receives the highlight and is edited by the controls.
-                if ("start".equals(screen)) {
-                    for (java.util.Map.Entry<String, ThemeConfig.Element> entry
-                            : ThemeManager.config().elements.entrySet()) {
-                        String elementId = entry.getKey();
-                        ThemeConfig.Element el = entry.getValue();
-                        if (el == null) continue;
-
-                        Path imagePath = ThemeManager.buttonImage(elementId);
-                        if (imagePath != null && Files.isRegularFile(imagePath)) {
-                            g.drawImage(new ImageIcon(imagePath.toString()).getImage(),
-                                    (int) (el.x * sx), (int) (el.y * sy),
-                                    (int) (el.width * sx), (int) (el.height * sy), this);
-                        }
-
-                        if (elementId.equals(selectedElement)) {
-                            g.setColor(Color.YELLOW);
-                            g.setStroke(new BasicStroke(2));
-                            g.drawRect((int) (el.x * sx), (int) (el.y * sy),
-                                    (int) (el.width * sx), (int) (el.height * sy));
-                        }
+                if (selectedElement!=null) {
+                    ThemeConfig.Element el=ThemeManager.config().elements.get(selectedElement);
+                    if (el!=null) {
+                        Path p=ThemeManager.buttonImage(selectedElement);
+                        if (p!=null && Files.isRegularFile(p)) g.drawImage(new ImageIcon(p.toString()).getImage(),(int)(el.x*sx),(int)(el.y*sy),(int)(el.width*sx),(int)(el.height*sy),this);
+                        g.setColor(Color.YELLOW); g.setStroke(new BasicStroke(2)); g.drawRect((int)(el.x*sx),(int)(el.y*sy),(int)(el.width*sx),(int)(el.height*sy));
                     }
                 }
             } finally { g.dispose(); }

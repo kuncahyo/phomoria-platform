@@ -31,3 +31,7 @@ updater/**/obj/
 
 # Published binaries are generated during packaging
 updater/publish/
+
+/build/
+/^/
+*.bak
