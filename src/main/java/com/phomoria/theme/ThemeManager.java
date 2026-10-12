@@ -11,8 +11,13 @@ import java.nio.file.StandardCopyOption;
 /** Loads editable theme assets from the application folder, outside the JAR. */
 public final class ThemeManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path ROOT = Path.of(System.getProperty("user.dir"), "themes", "default");
+    private static final Path ROOT = Path.of(
+            System.getProperty("user.home"), "Documents", "Phomoria", "themes", "default"
+    );
     private static final Path CONFIG = ROOT.resolve("theme.json");
+    private static final Path LEGACY_ROOT = Path.of(
+            System.getProperty("user.dir"), "themes", "default"
+    );
     private static ThemeConfig config;
     private ThemeManager() {}
 
@@ -57,11 +62,66 @@ public final class ThemeManager {
     }
     private static ThemeConfig load() {
         try {
-            Files.createDirectories(ROOT.resolve("backgrounds")); Files.createDirectories(ROOT.resolve("buttons"));
-            if (Files.notExists(CONFIG)) { ThemeConfig fresh = new ThemeConfig(); config = fresh; save(); return fresh; }
-            ThemeConfig loaded = GSON.fromJson(Files.readString(CONFIG, StandardCharsets.UTF_8), ThemeConfig.class);
+            migrateLegacyThemeIfNeeded();
+            Files.createDirectories(ROOT.resolve("backgrounds"));
+            Files.createDirectories(ROOT.resolve("buttons"));
+
+            if (Files.notExists(CONFIG)) {
+                ThemeConfig fresh = new ThemeConfig();
+                config = fresh;
+                save();
+                return fresh;
+            }
+
+            ThemeConfig loaded = GSON.fromJson(
+                    Files.readString(CONFIG, StandardCharsets.UTF_8),
+                    ThemeConfig.class
+            );
             return (loaded == null ? new ThemeConfig() : loaded).withDefaults();
-        } catch (Exception ex) { System.err.println("[Theme] Gagal membaca theme.json: " + ex.getMessage()); return new ThemeConfig(); }
+
+        } catch (Exception ex) {
+            System.err.println("[Theme] Gagal membaca theme.json: " + ex.getMessage());
+            return new ThemeConfig();
+        }
+    }
+
+    /**
+     * Moves the existing editable theme to the user's Documents folder on first launch.
+     * Existing Documents data always wins; the project copy is left untouched.
+     */
+    private static void migrateLegacyThemeIfNeeded() throws IOException {
+        if (Files.exists(CONFIG) || Files.notExists(LEGACY_ROOT)) {
+            return;
+        }
+
+        Path normalizedRoot = ROOT.toAbsolutePath().normalize();
+        Path normalizedLegacyRoot = LEGACY_ROOT.toAbsolutePath().normalize();
+
+        if (normalizedRoot.equals(normalizedLegacyRoot)) {
+            return;
+        }
+
+        Files.createDirectories(ROOT);
+
+        try (var paths = Files.walk(LEGACY_ROOT)) {
+            paths.forEach(source -> {
+                try {
+                    Path relative = LEGACY_ROOT.relativize(source);
+                    Path destination = ROOT.resolve(relative);
+
+                    if (Files.isDirectory(source)) {
+                        Files.createDirectories(destination);
+                    } else if (Files.notExists(destination)) {
+                        Files.createDirectories(destination.getParent());
+                        Files.copy(source, destination);
+                    }
+                } catch (IOException ex) {
+                    throw new java.io.UncheckedIOException(ex);
+                }
+            });
+        } catch (java.io.UncheckedIOException ex) {
+            throw ex.getCause();
+        }
     }
     public static void replaceAsset(Path source, Path destination) throws IOException {
         Files.createDirectories(destination.getParent()); Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);

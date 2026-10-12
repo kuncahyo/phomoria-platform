@@ -169,13 +169,6 @@ public final class FramePreviewPanel extends JPanel {
             Rectangle r = placementBounds(placement, bounds);
             int source = placement.sourceSlotIndex();
 
-            if (source == selectedIndex) {
-                g2.setColor(new Color(55, 120, 255, 190));
-                g2.fillRoundRect(
-                        r.x - 5, r.y - 5,
-                        r.width + 10, r.height + 10, 12, 12);
-            }
-
             if (source >= 0 && source < photos.size()
                     && photos.get(source) != null) {
                 drawPhoto(g2, photos.get(source), r,
@@ -199,6 +192,22 @@ public final class FramePreviewPanel extends JPanel {
             g2.drawRect(
                     bounds.x, bounds.y,
                     bounds.width, bounds.height);
+        }
+
+        // Draw the selection outline last so it remains visible over the photo/frame.
+        for (FramePlacement placement : frameDefinition.getPlacements()) {
+            if (placement.sourceSlotIndex() == selectedIndex) {
+                Rectangle r = placementBounds(placement, bounds);
+                g2.setColor(new Color(0, 190, 255));
+                g2.setStroke(new BasicStroke(
+                        5.0f,
+                        BasicStroke.CAP_ROUND,
+                        BasicStroke.JOIN_ROUND));
+                g2.drawRoundRect(
+                        r.x - 2, r.y - 2,
+                        r.width + 4, r.height + 4,
+                        12, 12);
+            }
         }
 
         g2.dispose();
