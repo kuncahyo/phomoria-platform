@@ -10,11 +10,6 @@ import com.phomoria.frame.PrintPaperSize;
 import com.phomoria.session.PhotoSession;
 
 import javax.imageio.ImageIO;
-import javax.print.attribute.HashPrintRequestAttributeSet;
-import javax.print.attribute.PrintRequestAttributeSet;
-import javax.print.attribute.standard.Copies;
-import javax.print.attribute.standard.MediaSize;
-import javax.print.attribute.standard.OrientationRequested;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -477,6 +472,17 @@ public final class ResultScreen extends JPanel {
         PrinterJob job =
                 PrinterJob.getPrinterJob();
 
+        if (job.getPrintService() == null) {
+            throw new PrinterException(
+                    "Printer default Windows tidak ditemukan."
+            );
+        }
+
+        DebugLog.info(
+                "Silent print selected printer="
+                        + job.getPrintService().getName()
+        );
+
         PageFormat pageFormat =
                 createPageFormat(
                         job,
@@ -493,45 +499,15 @@ public final class ResultScreen extends JPanel {
                 pageFormat
         );
 
-        PrintRequestAttributeSet attributes =
-                new HashPrintRequestAttributeSet();
-
-        attributes.add(new Copies(1));
-
         /*
-         * Tell the Windows print service the selected paper size.
-         * No print dialog is invoked.
+         * Match PrinterService.testPrint(): use print() without a
+         * PrintRequestAttributeSet. Paper size and orientation are
+         * supplied through PageFormat. This avoids passing MediaSize,
+         * which is not a PrintRequestAttribute.
          */
-        attributes.add(
-                new MediaSize(
-                        (float) widthInches,
-                        (float) heightInches,
-                        MediaSize.INCH
-                )
-        );
-
-        if (image.getWidth()
-                > image.getHeight()) {
-
-            attributes.add(
-                    OrientationRequested.LANDSCAPE
-            );
-
-        } else {
-
-            attributes.add(
-                    OrientationRequested.PORTRAIT
-            );
-        }
-
-        /*
-         * IMPORTANT:
-         * Do NOT call printDialog().
-         *
-         * PrinterJob.print(...) sends the job directly to the
-         * default Windows printer using the supplied attributes.
-         */
-        job.print(attributes);
+        DebugLog.info("Silent print submitting job.");
+        job.print();
+        DebugLog.info("Silent print job submitted successfully.");
     }
 
     private PageFormat createPageFormat(
