@@ -495,6 +495,10 @@ public final class ResultScreen extends JPanel {
                 com.phomoria.print.PrinterService.resolvePrintService(printerName);
         job.setPrintService(selectedService);
         DebugLog.info("Silent print selected printer=" + selectedService.getName());
+        DebugLog.info(String.format(java.util.Locale.ROOT,
+                "Print input: file=%s, image=%dx%d, configuredPaper=%.3fx%.3f in",
+                imageFile.getAbsolutePath(), image.getWidth(), image.getHeight(),
+                widthInches, heightInches));
 
         PageFormat pageFormat =
                 createPageFormat(
@@ -524,121 +528,121 @@ public final class ResultScreen extends JPanel {
     }
 
     private PageFormat createPageFormat(
-            PrinterJob job,
-            double widthInches,
-            double heightInches,
-            int imageWidth,
-            int imageHeight
-    ) {
+            PrinterJob job, double widthInches, double heightInches,
+            int imageWidth, int imageHeight) {
+        // The driver may normalize a requested paper size to its actual
+        // physical dimensions. Accept small differences, but reject a
+        // materially different media configuration.
+        final double maxDimensionDeviation = 0.05; // 5 percent per dimension
+        final double maxAspectDeviation = 0.015;   // 1.5 percent aspect ratio
 
-        double widthPoints =
-                widthInches * 72.0;
+        double requestedWidth = widthInches * 72.0;
+        double requestedHeight = heightInches * 72.0;
+        Paper requestedPaper = new Paper();
+        requestedPaper.setSize(requestedWidth, requestedHeight);
+        requestedPaper.setImageableArea(0, 0, requestedWidth, requestedHeight);
 
-        double heightPoints =
-                heightInches * 72.0;
+        PageFormat requested = job.defaultPage();
+        requested.setPaper(requestedPaper);
+        requested.setOrientation(imageWidth > imageHeight
+                ? PageFormat.LANDSCAPE : PageFormat.PORTRAIT);
 
-        Paper paper = new Paper();
+        DebugLog.info(String.format(java.util.Locale.ROOT,
+                "Print PageFormat REQUESTED: paper=%.2fx%.2f pt, imageable=(%.2f, %.2f, %.2f, %.2f), orientation=%s",
+                requested.getWidth(), requested.getHeight(),
+                requested.getImageableX(), requested.getImageableY(),
+                requested.getImageableWidth(), requested.getImageableHeight(),
+                orientationName(requested.getOrientation())));
 
-        paper.setSize(
-                widthPoints,
-                heightPoints
-        );
+        PageFormat validated = job.validatePage(requested);
+        double actualWidth = validated.getWidth();
+        double actualHeight = validated.getHeight();
+        double widthDeviation = Math.abs(actualWidth - requested.getWidth()) / requested.getWidth();
+        double heightDeviation = Math.abs(actualHeight - requested.getHeight()) / requested.getHeight();
+        double requestedRatio = requested.getWidth() / requested.getHeight();
+        double actualRatio = actualWidth / actualHeight;
+        double aspectDeviation = Math.abs(actualRatio - requestedRatio) / requestedRatio;
 
-        /*
-         * Use the whole configured sheet as the logical print area.
-         * The printer driver remains responsible for its physical
-         * printable margins.
-         */
-        paper.setImageableArea(
-                0,
-                0,
-                widthPoints,
-                heightPoints
-        );
+        DebugLog.info(String.format(java.util.Locale.ROOT,
+                "Print PageFormat VALIDATED: paper=%.2fx%.2f pt, imageable=(%.2f, %.2f, %.2f, %.2f), orientation=%s, delta=(%.2f%%, %.2f%%), aspectDelta=%.2f%%",
+                actualWidth, actualHeight,
+                validated.getImageableX(), validated.getImageableY(),
+                validated.getImageableWidth(), validated.getImageableHeight(),
+                orientationName(validated.getOrientation()),
+                widthDeviation * 100.0, heightDeviation * 100.0,
+                aspectDeviation * 100.0));
 
-        PageFormat format =
-                job.defaultPage();
-
-        format.setPaper(paper);
-
-        if (imageWidth > imageHeight) {
-            format.setOrientation(
-                    PageFormat.LANDSCAPE
-            );
-        } else {
-            format.setOrientation(
-                    PageFormat.PORTRAIT
-            );
+        if (widthDeviation > maxDimensionDeviation
+                || heightDeviation > maxDimensionDeviation
+                || aspectDeviation > maxAspectDeviation) {
+            throw new IllegalStateException(String.format(java.util.Locale.ROOT,
+                    "Ukuran kertas dari driver berbeda terlalu jauh dari pengaturan Phomoria. "
+                            + "Diminta %.2fx%.2f pt, driver %.2fx%.2f pt. "
+                            + "Periksa ukuran media di pengaturan printer.",
+                    requested.getWidth(), requested.getHeight(), actualWidth, actualHeight));
         }
 
-        return job.validatePage(format);
+        // Small driver normalization is authoritative: expand the imageable
+        // rectangle to the driver's validated physical sheet dimensions.
+        // Do not call validatePage again, because that would restore the old
+        // requested imageable rectangle on some printer drivers.
+        Paper driverPaper = validated.getPaper();
+        driverPaper.setImageableArea(0, 0,
+                driverPaper.getWidth(), driverPaper.getHeight());
+        PageFormat effective = new PageFormat();
+        effective.setPaper(driverPaper);
+        effective.setOrientation(validated.getOrientation());
+
+        DebugLog.info(String.format(java.util.Locale.ROOT,
+                "Print PageFormat EFFECTIVE: paper=%.2fx%.2f pt, imageable=(%.2f, %.2f, %.2f, %.2f), driverNormalized=true",
+                effective.getWidth(), effective.getHeight(),
+                effective.getImageableX(), effective.getImageableY(),
+                effective.getImageableWidth(), effective.getImageableHeight()));
+        return effective;
     }
 
-    private Printable createPrintable(
-            BufferedImage image
-    ) {
+    private String orientationName(int orientation) {
+        switch (orientation) {
+            case PageFormat.LANDSCAPE: return "LANDSCAPE";
+            case PageFormat.REVERSE_LANDSCAPE: return "REVERSE_LANDSCAPE";
+            default: return "PORTRAIT";
+        }
+    }
 
+    private Printable createPrintable(BufferedImage image) {
         return (graphics, pageFormat, pageIndex) -> {
-
-            if (pageIndex > 0) {
-                return Printable.NO_SUCH_PAGE;
-            }
-
-            Graphics2D g =
-                    (Graphics2D) graphics.create();
-
+            if (pageIndex > 0) return Printable.NO_SUCH_PAGE;
+            Graphics2D g = (Graphics2D) graphics.create();
             try {
-                g.setRenderingHint(
-                        RenderingHints.KEY_INTERPOLATION,
-                        RenderingHints.VALUE_INTERPOLATION_BICUBIC
-                );
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                        RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g.setRenderingHint(RenderingHints.KEY_RENDERING,
+                        RenderingHints.VALUE_RENDER_QUALITY);
 
-                g.setRenderingHint(
-                        RenderingHints.KEY_RENDERING,
-                        RenderingHints.VALUE_RENDER_QUALITY
-                );
+                double availableWidth = pageFormat.getImageableWidth();
+                double availableHeight = pageFormat.getImageableHeight();
+                // Fill the driver's imageable area. No experimental overscan.
+                double scale = Math.max(availableWidth / image.getWidth(),
+                        availableHeight / image.getHeight());
+                double drawWidth = image.getWidth() * scale;
+                double drawHeight = image.getHeight() * scale;
 
-                double availableWidth =
-                        pageFormat.getImageableWidth();
+                // Printable Graphics is already translated to the imageable origin.
+                // Do not add imageableX/Y again: that creates a right/bottom offset.
+                double x = (availableWidth - drawWidth) / 2.0;
+                double y = (availableHeight - drawHeight) / 2.0;
 
-                double availableHeight =
-                        pageFormat.getImageableHeight();
+                DebugLog.info(String.format(java.util.Locale.ROOT,
+                        "Print Printable: image=%dx%d, paper=%.2fx%.2f pt, imageable=(%.2f, %.2f, %.2f, %.2f), draw=(x=%.2f, y=%.2f, w=%.2f, h=%.2f), scale=%.6f, graphicsTransform=%s",
+                        image.getWidth(), image.getHeight(),
+                        pageFormat.getWidth(), pageFormat.getHeight(),
+                        pageFormat.getImageableX(), pageFormat.getImageableY(),
+                        availableWidth, availableHeight, x, y,
+                        drawWidth, drawHeight, scale, g.getTransform()));
 
-                double scale =
-                        Math.min(
-                                availableWidth
-                                        / image.getWidth(),
-                                availableHeight
-                                        / image.getHeight()
-                        );
-
-                double drawWidth =
-                        image.getWidth() * scale;
-
-                double drawHeight =
-                        image.getHeight() * scale;
-
-                double x =
-                        pageFormat.getImageableX()
-                                + (availableWidth
-                                - drawWidth) / 2.0;
-
-                double y =
-                        pageFormat.getImageableY()
-                                + (availableHeight
-                                - drawHeight) / 2.0;
-
-                g.drawImage(
-                        image,
-                        (int) Math.round(x),
-                        (int) Math.round(y),
-                        (int) Math.round(drawWidth),
-                        (int) Math.round(drawHeight),
-                        null
-                );
-
+                g.drawImage(image, (int) Math.round(x), (int) Math.round(y),
+                        (int) Math.round(drawWidth), (int) Math.round(drawHeight), null);
                 return Printable.PAGE_EXISTS;
-
             } finally {
                 g.dispose();
             }

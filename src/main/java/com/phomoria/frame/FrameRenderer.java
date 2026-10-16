@@ -11,238 +11,114 @@ import java.util.List;
 public final class FrameRenderer {
     private FrameRenderer() {}
 
-    public static File render(
-            FrameDefinition definition,
-            BufferedImage frameAsset,
-            List<BufferedImage> photos,
-            File output
-    ) throws Exception {
-        if (definition == null) {
-            throw new IllegalArgumentException("FrameDefinition is null.");
-        }
-        if (photos == null || photos.isEmpty()) {
-            throw new IllegalArgumentException("No photos to render.");
-        }
+    public static File render(FrameDefinition definition, BufferedImage frameAsset,
+                              List<BufferedImage> photos, File output) throws Exception {
+        return render(definition, frameAsset, photos, output,
+                definition == null ? 1 : definition.getWidth(),
+                definition == null ? 1 : definition.getHeight());
+    }
 
-        BufferedImage out = new BufferedImage(
-                definition.getWidth(),
-                definition.getHeight(),
-                BufferedImage.TYPE_INT_ARGB
-        );
+    /**
+     * Render the complete frame composition directly to the selected paper ratio.
+     * The source artwork, placements and photo holes share one transform, so photo
+     * positions cannot drift away from their transparent openings.
+     */
+    public static File render(FrameDefinition definition, BufferedImage frameAsset,
+                              List<BufferedImage> photos, File output,
+                              int targetWidth, int targetHeight) throws Exception {
+        if (definition == null) throw new IllegalArgumentException("FrameDefinition is null.");
+        if (photos == null || photos.isEmpty()) throw new IllegalArgumentException("No photos to render.");
+        if (targetWidth <= 0 || targetHeight <= 0) throw new IllegalArgumentException("Target canvas size is invalid.");
 
+        int sourceWidth = definition.getWidth();
+        int sourceHeight = definition.getHeight();
+        BufferedImage out = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setComposite(AlphaComposite.Src);
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, targetWidth, targetHeight);
 
-        g.setRenderingHint(
-                RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BICUBIC
-        );
-        g.setRenderingHint(
-                RenderingHints.KEY_RENDERING,
-                RenderingHints.VALUE_RENDER_QUALITY
-        );
+            // Cover the target sheet. Cropping happens only at the outer canvas;
+            // the frame artwork and every photo placement remain geometrically linked.
+            double scale = Math.max(targetWidth / (double) sourceWidth,
+                                     targetHeight / (double) sourceHeight);
+            double drawWidth = sourceWidth * scale;
+            double drawHeight = sourceHeight * scale;
+            double offsetX = (targetWidth - drawWidth) / 2.0;
+            double offsetY = (targetHeight - drawHeight) / 2.0;
 
-        // Start from an opaque white canvas.
-        g.setComposite(AlphaComposite.Src);
-        g.setColor(Color.WHITE);
-        g.fillRect(
-                0,
-                0,
-                out.getWidth(),
-                out.getHeight()
-        );
+            Shape oldClip = g.getClip();
+            g.clipRect(0, 0, targetWidth, targetHeight);
+            g.translate(offsetX, offsetY);
+            g.scale(scale, scale);
 
-        // Draw photos into the detected frame holes.
-        for (FramePlacement placement : definition.getPlacements()) {
-            int source = placement.sourceSlotIndex();
-
-            if (source < 0 || source >= photos.size()) {
-                DebugLog.warn(
-                        "Frame placement skipped. sourceSlotIndex="
-                                + source
-                                + ", photoCount="
-                                + photos.size()
-                );
-                continue;
+            for (FramePlacement placement : definition.getPlacements()) {
+                int source = placement.sourceSlotIndex();
+                if (source < 0 || source >= photos.size()) {
+                    DebugLog.warn("Frame placement skipped. sourceSlotIndex=" + source + ", photoCount=" + photos.size());
+                    continue;
+                }
+                BufferedImage photo = photos.get(source);
+                if (photo == null) continue;
+                int x = (int) Math.round(placement.x() * sourceWidth);
+                int y = (int) Math.round(placement.y() * sourceHeight);
+                int w = Math.max(1, (int) Math.round(placement.width() * sourceWidth));
+                int h = Math.max(1, (int) Math.round(placement.height() * sourceHeight));
+                drawPhoto(g, photo, x, y, w, h, placement.cropToFill());
             }
 
-            BufferedImage photo = photos.get(source);
-
-            if (photo == null) {
-                continue;
+            g.setComposite(AlphaComposite.SrcOver);
+            if (frameAsset != null) {
+                g.drawImage(frameAsset, 0, 0, sourceWidth, sourceHeight, null);
+            } else {
+                drawFallbackFrame(g, definition);
             }
-
-            int x = (int) Math.round(
-                    placement.x() * out.getWidth()
-            );
-            int y = (int) Math.round(
-                    placement.y() * out.getHeight()
-            );
-            int w = Math.max(
-                    1,
-                    (int) Math.round(
-                            placement.width()
-                                    * out.getWidth()
-                    )
-            );
-            int h = Math.max(
-                    1,
-                    (int) Math.round(
-                            placement.height()
-                                    * out.getHeight()
-                    )
-            );
-
-            drawPhoto(
-                    g,
-                    photo,
-                    x,
-                    y,
-                    w,
-                    h,
-                    placement.cropToFill()
-            );
+            g.setClip(oldClip);
+        } finally {
+            g.dispose();
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * The uploaded PNG contains transparent holes.
-         *
-         * AlphaComposite.Src would replace the pixels underneath with
-         * transparent pixels from the PNG, making the photo holes appear
-         * black/empty in the saved result.
-         *
-         * SrcOver preserves the photos underneath wherever the PNG is
-         * transparent, while drawing the artwork normally where it is
-         * opaque.
-         */
-        if (frameAsset != null) {
-            g.setComposite(AlphaComposite.SrcOver);
-
-            g.drawImage(
-                    frameAsset,
-                    0,
-                    0,
-                    out.getWidth(),
-                    out.getHeight(),
-                    null
-            );
-        } else {
-            g.setComposite(AlphaComposite.SrcOver);
-            drawFallbackFrame(g, definition);
+        if (!ImageIO.write(out, "png", output)) {
+            throw new IllegalStateException("PNG writer is not available.");
         }
-
-        g.dispose();
-
-        ImageIO.write(
-                out,
-                "png",
-                output
-        );
-
-        DebugLog.info(
-                "Frame rendered: "
-                        + output.getAbsolutePath()
-                        + " layout="
-                        + definition.getLayoutType()
-                        + " placements="
-                        + definition.getPlacements().size()
-        );
-
+        double sourceRatio = sourceWidth / (double) sourceHeight;
+        double targetRatio = targetWidth / (double) targetHeight;
+        DebugLog.info("Frame rendered: " + output.getAbsolutePath()
+                + " source=" + sourceWidth + "x" + sourceHeight
+                + " target=" + targetWidth + "x" + targetHeight
+                + " sourceRatio=" + sourceRatio + " targetRatio=" + targetRatio
+                + " layout=" + definition.getLayoutType()
+                + " placements=" + definition.getPlacements().size());
+        if (Math.abs(sourceRatio - targetRatio) > 0.005) {
+            DebugLog.warn("Paper ratio differs from uploaded frame ratio; outer artwork is center-cropped to fill the sheet. Review the frame template for this paper size.");
+        }
         return output;
     }
 
-    private static void drawPhoto(
-            Graphics2D g,
-            BufferedImage photo,
-            int x,
-            int y,
-            int w,
-            int h,
-            boolean crop
-    ) {
+    private static void drawPhoto(Graphics2D g, BufferedImage photo,
+                                  int x, int y, int w, int h, boolean crop) {
         double scale = crop
-                ? Math.max(
-                        w / (double) photo.getWidth(),
-                        h / (double) photo.getHeight()
-                )
-                : Math.min(
-                        w / (double) photo.getWidth(),
-                        h / (double) photo.getHeight()
-                );
-
-        int dw = Math.max(
-                1,
-                (int) Math.round(
-                        photo.getWidth() * scale
-                )
-        );
-
-        int dh = Math.max(
-                1,
-                (int) Math.round(
-                        photo.getHeight() * scale
-                )
-        );
-
-        int dx =
-                x + (w - dw) / 2;
-
-        int dy =
-                y + (h - dh) / 2;
-
+                ? Math.max(w / (double) photo.getWidth(), h / (double) photo.getHeight())
+                : Math.min(w / (double) photo.getWidth(), h / (double) photo.getHeight());
+        int dw = Math.max(1, (int) Math.round(photo.getWidth() * scale));
+        int dh = Math.max(1, (int) Math.round(photo.getHeight() * scale));
+        int dx = x + (w - dw) / 2;
+        int dy = y + (h - dh) / 2;
         Shape old = g.getClip();
-
-        g.clipRect(
-                x,
-                y,
-                w,
-                h
-        );
-
-        g.drawImage(
-                photo,
-                dx,
-                dy,
-                dw,
-                dh,
-                null
-        );
-
+        g.clipRect(x, y, w, h);
+        g.drawImage(photo, dx, dy, dw, dh, null);
         g.setClip(old);
     }
 
-    private static void drawFallbackFrame(
-            Graphics2D g,
-            FrameDefinition d
-    ) {
-        g.setColor(
-                new Color(35, 35, 42)
-        );
-
-        g.setStroke(
-                new BasicStroke(14)
-        );
-
-        g.drawRect(
-                7,
-                7,
-                d.getWidth() - 14,
-                d.getHeight() - 14
-        );
-
-        g.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        44
-                )
-        );
-
-        g.drawString(
-                d.getName(),
-                55,
-                d.getHeight() - 55
-        );
+    private static void drawFallbackFrame(Graphics2D g, FrameDefinition d) {
+        g.setColor(new Color(35, 35, 42));
+        g.setStroke(new BasicStroke(14));
+        g.drawRect(7, 7, d.getWidth() - 14, d.getHeight() - 14);
+        g.setFont(new Font("SansSerif", Font.BOLD, 44));
+        g.drawString(d.getName(), 55, d.getHeight() - 55);
     }
 }
