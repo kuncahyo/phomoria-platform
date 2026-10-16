@@ -20,8 +20,11 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.File;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ResultScreen extends JPanel {
+    private static final Set<String> AUTO_PRINT_ATTEMPTED = ConcurrentHashMap.newKeySet();
     private final ApplicationFrame frame;
     private final ResultFramePanel framePanel = new ResultFramePanel();
     private final JPanel photoStrip = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
@@ -75,14 +78,14 @@ public final class ResultScreen extends JPanel {
         JButton newSession = new JButton("NEW SESSION");
 
         qrButton.addActionListener(e -> showQr());
-        printButton.addActionListener(e -> printResult());
+        printButton.addActionListener(e -> printResult(false));
         newSession.addActionListener(e -> {
             AppContext.newSession();
             frame.showStart();
         });
 
         buttons.add(qrButton);
-        buttons.add(printButton);
+        if (AppContext.settings().isViewPrintButton()) buttons.add(printButton);
         buttons.add(newSession);
         bottom.add(buttons, BorderLayout.SOUTH);
         add(bottom, BorderLayout.SOUTH);
@@ -107,8 +110,26 @@ public final class ResultScreen extends JPanel {
             sessionFolder = createSessionFolder(originals, processed);
             renderedFile = new File(sessionFolder, "result.png");
             ResultRenderer.render(originals, renderedFile);
-            framePanel.setImage(ImageIO.read(renderedFile));
+            if (!renderedFile.isFile() || renderedFile.length() <= 0) {
+                throw new IllegalStateException("File hasil render tidak ditemukan atau kosong.");
+            }
+            BufferedImage renderedImage = ImageIO.read(renderedFile);
+            if (renderedImage == null) {
+                throw new IllegalStateException("File hasil render tidak dapat dibaca sebagai gambar.");
+            }
+            framePanel.setImage(renderedImage);
             uploadResult();
+            SwingUtilities.invokeLater(() -> {
+                PhotoSession current = AppContext.session();
+                if (current == null || !AppContext.settings().isAutoPrint()) return;
+                String id = current.getSessionId();
+                if (AUTO_PRINT_ATTEMPTED.add(id)) {
+                    DebugLog.info("Auto print triggered for session=" + id);
+                    printResult(true);
+                } else {
+                    DebugLog.info("Auto print skipped; already attempted for session=" + id);
+                }
+            });
         } catch (Exception ex) {
             DebugLog.error("Failed to prepare final result.", ex);
             uploadStatus.setText(
@@ -359,19 +380,17 @@ public final class ResultScreen extends JPanel {
      *   Control Panel / printer defaults.
      */
     private void printResult() {
-        if (renderedFile == null
-                || !renderedFile.exists()) {
+        printResult(false);
+    }
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Hasil foto belum tersedia."
-            );
-
+    private void printResult(boolean automatic) {
+        if (renderedFile == null || !renderedFile.isFile() || renderedFile.length() <= 0) {
+            if (!automatic) JOptionPane.showMessageDialog(this, "Hasil foto belum tersedia.");
             return;
         }
 
-        printButton.setEnabled(false);
-        uploadStatus.setText("MENCETAK...");
+        if (!automatic && AppContext.settings().isViewPrintButton()) printButton.setEnabled(false);
+        uploadStatus.setText(automatic ? "AUTO PRINT..." : "MENCETAK...");
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -380,8 +399,8 @@ public final class ResultScreen extends JPanel {
 
                 silentPrint(
                         renderedFile,
-                        AppContext.settings()
-                                .getPrintPaperSize()
+                        AppContext.settings().getPrintPaperSize(),
+                        AppContext.settings().getPrinterName()
                 );
 
                 return null;
@@ -389,14 +408,12 @@ public final class ResultScreen extends JPanel {
 
             @Override
             protected void done() {
-                printButton.setEnabled(true);
+                if (AppContext.settings().isViewPrintButton()) printButton.setEnabled(true);
 
                 try {
                     get();
 
-                    uploadStatus.setText(
-                            "PRINT SELESAI"
-                    );
+                    uploadStatus.setText(automatic ? "AUTO PRINT SELESAI" : "PRINT SELESAI");
 
                     DebugLog.info(
                             "Silent print completed."
@@ -412,11 +429,12 @@ public final class ResultScreen extends JPanel {
                             "PRINT GAGAL"
                     );
 
-                    JOptionPane.showMessageDialog(
-                            ResultScreen.this,
-                            "Print gagal: "
-                                    + rootCauseMessage(ex)
-                    );
+                    if (!automatic) {
+                        JOptionPane.showMessageDialog(
+                                ResultScreen.this,
+                                "Print gagal: " + rootCauseMessage(ex)
+                        );
+                    }
                 }
             }
         }.execute();
@@ -424,7 +442,8 @@ public final class ResultScreen extends JPanel {
 
     private void silentPrint(
             File imageFile,
-            PrintPaperSize configuredSize
+            PrintPaperSize configuredSize,
+            String printerName
     ) throws Exception {
 
         BufferedImage image =
@@ -472,16 +491,10 @@ public final class ResultScreen extends JPanel {
         PrinterJob job =
                 PrinterJob.getPrinterJob();
 
-        if (job.getPrintService() == null) {
-            throw new PrinterException(
-                    "Printer default Windows tidak ditemukan."
-            );
-        }
-
-        DebugLog.info(
-                "Silent print selected printer="
-                        + job.getPrintService().getName()
-        );
+        javax.print.PrintService selectedService =
+                com.phomoria.print.PrinterService.resolvePrintService(printerName);
+        job.setPrintService(selectedService);
+        DebugLog.info("Silent print selected printer=" + selectedService.getName());
 
         PageFormat pageFormat =
                 createPageFormat(

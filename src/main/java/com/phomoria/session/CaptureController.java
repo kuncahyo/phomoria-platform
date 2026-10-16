@@ -57,7 +57,7 @@ public final class CaptureController {
 
         this.retake = retake;
         this.targetIndex = targetIndex;
-        this.countdown = 5;
+        this.countdown = 3;
 
         DebugLog.info(
                 "Countdown started. mode="

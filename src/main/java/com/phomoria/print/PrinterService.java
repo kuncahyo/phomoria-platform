@@ -9,6 +9,23 @@ import java.awt.image.BufferedImage;
 import javax.print.PrintService;
 
 public final class PrinterService {
+    public static PrintService[] listPrinters() {
+        return PrinterJob.lookupPrintServices();
+    }
+
+    public static PrintService resolvePrintService(String configuredName)
+            throws PrinterException {
+        if (configuredName == null || configuredName.isBlank()) {
+            PrintService service = PrinterJob.getPrinterJob().getPrintService();
+            if (service == null) throw new PrinterException("Printer default Windows tidak ditemukan.");
+            return service;
+        }
+        for (PrintService service : listPrinters()) {
+            if (service.getName().equals(configuredName)) return service;
+        }
+        throw new PrinterException("Printer yang dipilih tidak tersedia: " + configuredName);
+    }
+
 
     public void testPrint(
             AppSettings settings
@@ -23,6 +40,7 @@ public final class PrinterService {
 
         PrinterJob job =
                 PrinterJob.getPrinterJob();
+        job.setPrintService(resolvePrintService(settings.getPrinterName()));
 
         PageFormat format =
                 createPageFormat(settings);

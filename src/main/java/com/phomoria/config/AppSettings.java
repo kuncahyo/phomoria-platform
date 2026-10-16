@@ -17,6 +17,9 @@ public final class AppSettings {
     private int printDpi = 300;
     private double customPaperWidthInches = 4.0;
     private double customPaperHeightInches = 6.0;
+    private String printerName = "";
+    private boolean autoPrint = false;
+    private boolean viewPrintButton = true;
     private PhotoEffectSettings photoEffectSettings =
             new PhotoEffectSettings();
 
@@ -116,6 +119,14 @@ public final class AppSettings {
     private double clampPaperDimension(double value) {
         return Math.max(0.5, Math.min(30.0, value));
     }
+
+
+    public String getPrinterName() { return printerName == null ? "" : printerName; }
+    public void setPrinterName(String value) { printerName = value == null ? "" : value.trim(); }
+    public boolean isAutoPrint() { return autoPrint; }
+    public void setAutoPrint(boolean value) { autoPrint = value; }
+    public boolean isViewPrintButton() { return viewPrintButton; }
+    public void setViewPrintButton(boolean value) { viewPrintButton = value; }
 
     public PhotoEffectSettings getPhotoEffectSettings() {
         if (photoEffectSettings == null) {

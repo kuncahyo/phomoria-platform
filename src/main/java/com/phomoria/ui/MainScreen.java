@@ -902,8 +902,7 @@ public final class MainScreen
                 image
         );
 
-        boolean finalPhoto = AppContext.session().isComplete();
-        freezeSeconds = finalPhoto ? 10 : 5;
+        freezeSeconds = 5;
 
         status.setText(
                 "FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI "

@@ -47,6 +47,7 @@ public final class SettingsScreen extends JPanel {
     private final MirrorPhotoSettingsPanel mirrorPhotoSettingsPanel;
     private final PhotoEffectSettingsPanel effectSettingsPanel;
     private final PrintPaperSettingsPanel printPaperSettingsPanel;
+    private final PrinterSettingsPanel printerSettingsPanel;
 
     public SettingsScreen(
             ApplicationFrame frame,
@@ -145,6 +146,7 @@ public final class SettingsScreen extends JPanel {
                         settings
                 );
 
+        printerSettingsPanel = new PrinterSettingsPanel(settings);
         setupCameraChooser(settings);
 
         cameraStatusTimer.setRepeats(true);
@@ -156,7 +158,7 @@ public final class SettingsScreen extends JPanel {
         JPanel settingsPanels =
                 new JPanel(
                         new GridLayout(
-                                3,
+                                4,
                                 1,
                                 10,
                                 10
@@ -174,6 +176,7 @@ public final class SettingsScreen extends JPanel {
         settingsPanels.add(
                 printPaperSettingsPanel
         );
+        settingsPanels.add(printerSettingsPanel);
 
         JPanel content =
                 new JPanel(
@@ -968,6 +971,7 @@ public final class SettingsScreen extends JPanel {
         printPaperSettingsPanel.applyTo(
                 settings
         );
+        printerSettingsPanel.applyTo(settings);
 
         AppContext.saveSettings();
 
@@ -1030,6 +1034,7 @@ public final class SettingsScreen extends JPanel {
         printPaperSettingsPanel.applyTo(
                 settings
         );
+        printerSettingsPanel.applyTo(settings);
 
         try {
 
