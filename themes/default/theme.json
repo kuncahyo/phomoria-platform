@@ -31,7 +31,7 @@
     "start-settings": {
       "image": "start-settings.png",
       "defaultImage": "start-settings.png",
-      "transparent": false,
+      "transparent": true,
       "x": 1598,
       "y": 994,
       "width": 300,
