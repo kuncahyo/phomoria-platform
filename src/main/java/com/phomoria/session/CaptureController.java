@@ -29,6 +29,7 @@ public final class CaptureController {
     private Timer timer;
 
     private int countdown;
+    private int countdownSeconds = 3;
 
     private boolean retake;
 
@@ -38,6 +39,10 @@ public final class CaptureController {
             Listener listener
     ) {
         this.listener = listener;
+    }
+
+    public void setCountdownSeconds(int seconds) {
+        countdownSeconds = Math.max(1, Math.min(30, seconds));
     }
 
     public void startNewPhoto() {
@@ -57,7 +62,7 @@ public final class CaptureController {
 
         this.retake = retake;
         this.targetIndex = targetIndex;
-        this.countdown = 3;
+        this.countdown = countdownSeconds;
 
         DebugLog.info(
                 "Countdown started. mode="

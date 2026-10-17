@@ -8,6 +8,9 @@ public final class AppSettings {
     private String cameraName = "";
     private int photoSlotCount = 3;
     private int price = 25000;
+    private int captureCountdownSeconds = 3;
+    private int photoPreviewSeconds = 5;
+    private int finalReviewSeconds = 10;
     private boolean rememberLogin = true;
     private boolean showCancelSession = true;
     private String frameName = "Default Frame";
@@ -48,6 +51,30 @@ public final class AppSettings {
     public int getPrice() { return Math.max(0, price); }
 
     public void setPrice(int value) { price = Math.max(0, value); }
+
+    public int getCaptureCountdownSeconds() {
+        return Math.max(1, Math.min(30, captureCountdownSeconds));
+    }
+
+    public void setCaptureCountdownSeconds(int value) {
+        captureCountdownSeconds = Math.max(1, Math.min(30, value));
+    }
+
+    public int getPhotoPreviewSeconds() {
+        return Math.max(1, Math.min(60, photoPreviewSeconds));
+    }
+
+    public void setPhotoPreviewSeconds(int value) {
+        photoPreviewSeconds = Math.max(1, Math.min(60, value));
+    }
+
+    public int getFinalReviewSeconds() {
+        return Math.max(1, Math.min(120, finalReviewSeconds));
+    }
+
+    public void setFinalReviewSeconds(int value) {
+        finalReviewSeconds = Math.max(1, Math.min(120, value));
+    }
 
     public boolean isRememberLogin() { return rememberLogin; }
 

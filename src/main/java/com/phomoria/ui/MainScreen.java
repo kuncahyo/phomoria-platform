@@ -57,6 +57,8 @@ public final class MainScreen
 
     private Timer starterTimer;
     private Timer freezeTimer;
+    private Timer finalReviewTimer;
+    private int finalReviewSeconds;
 
     private int freezeSeconds;
     private int selectedIndex = -1;
@@ -69,6 +71,9 @@ public final class MainScreen
         this.frame = frame;
         this.captureController =
                 new CaptureController(this);
+        this.captureController.setCountdownSeconds(
+                AppContext.settings().getCaptureCountdownSeconds()
+        );
 
         setLayout(
                 new BorderLayout(12, 12)
@@ -902,7 +907,7 @@ public final class MainScreen
                 image
         );
 
-        freezeSeconds = 5;
+        freezeSeconds = AppContext.settings().getPhotoPreviewSeconds();
 
         status.setText(
                 "FOTO TERSIMPAN  •  LIVE KAMERA KEMBALI "
@@ -947,12 +952,12 @@ public final class MainScreen
                 AppContext.session();
 
         DebugLog.info(
-                "5-second photo review finished. complete="
+                "Photo preview finished. complete="
                         + session.isComplete()
         );
 
         if (session.isComplete()) {
-            showResult();
+            startFinalReview();
             return;
         }
 
@@ -979,6 +984,38 @@ public final class MainScreen
 
         next.setRepeats(false);
         next.start();
+    }
+
+    private void startFinalReview() {
+        if (!active || shuttingDown) {
+            return;
+        }
+
+        if (finalReviewTimer != null) {
+            finalReviewTimer.stop();
+        }
+
+        finalReviewSeconds = AppContext.settings().getFinalReviewSeconds();
+        status.setText(
+                "PILIH FOTO UNTUK RETAKE  •  HASIL OTOMATIS DALAM "
+                        + finalReviewSeconds + " DETIK"
+        );
+
+        finalReviewTimer = new Timer(1000, e -> {
+            finalReviewSeconds--;
+
+            if (finalReviewSeconds <= 0) {
+                finalReviewTimer.stop();
+                finalReviewTimer = null;
+                showResult();
+            } else {
+                status.setText(
+                        "PILIH FOTO UNTUK RETAKE  •  HASIL OTOMATIS DALAM "
+                                + finalReviewSeconds + " DETIK"
+                );
+            }
+        });
+        finalReviewTimer.start();
     }
 
     private void showLiveCamera() {
@@ -1071,6 +1108,11 @@ public final class MainScreen
         if (freezeTimer != null) {
             freezeTimer.stop();
             freezeTimer = null;
+        }
+
+        if (finalReviewTimer != null) {
+            finalReviewTimer.stop();
+            finalReviewTimer = null;
         }
     }
 

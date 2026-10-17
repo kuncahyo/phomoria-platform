@@ -41,6 +41,9 @@ public final class SettingsScreen extends JPanel {
     private final JTextField frameName;
     private final JSpinner slots;
     private final JSpinner price;
+    private final JSpinner captureCountdown;
+    private final JSpinner photoPreview;
+    private final JSpinner finalReview;
     private final JCheckBox remember;
     private final JCheckBox showCancelSession;
 
@@ -118,6 +121,24 @@ public final class SettingsScreen extends JPanel {
                                 5000
                         )
                 );
+
+        captureCountdown = new JSpinner(
+                new SpinnerNumberModel(
+                        settings.getCaptureCountdownSeconds(), 1, 30, 1
+                )
+        );
+
+        photoPreview = new JSpinner(
+                new SpinnerNumberModel(
+                        settings.getPhotoPreviewSeconds(), 1, 60, 1
+                )
+        );
+
+        finalReview = new JSpinner(
+                new SpinnerNumberModel(
+                        settings.getFinalReviewSeconds(), 1, 120, 1
+                )
+        );
 
         remember =
                 new JCheckBox(
@@ -404,6 +425,21 @@ public final class SettingsScreen extends JPanel {
                 row++,
                 "Harga Sesi",
                 price
+        );
+
+        addRow(
+                form, g, row++,
+                "Countdown sebelum foto (detik)", captureCountdown
+        );
+
+        addRow(
+                form, g, row++,
+                "Durasi preview setiap foto (detik)", photoPreview
+        );
+
+        addRow(
+                form, g, row++,
+                "Waktu review akhir / retake (detik)", finalReview
         );
 
         g.gridx = 1;
@@ -950,6 +986,18 @@ public final class SettingsScreen extends JPanel {
         settings.setPrice(
                 (Integer)
                         price.getValue()
+        );
+
+        settings.setCaptureCountdownSeconds(
+                (Integer) captureCountdown.getValue()
+        );
+
+        settings.setPhotoPreviewSeconds(
+                (Integer) photoPreview.getValue()
+        );
+
+        settings.setFinalReviewSeconds(
+                (Integer) finalReview.getValue()
         );
 
         settings.setRememberLogin(
