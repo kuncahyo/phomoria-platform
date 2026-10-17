@@ -17,9 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class FrameCloudService {
-
     private static final Gson GSON = new Gson();
-
     private final CloudConfig config;
     private final String deviceUuid;
 
@@ -29,9 +27,7 @@ public final class FrameCloudService {
 
     public FrameCloudService(CloudConfig config, String deviceUuid) {
         if (config == null) throw new IllegalArgumentException("CloudConfig tidak boleh null.");
-        if (deviceUuid == null || deviceUuid.isBlank()) {
-            throw new IllegalArgumentException("Device UUID belum tersedia.");
-        }
+        if (deviceUuid == null || deviceUuid.isBlank()) throw new IllegalArgumentException("Device UUID belum tersedia.");
         this.config = config;
         this.deviceUuid = deviceUuid.trim();
     }
@@ -41,31 +37,24 @@ public final class FrameCloudService {
     public List<CloudFrame> fetchAssignedFrames() throws Exception {
         String url = buildUrl("/api/device/frames?device_uuid=" +
                 URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
-
         HttpGet get = createAuthenticatedGet(url);
-
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(get)) {
-
             String body = readBody(response);
             if (response.getCode() < 200 || response.getCode() >= 300) {
-                throw new FrameCloudException(
-                        "Gagal mengambil daftar frame. HTTP " +
-                        response.getCode() + ": " + body);
+                throw new FrameCloudException("Gagal mengambil daftar frame. HTTP " + response.getCode() + ": " + body);
             }
-
             JsonObject root = parseObject(body);
             JsonObject data = getObject(root, "data");
             if (data == null) return Collections.emptyList();
-
             JsonArray frames = getArray(data, "frames");
             if (frames == null || frames.isEmpty()) return Collections.emptyList();
-
             List<CloudFrame> result = new ArrayList<>();
             for (JsonElement element : frames) {
-                if (!element.isJsonObject()) continue;
-                CloudFrame frame = parseFrame(element.getAsJsonObject());
-                if (frame != null) result.add(frame);
+                if (element.isJsonObject()) {
+                    CloudFrame frame = parseFrame(element.getAsJsonObject());
+                    if (frame != null) result.add(frame);
+                }
             }
             return Collections.unmodifiableList(result);
         }
@@ -73,41 +62,25 @@ public final class FrameCloudService {
 
     public byte[] downloadFrame(long frameId) throws Exception {
         if (frameId <= 0) throw new IllegalArgumentException("Frame ID tidak valid: " + frameId);
-
         String url = buildUrl("/api/device/frames/" + frameId +
-                "/download?device_uuid=" +
-                URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
-
+                "/download?device_uuid=" + URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
         HttpGet get = createAuthenticatedGet(url);
-
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(get)) {
-
-            byte[] body = response.getEntity() == null
-                    ? new byte[0]
-                    : EntityUtils.toByteArray(response.getEntity());
-
+            byte[] body = response.getEntity() == null ? new byte[0] : EntityUtils.toByteArray(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 String message = new String(body, StandardCharsets.UTF_8);
-                throw new FrameCloudException(
-                        "Gagal mengunduh frame " + frameId +
-                        ". HTTP " + response.getCode() +
-                        (message.isBlank() ? "" : ": " + message));
+                throw new FrameCloudException("Gagal mengunduh frame " + frameId + ". HTTP " + response.getCode()
+                        + (message.isBlank() ? "" : ": " + message));
             }
-            if (body.length == 0) {
-                throw new FrameCloudException(
-                        "Download frame " + frameId + " berhasil tetapi file kosong.");
-            }
+            if (body.length == 0) throw new FrameCloudException("Download frame " + frameId + " berhasil tetapi file kosong.");
             return body;
         }
     }
 
     private HttpGet createAuthenticatedGet(String url) {
         String token = config.getToken();
-        if (token == null || token.isBlank()) {
-            throw new IllegalStateException(
-                    "Token cloud belum tersedia. Silakan login terlebih dahulu.");
-        }
+        if (token == null || token.isBlank()) throw new IllegalStateException("Token cloud belum tersedia. Silakan login terlebih dahulu.");
         HttpGet get = new HttpGet(url);
         get.setHeader("Accept", "application/json, image/png, image/*");
         get.setHeader("Authorization", "Bearer " + token);
@@ -116,9 +89,7 @@ public final class FrameCloudService {
 
     private String buildUrl(String path) {
         String server = config.getServer();
-        if (server == null || server.isBlank()) {
-            throw new IllegalStateException("Server cloud belum dikonfigurasi.");
-        }
+        if (server == null || server.isBlank()) throw new IllegalStateException("Server cloud belum dikonfigurasi.");
         return server.replaceAll("/+$", "") + path;
     }
 
@@ -127,13 +98,9 @@ public final class FrameCloudService {
     }
 
     private static JsonObject parseObject(String body) {
-        if (body == null || body.isBlank()) {
-            throw new FrameCloudException("Response API kosong.");
-        }
+        if (body == null || body.isBlank()) throw new FrameCloudException("Response API kosong.");
         JsonElement element = GSON.fromJson(body, JsonElement.class);
-        if (element == null || !element.isJsonObject()) {
-            throw new FrameCloudException("Response API bukan JSON object.");
-        }
+        if (element == null || !element.isJsonObject()) throw new FrameCloudException("Response API bukan JSON object.");
         return element.getAsJsonObject();
     }
 
@@ -149,17 +116,7 @@ public final class FrameCloudService {
 
     private static CloudFrame parseFrame(JsonObject json) {
         if (!json.has("id") || json.get("id").isJsonNull()) return null;
-
         long id = json.get("id").getAsLong();
-        String name = getString(json, "name");
-        String category = getString(json, "category");
-        String imagePath = getString(json, "image_path");
-        String sha256 = getString(json, "sha256");
-        String status = getString(json, "status");
-        int version = getInt(json, "version");
-        int width = getInt(json, "width");
-        int height = getInt(json, "height");
-
         List<CloudPlacement> placements = new ArrayList<>();
         JsonArray array = getArray(json, "placements");
         if (array != null) {
@@ -168,18 +125,16 @@ public final class FrameCloudService {
                 JsonObject p = element.getAsJsonObject();
                 placements.add(new CloudPlacement(
                         getInt(p, "slot"),
-                        getInt(p, "x"),
-                        getInt(p, "y"),
-                        getInt(p, "width"),
-                        getInt(p, "height"),
-                        getDouble(p, "rotation")
-                ));
+                        getIntOrDefault(p, "source_slot", -1),
+                        getInt(p, "x"), getInt(p, "y"),
+                        getInt(p, "width"), getInt(p, "height"),
+                        getDouble(p, "rotation")));
             }
         }
-
-        return new CloudFrame(
-                id, name, category, imagePath, version, sha256,
-                width, height, status, placements);
+        return new CloudFrame(id, getString(json, "name"), getString(json, "category"),
+                getString(json, "image_path"), getInt(json, "version"), getString(json, "sha256"),
+                getInt(json, "width"), getInt(json, "height"), getString(json, "status"),
+                getString(json, "printer_profile"), placements);
     }
 
     private static String getString(JsonObject json, String name) {
@@ -192,6 +147,11 @@ public final class FrameCloudService {
         return value == null || value.isJsonNull() ? 0 : value.getAsInt();
     }
 
+    private static int getIntOrDefault(JsonObject json, String name, int defaultValue) {
+        JsonElement value = json.get(name);
+        return value == null || value.isJsonNull() ? defaultValue : value.getAsInt();
+    }
+
     private static double getDouble(JsonObject json, String name) {
         JsonElement value = json.get(name);
         return value == null || value.isJsonNull() ? 0.0 : value.getAsDouble();
@@ -199,21 +159,17 @@ public final class FrameCloudService {
 
     public static final class CloudPlacement {
         private final int slot;
-        private final int x;
-        private final int y;
-        private final int width;
-        private final int height;
+        private final int sourceSlot;
+        private final int x, y, width, height;
         private final double rotation;
 
-        public CloudPlacement(int slot, int x, int y, int width, int height, double rotation) {
-            this.slot = slot;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-            this.rotation = rotation;
+        public CloudPlacement(int slot, int sourceSlot, int x, int y, int width, int height, double rotation) {
+            this.slot = slot; this.sourceSlot = sourceSlot;
+            this.x = x; this.y = y; this.width = width; this.height = height; this.rotation = rotation;
         }
 
+        /** -1 means a legacy placement created before explicit source mapping existed. */
+        public int getSourceSlot() { return sourceSlot; }
         public int getSlot() { return slot; }
         public int getX() { return x; }
         public int getY() { return y; }
@@ -224,30 +180,18 @@ public final class FrameCloudService {
 
     public static final class CloudFrame {
         private final long id;
-        private final String name;
-        private final String category;
-        private final String imagePath;
-        private final int version;
-        private final String sha256;
-        private final int width;
-        private final int height;
-        private final String status;
+        private final String name, category, imagePath, sha256, status, printerProfile;
+        private final int version, width, height;
         private final List<CloudPlacement> placements;
 
         public CloudFrame(long id, String name, String category, String imagePath,
                           int version, String sha256, int width, int height,
-                          String status, List<CloudPlacement> placements) {
-            this.id = id;
-            this.name = name;
-            this.category = category;
-            this.imagePath = imagePath;
-            this.version = version;
-            this.sha256 = sha256;
-            this.width = width;
-            this.height = height;
-            this.status = status;
-            this.placements = List.copyOf(
-                    placements == null ? List.of() : placements);
+                          String status, String printerProfile, List<CloudPlacement> placements) {
+            this.id = id; this.name = name; this.category = category; this.imagePath = imagePath;
+            this.version = version; this.sha256 = sha256; this.width = width; this.height = height;
+            this.status = status; this.printerProfile = printerProfile == null || printerProfile.isBlank()
+                    ? "PROFILE_1" : printerProfile;
+            this.placements = List.copyOf(placements == null ? List.of() : placements);
         }
 
         public long getId() { return id; }
@@ -259,20 +203,13 @@ public final class FrameCloudService {
         public int getWidth() { return width; }
         public int getHeight() { return height; }
         public String getStatus() { return status; }
+        public String getPrinterProfile() { return printerProfile; }
         public List<CloudPlacement> getPlacements() { return placements; }
 
-        @Override
-        public String toString() {
-            return "CloudFrame{" +
-                    "id=" + id +
-                    ", name='" + name + '\'' +
-                    ", category='" + category + '\'' +
-                    ", version=" + version +
-                    ", width=" + width +
-                    ", height=" + height +
-                    ", placements=" + placements.size() +
-                    ", status='" + status + '\'' +
-                    '}';
+        @Override public String toString() {
+            return "CloudFrame{id=" + id + ", name='" + name + "', version=" + version
+                    + ", dimensions=" + width + "x" + height + ", placements=" + placements.size()
+                    + ", printerProfile='" + printerProfile + "', status='" + status + "'}";
         }
     }
 
