@@ -158,6 +158,7 @@ public final class ThemeEditorPanel extends JPanel {
         try {
             ThemeManager.replaceAsset(source, ThemeManager.root().resolve("backgrounds").resolve(filename));
             ThemeManager.config().screens.get(screen).background = filename;
+            ThemeManager.save();
             canvas.repaint();
         } catch (IOException ex) { showError(ex); }
     }
@@ -170,7 +171,10 @@ public final class ThemeEditorPanel extends JPanel {
         String filename = selectedElement + ".png";
         try {
             ThemeManager.replaceAsset(source, ThemeManager.root().resolve("buttons").resolve(filename));
-            ThemeManager.config().elements.get(selectedElement).image = filename;
+            ThemeConfig.Element element = ThemeManager.config().elements.get(selectedElement);
+            element.image = filename;
+            element.transparent = false;
+            ThemeManager.save();
             canvas.invalidateButtonImage(selectedElement);
             canvas.repaint();
         } catch (IOException ex) { showError(ex); }
