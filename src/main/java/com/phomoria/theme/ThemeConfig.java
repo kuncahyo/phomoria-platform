@@ -28,7 +28,10 @@ public final class ThemeConfig {
         else defaults.elements.forEach((id, value) -> elements.putIfAbsent(id, value));
         if (designWidth <= 0) designWidth = 1920;
         if (designHeight <= 0) designHeight = 1080;
-        elements.values().forEach(e -> { if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image;\n            if (e.defaultTransparent == null) e.defaultTransparent = e.transparent; });
+        elements.values().forEach(e -> {
+            if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image;
+            if (e.defaultTransparent == null) e.defaultTransparent = e.transparent;
+        });
         return this;
     }
 
@@ -40,14 +43,18 @@ public final class ThemeConfig {
 
     public static final class Element {
         public String image;
-        /** Immutable reference filename copied to defaults/buttons on first upgrade. */
+        /** Factory reference filename. */
         public String defaultImage;
         /** Hides the visual only; the Swing component remains enabled and clickable. */
-        public boolean transparent;\n        /** Factory transparency state restored by the DEFAULT action. */\n        public Boolean defaultTransparent;
+        public boolean transparent;
+        /** Factory transparency state restored by the DEFAULT action. */
+        public Boolean defaultTransparent;
         public int x, y, width, height;
         public Element() {}
         public Element(String image, int x, int y, int width, int height) {
-            this.image = image; this.defaultImage = image;
+            this.image = image;
+            this.defaultImage = image;
+            this.defaultTransparent = false;
             this.x = x; this.y = y; this.width = width; this.height = height;
         }
     }
