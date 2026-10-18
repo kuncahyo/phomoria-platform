@@ -99,7 +99,7 @@ public final class ThemeManager {
 
         element.image = factoryFilename;
         element.defaultImage = factoryFilename;
-        element.transparent = false;
+        element.transparent = Boolean.TRUE.equals(element.defaultTransparent);
         save();
     }
 
