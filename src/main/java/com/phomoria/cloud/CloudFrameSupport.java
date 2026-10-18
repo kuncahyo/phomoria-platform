@@ -7,7 +7,9 @@ import com.phomoria.frame.FrameLayoutType;
 import com.phomoria.frame.FramePlacement;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class CloudFrameSupport {
     private CloudFrameSupport() {}
@@ -21,14 +23,52 @@ public final class CloudFrameSupport {
         return id > 0 ? FrameCache.getPng(id) : null;
     }
 
+    /**
+     * Counts distinct source photos used by the selected cloud frame.
+     * Multiple physical holes may reference the same source_slot.
+     * Legacy frames without explicit source_slot metadata keep the fallback count.
+     */
+    public static int selectedPhotoCount(int fallbackCount) {
+        int fallback = Math.max(1, fallbackCount);
+        FrameCache.CacheMetadata metadata = selectedMetadata();
+        if (metadata == null) return fallback;
+
+        List<FrameCloudService.CloudPlacement> cloud = metadata.getPlacements();
+        boolean hasExplicitMapping = cloud.stream().anyMatch(p -> p.getSourceSlot() > 0);
+        if (!hasExplicitMapping) return fallback;
+
+        java.util.Set<Integer> sourceSlots = new java.util.LinkedHashSet<>();
+        for (FrameCloudService.CloudPlacement placement : cloud) {
+            if (placement.getWidth() <= 0 || placement.getHeight() <= 0) continue;
+            int sourceSlot = placement.getSourceSlot() > 0
+                    ? placement.getSourceSlot()
+                    : placement.getSlot();
+            if (sourceSlot > 0) sourceSlots.add(sourceSlot);
+        }
+
+        return sourceSlots.isEmpty() ? fallback : sourceSlots.size();
+    }
+
     public static FrameDefinition selectedDefinition(int photoCount) {
         FrameCache.CacheMetadata metadata = selectedMetadata();
         if (metadata == null || metadata.getWidth() <= 0 || metadata.getHeight() <= 0) return null;
         List<FrameCloudService.CloudPlacement> cloud = metadata.getPlacements();
         if (cloud.isEmpty()) return null;
 
-        boolean hasExplicitMapping = cloud.stream().anyMatch(p -> p.getSourceSlot() >= 0);
+        boolean hasExplicitMapping = cloud.stream().anyMatch(p -> p.getSourceSlot() > 0);
         boolean legacySplit = !hasExplicitMapping && photoCount > 0 && cloud.size() == photoCount * 2;
+        Map<Integer, Integer> sourceIndexes = new LinkedHashMap<>();
+        if (hasExplicitMapping) {
+            for (FrameCloudService.CloudPlacement placement : cloud) {
+                if (placement.getWidth() <= 0 || placement.getHeight() <= 0) continue;
+                int sourceSlot = placement.getSourceSlot() > 0
+                        ? placement.getSourceSlot()
+                        : placement.getSlot();
+                if (sourceSlot > 0 && !sourceIndexes.containsKey(sourceSlot)) {
+                    sourceIndexes.put(sourceSlot, sourceIndexes.size());
+                }
+            }
+        }
         List<FramePlacement> placements = new ArrayList<>();
 
         for (int i = 0; i < cloud.size(); i++) {
@@ -36,9 +76,13 @@ public final class CloudFrameSupport {
             if (p.getWidth() <= 0 || p.getHeight() <= 0) continue;
 
             int sourceIndex;
-            if (p.getSourceSlot() >= 0) {
-                // Website editor stores source_slot as a one-based photo number.
-                sourceIndex = p.getSourceSlot() - 1;
+            if (hasExplicitMapping) {
+                // Several physical holes can point to one captured source photo.
+                int sourceSlot = p.getSourceSlot() > 0
+                        ? p.getSourceSlot()
+                        : p.getSlot();
+                Integer mappedIndex = sourceIndexes.get(sourceSlot);
+                sourceIndex = mappedIndex == null ? -1 : mappedIndex;
             } else if (legacySplit) {
                 sourceIndex = i / 2;
             } else {

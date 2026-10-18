@@ -39,7 +39,6 @@ public final class SettingsScreen extends JPanel {
 
     private final JTextField server;
     private final JTextField frameName;
-    private final JSpinner slots;
     private final JSpinner price;
     private final JSpinner captureCountdown;
     private final JSpinner photoPreview;
@@ -102,15 +101,6 @@ public final class SettingsScreen extends JPanel {
                         settings.getFrameName()
                 );
 
-        slots =
-                new JSpinner(
-                        new SpinnerNumberModel(
-                                settings.getPhotoSlotCount(),
-                                1,
-                                12,
-                                1
-                        )
-                );
 
         price =
                 new JSpinner(
@@ -411,13 +401,6 @@ public final class SettingsScreen extends JPanel {
                 frameName
         );
 
-        addRow(
-                form,
-                g,
-                row++,
-                "Jumlah Slot Foto",
-                slots
-        );
 
         addRow(
                 form,
@@ -978,10 +961,6 @@ public final class SettingsScreen extends JPanel {
                 frameName.getText()
         );
 
-        settings.setPhotoSlotCount(
-                (Integer)
-                        slots.getValue()
-        );
 
         settings.setPrice(
                 (Integer)
@@ -1057,10 +1036,6 @@ public final class SettingsScreen extends JPanel {
                 frameName.getText()
         );
 
-        settings.setPhotoSlotCount(
-                (Integer)
-                        slots.getValue()
-        );
 
         settings.setPrice(
                 (Integer)

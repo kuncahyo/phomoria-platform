@@ -142,8 +142,7 @@ public final class MainScreen
 
         FrameDefinition cloudDefinition =
                 CloudFrameSupport.selectedDefinition(
-                        AppContext.settings()
-                                .getPhotoSlotCount()
+                        AppContext.session().getSlotCount()
                 );
 
         if (cloudDefinition != null
@@ -178,8 +177,7 @@ public final class MainScreen
             selectedFrameDefinition =
                     FrameCatalog.createDefinition(
                             selectedPreset,
-                            AppContext.settings()
-                                    .getPhotoSlotCount()
+                            AppContext.session().getSlotCount()
                     );
 
             DebugLog.info(

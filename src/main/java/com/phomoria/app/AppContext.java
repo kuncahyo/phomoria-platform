@@ -1,6 +1,7 @@
 package com.phomoria.app;
 
 import com.phomoria.cloud.CloudConfigManager;
+import com.phomoria.cloud.CloudFrameSupport;
 import com.phomoria.cloud.DeviceManager;
 import com.phomoria.config.AppSettings;
 import com.phomoria.config.SettingsStore;
@@ -25,10 +26,11 @@ public final class AppContext {
             SettingsStore.save(settings);
         }
 
-        session = new PhotoSession(settings.getPhotoSlotCount());
-        effectSession = new PhotoEffectSession(
+        int photoCount = CloudFrameSupport.selectedPhotoCount(
                 settings.getPhotoSlotCount()
         );
+        session = new PhotoSession(photoCount);
+        effectSession = new PhotoEffectSession(photoCount);
     }
 
     public static AppSettings settings() {
@@ -40,10 +42,11 @@ public final class AppContext {
     }
 
     public static PhotoSession newSession() {
-        session = new PhotoSession(settings.getPhotoSlotCount());
-        effectSession = new PhotoEffectSession(
+        int photoCount = CloudFrameSupport.selectedPhotoCount(
                 settings.getPhotoSlotCount()
         );
+        session = new PhotoSession(photoCount);
+        effectSession = new PhotoEffectSession(photoCount);
         return session;
     }
 
@@ -55,7 +58,7 @@ public final class AppContext {
         if (effectSession == null) {
             effectSession = new PhotoEffectSession(
                     session == null
-                            ? settings.getPhotoSlotCount()
+                            ? CloudFrameSupport.selectedPhotoCount(settings.getPhotoSlotCount())
                             : session.getSlotCount()
             );
         }
