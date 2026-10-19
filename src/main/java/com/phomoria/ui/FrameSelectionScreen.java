@@ -5,9 +5,12 @@ import com.phomoria.app.ApplicationFrame;
 import com.phomoria.cloud.FrameCache;
 import com.phomoria.debug.DebugLog;
 import com.phomoria.frame.FrameCatalog;
-import com.phomoria.frame.FrameCategory;
 import com.phomoria.frame.FrameDefinition;
 import com.phomoria.frame.FramePreset;
+import com.phomoria.theme.ThemeBackgroundPanel;
+import com.phomoria.theme.ThemeButton;
+import com.phomoria.theme.ThemeConfig;
+import com.phomoria.theme.ThemeManager;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -31,95 +34,142 @@ public final class FrameSelectionScreen extends JPanel {
     private static final Color ACCENT = new Color(70, 145, 255);
 
     private final ApplicationFrame frame;
-    private final JComboBox<FrameCategory> categoryBox =
-            new JComboBox<>(FrameCategory.values());
     private final JPanel presetPanel = new JPanel(new GridLayout(0, 2, 12, 12));
     private final JLabel largePreview = new JLabel("Pilih gambar frame di sebelah kanan", SwingConstants.CENTER);
     private final JLabel selectedName = new JLabel("Belum ada frame dipilih", SwingConstants.CENTER);
-    private final JButton continueButton = new JButton("LANJUTKAN");
+    private final JLabel pageTitle = new JLabel("PILIH FRAME", SwingConstants.CENTER);
+    private final JLabel listTitle = new JLabel("PILIH GAMBAR FRAME", SwingConstants.CENTER);
+    private final ThemeButton continueButton = new ThemeButton("frame-selection-continue", "LANJUTKAN");
+    private final ThemeBackgroundPanel themedBackground = new ThemeBackgroundPanel("frame-selection", 0f);
+    private final JPanel previewPanel = new JPanel(new BorderLayout(8, 10));
+    private final JPanel listPanel = new JPanel(new BorderLayout(8, 8));
+    private final JScrollPane frameScroll = new JScrollPane(presetPanel);
 
     private List<CachedFrameItem> cachedFrames = List.of();
     private CachedFrameItem stagedCachedFrame;
     private FramePreset stagedPreset;
     private final List<JPanel> frameCards = new ArrayList<>();
     private JPanel selectedCard;
+    private ImageIcon selectedPreviewSource;
 
     public FrameSelectionScreen(ApplicationFrame frame) {
         this.frame = frame;
-        setLayout(new BorderLayout(14, 14));
-        setBorder(BorderFactory.createEmptyBorder(18, 24, 18, 24));
+        setLayout(new BorderLayout());
+        setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         setBackground(BG);
+        themedBackground.setLayout(null);
+        themedBackground.setBorder(null);
 
-        JLabel title = new JLabel("PILIH FRAME", SwingConstants.CENTER);
-        title.setForeground(Color.WHITE);
-        title.setFont(new Font("SansSerif", Font.BOLD, 30));
-
-        categoryBox.setSelectedItem(FrameCategory.SPLIT);
-        categoryBox.addActionListener(e -> refreshPresets());
-
-        JPanel categoryPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 4));
-        categoryPanel.setOpaque(false);
-        JLabel categoryLabel = new JLabel("Kategori:");
-        categoryLabel.setForeground(Color.WHITE);
-        categoryPanel.add(categoryLabel);
-        categoryPanel.add(categoryBox);
-
-        JPanel header = new JPanel(new BorderLayout(8, 6));
-        header.setOpaque(false);
-        header.add(title, BorderLayout.NORTH);
-        header.add(categoryPanel, BorderLayout.SOUTH);
-        add(header, BorderLayout.NORTH);
-
-        // Large selected-frame preview on the left.
-        JPanel previewPanel = new JPanel(new BorderLayout(8, 10));
-        previewPanel.setBackground(CARD_BG);
-        previewPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(70, 70, 80)),
-                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
+        pageTitle.setForeground(Color.WHITE);
+        pageTitle.setFont(new Font("SansSerif", Font.BOLD, 30));
+        previewPanel.setOpaque(false);
+        previewPanel.setBorder(null);
         largePreview.setForeground(new Color(190, 190, 200));
+        largePreview.setOpaque(false);
         largePreview.setFont(new Font("SansSerif", Font.PLAIN, 18));
-        largePreview.setPreferredSize(new Dimension(520, 620));
         selectedName.setForeground(Color.WHITE);
         selectedName.setFont(new Font("SansSerif", Font.BOLD, 20));
+        selectedName.setHorizontalAlignment(SwingConstants.CENTER);
+        selectedName.setOpaque(false);
         previewPanel.add(largePreview, BorderLayout.CENTER);
-        previewPanel.add(selectedName, BorderLayout.SOUTH);
 
-        // Frame thumbnails on the right. Each thumbnail itself is clickable;
-        // there are deliberately no per-card selection buttons.
         presetPanel.setOpaque(false);
-        JScrollPane scroll = new JScrollPane(presetPanel);
-        scroll.setBorder(null);
-        scroll.getViewport().setOpaque(false);
-        scroll.setOpaque(false);
-        scroll.getVerticalScrollBar().setUnitIncrement(24);
-
-        JPanel listPanel = new JPanel(new BorderLayout(8, 8));
+        frameScroll.setBorder(null);
+        frameScroll.getViewport().setOpaque(false);
+        frameScroll.setOpaque(false);
+        frameScroll.getVerticalScrollBar().setUnitIncrement(24);
         listPanel.setOpaque(false);
-        JLabel listTitle = new JLabel("PILIH GAMBAR FRAME", SwingConstants.CENTER);
+        listPanel.setLayout(new BorderLayout(8, 8));
         listTitle.setForeground(Color.WHITE);
         listTitle.setFont(new Font("SansSerif", Font.BOLD, 17));
-        listPanel.add(listTitle, BorderLayout.NORTH);
-        listPanel.add(scroll, BorderLayout.CENTER);
+        listTitle.setOpaque(false);
+        listPanel.add(frameScroll, BorderLayout.CENTER);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, previewPanel, listPanel);
-        split.setResizeWeight(0.56);
-        split.setDividerLocation(0.56);
-        split.setBorder(null);
-        split.setOpaque(false);
-        split.setContinuousLayout(true);
-        add(split, BorderLayout.CENTER);
-
+        themedBackground.add(pageTitle);
+        themedBackground.add(previewPanel);
+        themedBackground.add(listPanel);
+        themedBackground.add(listTitle);
+        themedBackground.add(selectedName);
         continueButton.setFont(new Font("SansSerif", Font.BOLD, 18));
         continueButton.setFocusPainted(false);
         continueButton.setEnabled(false);
         continueButton.addActionListener(e -> confirmSelection());
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        footer.setOpaque(false);
-        footer.add(continueButton);
-        listPanel.add(footer, BorderLayout.SOUTH);
+        themedBackground.add(continueButton);
 
+        themedBackground.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                applyThemeGeometry();
+                updateCardGrid();
+            }
+        });
+        frameScroll.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { updateCardGrid(); }
+        });
+        previewPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { updateLargePreviewIcon(); }
+        });
+        add(themedBackground, BorderLayout.CENTER);
         loadCachedFrames();
         refreshPresets();
+        applyThemeGeometry();
+    }
+
+    private void applyThemeGeometry() {
+        ThemeConfig config = ThemeManager.config();
+        if (config == null || themedBackground.getWidth() <= 0 || themedBackground.getHeight() <= 0) return;
+        double sx = themedBackground.getWidth() / (double) config.designWidth;
+        double sy = themedBackground.getHeight() / (double) config.designHeight;
+        setElementBounds(pageTitle, "frame-selection-header", 0, 0, 1920, 90, sx, sy, config);
+        setElementBounds(previewPanel, "frame-selection-preview", 70, 175, 820, 790, sx, sy, config);
+        setElementBounds(listPanel, "frame-selection-list", 930, 175, 920, 790, sx, sy, config);
+        setElementBounds(listTitle, "frame-selection-list-title", 980, 190, 820, 52, sx, sy, config);
+        setElementBounds(selectedName, "frame-selection-selected-name", 70, 900, 820, 48, sx, sy, config);
+        applyTextStyle(pageTitle, config.elements.get("frame-selection-header"), "PILIH FRAME");
+        applyTextStyle(listTitle, config.elements.get("frame-selection-list-title"), "PILIH DESAIN FRAME");
+        ThemeConfig.Element selectedNameStyle = config.elements.get("frame-selection-selected-name");
+        selectedName.setVisible(selectedNameStyle != null && Boolean.TRUE.equals(selectedNameStyle.visible));
+        if (selectedNameStyle != null) selectedName.setForeground(parseColor(selectedNameStyle.foreground, Color.WHITE));
+        ThemeConfig.Element button = config.elements.get("frame-selection-continue");
+        if (button != null) {
+            continueButton.setText(button.text == null || button.text.isBlank() ? "LANJUTKAN" : button.text);
+            continueButton.setForeground(parseColor(button.foreground, Color.WHITE));
+            continueButton.setVisible(Boolean.TRUE.equals(button.visible));
+            continueButton.setBounds(
+                (int)Math.round(button.x*sx), (int)Math.round(button.y*sy),
+                Math.max(1,(int)Math.round(button.width*sx)), Math.max(1,(int)Math.round(button.height*sy)));
+        }
+        themedBackground.revalidate();
+        themedBackground.repaint();
+    }
+
+    private void applyTextStyle(JLabel label, ThemeConfig.Element element, String fallback) {
+        if (element == null) return;
+        label.setText(element.text == null || element.text.isBlank() ? fallback : element.text);
+        label.setVisible(Boolean.TRUE.equals(element.visible));
+        label.setForeground(parseColor(element.foreground, Color.WHITE));
+    }
+
+    private Color parseColor(String value, Color fallback) {
+        try { return value == null ? fallback : Color.decode(value); }
+        catch (RuntimeException ex) { return fallback; }
+    }
+
+    private void setElementBounds(Component component, String id, int dx, int dy, int dw, int dh,
+                                  double sx, double sy, ThemeConfig config) {
+        ThemeConfig.Element e = config.elements.get(id);
+        int x = e == null ? dx : e.x;
+        int y = e == null ? dy : e.y;
+        int w = e == null ? dw : e.width;
+        int h = e == null ? dh : e.height;
+        component.setBounds((int)Math.round(x*sx), (int)Math.round(y*sy),
+                Math.max(1,(int)Math.round(w*sx)), Math.max(1,(int)Math.round(h*sy)));
+    }
+
+    private void updateCardGrid() {
+        int available = Math.max(1, frameScroll.getViewport().getWidth());
+        int columns = Math.max(1, Math.min(4, available / 230));
+        presetPanel.setLayout(new GridLayout(0, columns, 12, 12));
+        presetPanel.revalidate();
     }
 
     private void loadCachedFrames() {
@@ -155,44 +205,41 @@ public final class FrameSelectionScreen extends JPanel {
         stagedPreset = null;
         selectedCard = null;
         largePreview.setIcon(null);
+        selectedPreviewSource = null;
         largePreview.setText("Pilih gambar frame di sebelah kanan");
         selectedName.setText("Belum ada frame dipilih");
         continueButton.setEnabled(false);
 
-        FrameCategory category = (FrameCategory) categoryBox.getSelectedItem();
-        List<CachedFrameItem> matching = cachedFrames.stream()
-                .filter(item -> matchesCategory(item.metadata(), category)).toList();
-
-        if (!matching.isEmpty()) {
-            DebugLog.info("Frame selection category=" + category + ", cached cloud frames=" + matching.size());
-            for (CachedFrameItem item : matching) presetPanel.add(createCachedFrameCard(item));
+        if (!cachedFrames.isEmpty()) {
+            DebugLog.info("Frame selection: displaying all device-owned cached frames=" + cachedFrames.size());
+            for (CachedFrameItem item : cachedFrames) presetPanel.add(createCachedFrameCard(item));
         } else {
-            // Keep the existing FrameCatalog fallback when no cloud frames are cached.
-            List<FramePreset> presets = FrameCatalog.byCategory(category);
-            DebugLog.info("No cached cloud frames for category=" + category
-                    + ". Using FrameCatalog fallback, presets=" + presets.size());
+            // Keep all local presets visible when this device has no cached cloud frames.
+            List<FramePreset> presets = new ArrayList<>();
+            for (var category : com.phomoria.frame.FrameCategory.values()) {
+                presets.addAll(FrameCatalog.byCategory(category));
+            }
+            DebugLog.info("No cached cloud frames. Using all local FrameCatalog presets=" + presets.size());
             for (FramePreset preset : presets) presetPanel.add(createPresetCard(preset));
         }
+        updateCardGrid();
         presetPanel.revalidate();
         presetPanel.repaint();
     }
 
-    private boolean matchesCategory(FrameCache.CacheMetadata metadata, FrameCategory category) {
-        return category == null
-                || category.name().equalsIgnoreCase(metadata.getCategory())
-                || category.getLabel().equalsIgnoreCase(metadata.getCategory());
-    }
 
     private JPanel createCachedFrameCard(CachedFrameItem item) {
         FrameCache.CacheMetadata metadata = item.metadata();
         JPanel card = createCardShell();
-        JLabel image = new JLabel(createPngPreview(item.png(), 210, 300));
+        JLabel image = new JLabel(createPngPreview(item.png(), 190, 270));
+        image.setOpaque(false);
         image.setHorizontalAlignment(SwingConstants.CENTER);
         image.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         JLabel name = createNameLabel(metadata.getName());
         JLabel info = new JLabel(metadata.getWidth() + " × " + metadata.getHeight()
                 + "  •  " + metadata.getCategory(), SwingConstants.CENTER);
-        info.setForeground(new Color(190, 190, 200));
+        applyCardTextStyle(name, "frame-selection-card-name");
+        applyCardTextStyle(info, "frame-selection-card-info");
         card.add(name, BorderLayout.NORTH);
         card.add(image, BorderLayout.CENTER);
         card.add(info, BorderLayout.SOUTH);
@@ -203,20 +250,31 @@ public final class FrameSelectionScreen extends JPanel {
 
     private JPanel createPresetCard(FramePreset preset) {
         JPanel card = createCardShell();
-        JLabel image = new JLabel(createSimulationPreview(preset, 210, 300));
+        JLabel image = new JLabel(createSimulationPreview(preset, 190, 270));
+        image.setOpaque(false);
         image.setHorizontalAlignment(SwingConstants.CENTER);
         image.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        card.add(createNameLabel(preset.name()), BorderLayout.NORTH);
+        JLabel name = createNameLabel(preset.name());
+        JLabel info = new JLabel(preset.category().getLabel(), SwingConstants.CENTER);
+        applyCardTextStyle(name, "frame-selection-card-name");
+        applyCardTextStyle(info, "frame-selection-card-info");
+        card.add(name, BorderLayout.NORTH);
         card.add(image, BorderLayout.CENTER);
-        card.add(new JLabel(preset.category().getLabel(), SwingConstants.CENTER), BorderLayout.SOUTH);
+        card.add(info, BorderLayout.SOUTH);
         addImageSelection(image, card, () -> stagePreset(preset, card));
         frameCards.add(card);
         return card;
     }
 
+    private void applyCardTextStyle(JLabel label, String elementId) {
+        ThemeConfig.Element style = ThemeManager.config().elements.get(elementId);
+        label.setVisible(style != null && Boolean.TRUE.equals(style.visible));
+        if (style != null) label.setForeground(parseColor(style.foreground, Color.WHITE));
+    }
+
     private JPanel createCardShell() {
         JPanel card = new JPanel(new BorderLayout(6, 8));
-        card.setBackground(CARD_BG);
+        card.setOpaque(false);
         card.setBorder(normalCardBorder());
         return card;
     }
@@ -235,6 +293,7 @@ public final class FrameSelectionScreen extends JPanel {
 
     private JLabel createNameLabel(String name) {
         JLabel label = new JLabel(name, SwingConstants.CENTER);
+        label.setOpaque(false);
         label.setForeground(Color.WHITE);
         label.setFont(new Font("SansSerif", Font.BOLD, 16));
         return label;
@@ -273,10 +332,29 @@ public final class FrameSelectionScreen extends JPanel {
     }
 
     private void showLargePreview(ImageIcon icon, String name) {
+        selectedPreviewSource = icon;
         largePreview.setText(null);
-        largePreview.setIcon(icon);
+        updateLargePreviewIcon();
         selectedName.setText(name);
+        ThemeConfig.Element selectedNameStyle = ThemeManager.config().elements.get("frame-selection-selected-name");
+        selectedName.setVisible(selectedNameStyle != null && Boolean.TRUE.equals(selectedNameStyle.visible));
+        if (selectedNameStyle != null) selectedName.setForeground(parseColor(selectedNameStyle.foreground, Color.WHITE));
         continueButton.setEnabled(true);
+    }
+
+    /** Refit the selected artwork into the preview area without distorting its aspect ratio. */
+    private void updateLargePreviewIcon() {
+        if (selectedPreviewSource == null) return;
+        int availableWidth = Math.max(1, previewPanel.getWidth() - 40);
+        int availableHeight = Math.max(1, previewPanel.getHeight() - selectedName.getPreferredSize().height - 48);
+        int sourceWidth = selectedPreviewSource.getIconWidth();
+        int sourceHeight = selectedPreviewSource.getIconHeight();
+        if (sourceWidth <= 0 || sourceHeight <= 0) return;
+        double scale = Math.min((double) availableWidth / sourceWidth, (double) availableHeight / sourceHeight);
+        int width = Math.max(1, (int)Math.round(sourceWidth * scale));
+        int height = Math.max(1, (int)Math.round(sourceHeight * scale));
+        Image scaled = selectedPreviewSource.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        largePreview.setIcon(new ImageIcon(scaled));
     }
 
     private void updateCardBorders() {
@@ -332,8 +410,10 @@ public final class FrameSelectionScreen extends JPanel {
                 preset, AppContext.settings().getPhotoSlotCount());
         BufferedImage image = new BufferedImage(maxW, maxH, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
-        g.setColor(Color.WHITE);
+        // Transparent canvas: only the simulated frame outlines are rendered.
+        g.setComposite(AlphaComposite.Clear);
         g.fillRect(0, 0, maxW, maxH);
+        g.setComposite(AlphaComposite.SrcOver);
         g.setColor(new Color(25, 25, 30));
         g.setStroke(new BasicStroke(Math.max(2f, maxW / 130f)));
         for (var placement : definition.getPlacements()) {

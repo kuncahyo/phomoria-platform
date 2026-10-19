@@ -40,6 +40,11 @@ public class ThemeButton extends JButton {
     @Override protected void paintComponent(Graphics g) { if (!visuallyTransparent()) super.paintComponent(g); }
     @Override protected void paintBorder(Graphics g) { if (!visuallyTransparent()) super.paintBorder(g); }
     private static String fallbackTextFor(String id) {
-        return switch (id) { case "start-payment" -> "BAYAR & MULAI FOTO"; case "start-settings" -> "SETTINGS"; default -> id; };
+        return switch (id) {
+            case "start-payment" -> "BAYAR & MULAI FOTO";
+            case "start-settings" -> "SETTINGS";
+            case "frame-selection-continue" -> "LANJUTKAN";
+            default -> id;
+        };
     }
 }
