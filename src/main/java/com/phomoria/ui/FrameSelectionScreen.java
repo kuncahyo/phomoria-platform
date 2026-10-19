@@ -32,6 +32,8 @@ public final class FrameSelectionScreen extends JPanel {
     private static final Color BG = new Color(18, 18, 22);
     private static final Color CARD_BG = new Color(30, 30, 36);
     private static final Color ACCENT = new Color(70, 145, 255);
+    private static final String DRAG_SCROLL_INSTALLED = "phomoria.frameSelection.dragScrollInstalled";
+    private static final int DRAG_THRESHOLD = 7;
 
     private final ApplicationFrame frame;
     private final JPanel presetPanel = new JPanel(new GridLayout(0, 2, 12, 12));
@@ -51,6 +53,12 @@ public final class FrameSelectionScreen extends JPanel {
     private final List<JPanel> frameCards = new ArrayList<>();
     private JPanel selectedCard;
     private ImageIcon selectedPreviewSource;
+
+    // State for touch/mouse drag scrolling inside the frame list.
+    private Point dragStartInView;
+    private Point dragStartViewportPosition;
+    private boolean frameListDragActive;
+    private boolean suppressNextFrameClick;
 
     public FrameSelectionScreen(ApplicationFrame frame) {
         this.frame = frame;
@@ -109,6 +117,8 @@ public final class FrameSelectionScreen extends JPanel {
             @Override public void componentResized(java.awt.event.ComponentEvent e) { updateLargePreviewIcon(); }
         });
         add(themedBackground, BorderLayout.CENTER);
+        installDragToScroll(frameScroll.getViewport());
+        installDragToScroll(presetPanel);
         loadCachedFrames();
         refreshPresets();
         applyThemeGeometry();
@@ -131,11 +141,9 @@ public final class FrameSelectionScreen extends JPanel {
         if (selectedNameStyle != null) selectedName.setForeground(parseColor(selectedNameStyle.foreground, Color.WHITE));
         ThemeConfig.Element button = config.elements.get("frame-selection-continue");
         if (button != null) {
-            // Tampilkan teks hanya jika tombol tidak menggunakan PNG.
             if (continueButton.getIcon() == null) {
                 continueButton.setText(button.text == null || button.text.isBlank() ? "LANJUTKAN" : button.text);
             }
-
             continueButton.setForeground(parseColor(button.foreground, Color.WHITE));
             continueButton.setVisible(Boolean.TRUE.equals(button.visible));
             continueButton.setBounds(
@@ -218,7 +226,6 @@ public final class FrameSelectionScreen extends JPanel {
             DebugLog.info("Frame selection: displaying all device-owned cached frames=" + cachedFrames.size());
             for (CachedFrameItem item : cachedFrames) presetPanel.add(createCachedFrameCard(item));
         } else {
-            // Keep all local presets visible when this device has no cached cloud frames.
             List<FramePreset> presets = new ArrayList<>();
             for (var category : com.phomoria.frame.FrameCategory.values()) {
                 presets.addAll(FrameCatalog.byCategory(category));
@@ -226,11 +233,15 @@ public final class FrameSelectionScreen extends JPanel {
             DebugLog.info("No cached cloud frames. Using all local FrameCatalog presets=" + presets.size());
             for (FramePreset preset : presets) presetPanel.add(createPresetCard(preset));
         }
+        // Cards are created after the panel's initial listener installation.
+        // Install on each new card so its labels and image also receive drag gestures.
+        for (Component child : presetPanel.getComponents()) {
+            installDragToScroll(child);
+        }
         updateCardGrid();
         presetPanel.revalidate();
         presetPanel.repaint();
     }
-
 
     private JPanel createCachedFrameCard(CachedFrameItem item) {
         FrameCache.CacheMetadata metadata = item.metadata();
@@ -305,7 +316,13 @@ public final class FrameSelectionScreen extends JPanel {
 
     private void addImageSelection(JLabel image, JPanel card, Runnable selection) {
         image.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) { selection.run(); }
+            @Override public void mouseClicked(MouseEvent e) {
+                if (suppressNextFrameClick) {
+                    suppressNextFrameClick = false;
+                    return;
+                }
+                selection.run();
+            }
             @Override public void mouseEntered(MouseEvent e) {
                 if (!card.getBorder().equals(selectedCardBorder())) {
                     card.setBorder(BorderFactory.createCompoundBorder(
@@ -317,6 +334,67 @@ public final class FrameSelectionScreen extends JPanel {
                 updateCardBorders();
             }
         });
+    }
+
+    /**
+     * Installs touch-style vertical drag scrolling on a component and all its
+     * descendants. This lets the gesture start on cards, labels, images or
+     * empty space within the frame list.
+     */
+    private void installDragToScroll(Component component) {
+        if (component instanceof JComponent swingComponent) {
+            if (Boolean.TRUE.equals(swingComponent.getClientProperty(DRAG_SCROLL_INSTALLED))) return;
+            swingComponent.putClientProperty(DRAG_SCROLL_INSTALLED, Boolean.TRUE);
+        }
+
+        MouseAdapter dragHandler = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                suppressNextFrameClick = false;
+                Component source = (Component) e.getSource();
+                dragStartInView = SwingUtilities.convertPoint(source, e.getPoint(), presetPanel);
+                dragStartViewportPosition = frameScroll.getViewport().getViewPosition();
+                frameListDragActive = true;
+            }
+
+            @Override public void mouseDragged(MouseEvent e) {
+                if (!frameListDragActive || dragStartInView == null
+                        || dragStartViewportPosition == null) return;
+                Component source = (Component) e.getSource();
+                Point currentInView = SwingUtilities.convertPoint(source, e.getPoint(), presetPanel);
+                int deltaX = currentInView.x - dragStartInView.x;
+                int deltaY = currentInView.y - dragStartInView.y;
+                if (!suppressNextFrameClick
+                        && Math.abs(deltaX) < DRAG_THRESHOLD
+                        && Math.abs(deltaY) < DRAG_THRESHOLD) return;
+
+                // Only vertical gestures scroll the list; horizontal movement is ignored.
+                if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+                    suppressNextFrameClick = true;
+                    JViewport viewport = frameScroll.getViewport();
+                    Dimension viewSize = viewport.getViewSize();
+                    Dimension extent = viewport.getExtentSize();
+                    int maxY = Math.max(0, viewSize.height - extent.height);
+                    int targetY = dragStartViewportPosition.y - deltaY;
+                    targetY = Math.max(0, Math.min(maxY, targetY));
+                    viewport.setViewPosition(new Point(dragStartViewportPosition.x, targetY));
+                }
+            }
+
+            @Override public void mouseReleased(MouseEvent e) {
+                frameListDragActive = false;
+                dragStartInView = null;
+                dragStartViewportPosition = null;
+            }
+        };
+
+        component.addMouseListener(dragHandler);
+        component.addMouseMotionListener(dragHandler);
+
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                installDragToScroll(child);
+            }
+        }
     }
 
     private void stageCachedFrame(CachedFrameItem item, JPanel card) {
@@ -414,7 +492,6 @@ public final class FrameSelectionScreen extends JPanel {
                 preset, AppContext.settings().getPhotoSlotCount());
         BufferedImage image = new BufferedImage(maxW, maxH, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
-        // Transparent canvas: only the simulated frame outlines are rendered.
         g.setComposite(AlphaComposite.Clear);
         g.fillRect(0, 0, maxW, maxH);
         g.setComposite(AlphaComposite.SrcOver);
