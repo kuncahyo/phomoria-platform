@@ -471,6 +471,10 @@ public final class SettingsScreen extends JPanel {
                 refreshCameras
         );
 
+        JButton liveCam = new JButton("LIVECAM");
+        liveCam.addActionListener(e -> openLiveCam());
+        buttons.add(liveCam);
+
         JPanel statusPanel =
                 new JPanel(
                         new BorderLayout()
@@ -507,6 +511,30 @@ public final class SettingsScreen extends JPanel {
         );
 
         return panel;
+    }
+
+    private void openLiveCam() {
+        String selected = (String) cameraDisplay.getSelectedItem();
+        if (selected == null || selected.isBlank()) {
+            selected = AppContext.settings().getCameraName();
+        }
+        if (selected == null || selected.isBlank()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Pilih kamera terlebih dahulu pada pengaturan kamera.",
+                    "LIVECAM",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+        cameraStatusTimer.stop();
+        LiveCamDialog dialog = new LiveCamDialog(frame, selected, () -> {
+            if (isDisplayable() && !cameraStatusTimer.isRunning()) {
+                cameraStatusTimer.start();
+            }
+            refreshCameraStatus();
+        });
+        dialog.setVisible(true);
     }
 
     private void setupCameraChooser(
