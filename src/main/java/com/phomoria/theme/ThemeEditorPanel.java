@@ -126,10 +126,13 @@ public final class ThemeEditorPanel extends JPanel {
                 x.setValue(el.x); y.setValue(el.y); width.setValue(el.width); height.setValue(el.height);
                 boolean dynamicText = selectedElement.endsWith("card-name")
                         || selectedElement.endsWith("card-info")
-                        || selectedElement.endsWith("selected-name");
+                        || selectedElement.endsWith("selected-name")
+                        || selectedElement.equals("main-status")
+                        || selectedElement.equals("main-counter")
+                        || selectedElement.equals("main-countdown");
                 elementText.setEditable(!dynamicText);
                 elementText.setToolTipText(dynamicText
-                        ? "Teks berasal otomatis dari data frame; atur tampil/sembunyi dan warnanya di sini."
+                        ? "Teks atau angka berasal dari status sesi; atur tampil/sembunyi dan warnanya di sini."
                         : "Ubah teks label elemen ini.");
                 elementText.setText(dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
                 elementVisible.setSelected(Boolean.TRUE.equals(el.visible));
@@ -245,6 +248,15 @@ public final class ThemeEditorPanel extends JPanel {
 
     private void chooseElementImage() {
         if (selectedElement == null) { JOptionPane.showMessageDialog(this, "Pilih elemen terlebih dahulu."); return; }
+        boolean imageButton = selectedElement.equals("start-payment")
+                || selectedElement.equals("start-settings")
+                || selectedElement.equals("frame-selection-continue")
+                || selectedElement.equals("main-retake")
+                || selectedElement.equals("main-cancel");
+        if (!imageButton) {
+            JOptionPane.showMessageDialog(this, "Elemen ini berupa area atau teks. Gunakan pengaturan background halaman atau pilih elemen tombol untuk mengganti PNG.");
+            return;
+        }
         JFileChooser chooser = imageChooser();
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         Path source = chooser.getSelectedFile().toPath();

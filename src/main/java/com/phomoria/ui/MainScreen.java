@@ -16,6 +16,10 @@ import com.phomoria.frame.FrameDefinition;
 import com.phomoria.frame.FramePreset;
 import com.phomoria.session.CaptureController;
 import com.phomoria.session.PhotoSession;
+import com.phomoria.theme.ThemeBackgroundPanel;
+import com.phomoria.theme.ThemeButton;
+import com.phomoria.theme.ThemeConfig;
+import com.phomoria.theme.ThemeManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -32,8 +36,11 @@ public final class MainScreen
     private final ApplicationFrame frame;
     private final JLabel status =
             new JLabel("MENYIAPKAN KAMERA...");
-    private final JLabel counter =
-            new JLabel("0 / 0");
+    private final JLabel counter = new JLabel("0 / 0", SwingConstants.CENTER);
+    private final JLabel title = new JLabel("PHOMORIA  •  PHOTO BOOTH");
+    private final ThemeButton retakeButton = new ThemeButton("main-retake", "RETAKE FOTO TERPILIH");
+    private final ThemeButton cancelButton = new ThemeButton("main-cancel", "PILIH ULANG FRAME");
+    private final ThemeBackgroundPanel mainBackground = new ThemeBackgroundPanel("main", 0f);
 
     private final LiveCameraPanel cameraView =
             new LiveCameraPanel();
@@ -75,53 +82,29 @@ public final class MainScreen
                 AppContext.settings().getCaptureCountdownSeconds()
         );
 
-        setLayout(
-                new BorderLayout(12, 12)
-        );
+        setLayout(new MainScreenThemeLayout());
+        setOpaque(false);
 
-        setBorder(
-                BorderFactory.createEmptyBorder(
-                        12, 12, 12, 12
-                )
-        );
-
-        setBackground(
-                new Color(18, 18, 22)
-        );
-
-        cameraLayer.setLayout(
-                new OverlayLayout(cameraLayer)
-        );
-
-        cameraLayer.setBackground(Color.BLACK);
-
+        cameraLayer.setLayout(new OverlayLayout(cameraLayer));
+        cameraLayer.setOpaque(false);
         cameraLayer.add(countdownOverlay);
         cameraLayer.add(cameraView);
 
-        add(
-                createTopBar(),
-                BorderLayout.NORTH
-        );
+        retakeButton.addActionListener(e -> startRetake());
+        cancelButton.addActionListener(e -> cancelPhotoSession());
 
-        JSplitPane split =
-                new JSplitPane(
-                        JSplitPane.HORIZONTAL_SPLIT,
-                        cameraLayer,
-                        preview
-                );
-
-        split.setResizeWeight(0.68);
-        split.setBorder(null);
-
-        add(
-                split,
-                BorderLayout.CENTER
-        );
-
-        add(
-                createBottomBar(),
-                BorderLayout.SOUTH
-        );
+        // Background is added first and kept behind all interactive components.
+        add(mainBackground, "main-background");
+        add(title, "main-title");
+        add(status, "main-status");
+        add(cameraLayer, "main-camera");
+        add(preview, "main-preview");
+        add(counter, "main-counter");
+        add(retakeButton, "main-retake");
+        if (AppContext.settings().isShowCancelSession()) {
+            add(cancelButton, "main-cancel");
+        }
+        setComponentZOrder(mainBackground, getComponentCount() - 1);
 
         preview.setSelectionListener(
                 index -> {
@@ -203,83 +186,6 @@ public final class MainScreen
         );
 
         startCamera();
-    }
-
-    private JPanel createTopBar() {
-        JPanel panel =
-                new JPanel(
-                        new BorderLayout()
-                );
-
-        panel.setOpaque(false);
-
-        JLabel title =
-                new JLabel(
-                        "PHOMORIA  •  PHOTO BOOTH"
-                );
-
-        title.setForeground(Color.WHITE);
-        title.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        22
-                )
-        );
-
-        status.setForeground(
-                new Color(120, 220, 150)
-        );
-
-        panel.add(
-                title,
-                BorderLayout.WEST
-        );
-
-        panel.add(
-                status,
-                BorderLayout.EAST
-        );
-
-        return panel;
-    }
-
-    private JPanel createBottomBar() {
-        JPanel panel =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.CENTER,
-                                14,
-                                8
-                        )
-                );
-
-        panel.setOpaque(false);
-
-        JButton retake =
-                new JButton(
-                        "RETAKE FOTO TERPILIH"
-                );
-
-        retake.addActionListener(
-                e -> startRetake()
-        );
-
-        panel.add(counter);
-        panel.add(retake);
-
-        if (AppContext.settings().isShowCancelSession()) {
-            JButton cancelSession =
-                    new JButton("PILIH ULANG FRAME");
-
-            cancelSession.addActionListener(
-                    e -> cancelPhotoSession()
-            );
-
-            panel.add(cancelSession);
-        }
-
-        return panel;
     }
 
     private void cancelPhotoSession() {
@@ -1165,11 +1071,12 @@ public final class MainScreen
                 session.getSlotCount()
         );
 
-        counter.setText(
-                session.getCapturedCount()
-                        + " / "
-                        + session.getSlotCount()
-        );
+        ThemeConfig.Element counterTheme = ThemeManager.config().elements.get("main-counter");
+        String counterFormat = counterTheme == null || counterTheme.text == null
+                || counterTheme.text.isBlank() ? "{captured} / {total}" : counterTheme.text;
+        counter.setText(counterFormat
+                .replace("{captured}", String.valueOf(session.getCapturedCount()))
+                .replace("{total}", String.valueOf(session.getSlotCount())));
     }
 
     private void showCameraError(

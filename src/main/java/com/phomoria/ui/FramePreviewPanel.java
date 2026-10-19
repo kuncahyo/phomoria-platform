@@ -29,7 +29,8 @@ public final class FramePreviewPanel extends JPanel {
     private boolean cloudFrameActive;
 
     public FramePreviewPanel() {
-        setBackground(new Color(30, 30, 36));
+        setOpaque(false);
+        setBackground(new Color(0, 0, 0, 0));
         setPreferredSize(new Dimension(390, 620));
 
         addMouseListener(new java.awt.event.MouseAdapter() {

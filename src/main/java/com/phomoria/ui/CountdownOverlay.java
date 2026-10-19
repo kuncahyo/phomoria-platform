@@ -1,6 +1,6 @@
 package com.phomoria.ui;
 
-import javax.swing.JComponent;
+import com.phomoria.theme.ThemeConfig;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Font;
@@ -8,16 +8,14 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import javax.swing.JComponent;
 
-/**
- * Stable countdown overlay. The countdown number is intentionally static
- * for each one-second step. Fading the number between ticks caused a visible
- * blink/flicker on top of the live camera and also forced unnecessary
- * repaints of the transparent camera overlay.
- */
+/** Stable countdown overlay; its drawing region and text color are themeable. */
 public final class CountdownOverlay extends JComponent {
-
-    private int number = 0;
+    private int number;
+    private ThemeConfig.Element themeElement;
+    private int designWidth = 1920;
+    private int designHeight = 1080;
 
     public CountdownOverlay() {
         setOpaque(false);
@@ -25,14 +23,21 @@ public final class CountdownOverlay extends JComponent {
         setVisible(false);
     }
 
-    public void showNumber(int number) {
-        if (number <= 0) {
-            hideOverlay();
-            return;
-        }
+    public void setThemeElement(ThemeConfig.Element element) {
+        themeElement = element;
+        if (number > 0) setVisible(element == null || !Boolean.FALSE.equals(element.visible));
+        repaint();
+    }
 
+    public void setDesignSize(int width, int height) {
+        designWidth = Math.max(1, width);
+        designHeight = Math.max(1, height);
+    }
+
+    public void showNumber(int number) {
+        if (number <= 0) { hideOverlay(); return; }
         this.number = number;
-        setVisible(true);
+        setVisible(themeElement == null || !Boolean.FALSE.equals(themeElement.visible));
         repaint();
     }
 
@@ -42,44 +47,37 @@ public final class CountdownOverlay extends JComponent {
         repaint();
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        if (!isVisible() || number <= 0) {
-            return;
-        }
-
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(
-                RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON
-        );
-        g2.setComposite(AlphaComposite.SrcOver);
-
-        int size = Math.min(getWidth(), getHeight()) / 4;
-        size = Math.max(100, Math.min(size, 300));
-
-        Font font = new Font(
-                "SansSerif",
-                Font.BOLD,
-                size
-        );
-
-        g2.setFont(font);
-        String text = String.valueOf(number);
-        FontMetrics fm = g2.getFontMetrics();
-
-        int x = (getWidth() - fm.stringWidth(text)) / 2;
-        int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
-
-        int diameter = size + 80;
-        int circleX = (getWidth() - diameter) / 2;
-        int circleY = (getHeight() - diameter) / 2;
-
-        g2.setColor(new Color(0, 0, 0, 145));
-        g2.fillOval(circleX, circleY, diameter, diameter);
-        g2.setColor(Color.WHITE);
-        g2.drawString(text, x, y);
-
-        g2.dispose();
+    @Override protected void paintComponent(Graphics graphics) {
+        if (!isVisible() || number <= 0) return;
+        Graphics2D g = (Graphics2D) graphics.create();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setComposite(AlphaComposite.SrcOver);
+            int x = 0, y = 0, w = getWidth(), h = getHeight();
+            if (themeElement != null) {
+                x = (int) Math.round(themeElement.x * getWidth() / (double) designWidth);
+                y = (int) Math.round(themeElement.y * getHeight() / (double) designHeight);
+                w = Math.max(80, (int) Math.round(themeElement.width * getWidth() / (double) designWidth));
+                h = Math.max(80, (int) Math.round(themeElement.height * getHeight() / (double) designHeight));
+            }
+            int diameter = Math.max(80, Math.min(Math.min(w, h), 380));
+            int circleX = x + (w - diameter) / 2;
+            int circleY = y + (h - diameter) / 2;
+            int fontSize = Math.max(48, (int) (diameter * 0.58));
+            g.setColor(new Color(0, 0, 0, 145));
+            g.fillOval(circleX, circleY, diameter, diameter);
+            g.setFont(new Font("SansSerif", Font.BOLD, fontSize));
+            String text = String.valueOf(number);
+            FontMetrics fm = g.getFontMetrics();
+            int tx = circleX + (diameter - fm.stringWidth(text)) / 2;
+            int ty = circleY + (diameter - fm.getHeight()) / 2 + fm.getAscent();
+            Color foreground = Color.WHITE;
+            if (themeElement != null && themeElement.foreground != null) {
+                try { foreground = Color.decode(themeElement.foreground); }
+                catch (RuntimeException ignored) { }
+            }
+            g.setColor(foreground);
+            g.drawString(text, tx, ty);
+        } finally { g.dispose(); }
     }
 }

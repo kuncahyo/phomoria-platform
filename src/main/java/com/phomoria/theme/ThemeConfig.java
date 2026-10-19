@@ -26,6 +26,16 @@ public final class ThemeConfig {
         elements.put("frame-selection-card-name", new Element(null, 0, 0, 190, 32, "", "#FFFFFF", false));
         elements.put("frame-selection-card-info", new Element(null, 0, 0, 190, 28, "", "#C8C8D0", false));
         elements.put("frame-selection-continue", new Element("frame-selection-continue.png", 1500, 970, 300, 70, "LANJUTKAN", "#FFFFFF", true));
+
+        // Main / Photo Capture. Camera and preview keep their own aspect-aware painting.
+        elements.put("main-title", new Element(null, 30, 18, 650, 58, "PHOMORIA  •  PHOTO BOOTH", "#FFFFFF", true));
+        elements.put("main-status", new Element(null, 950, 18, 940, 58, "", "#78DC96", true));
+        elements.put("main-camera", new Element(null, 30, 100, 1260, 850));
+        elements.put("main-preview", new Element(null, 1320, 100, 570, 850));
+        elements.put("main-counter", new Element(null, 650, 975, 180, 70, "{captured} / {total}", "#FFFFFF", true));
+        elements.put("main-retake", new Element(null, 850, 975, 300, 70, "RETAKE FOTO TERPILIH", "#FFFFFF", true));
+        elements.put("main-cancel", new Element(null, 1180, 975, 330, 70, "PILIH ULANG FRAME", "#FFFFFF", true));
+        elements.put("main-countdown", new Element(null, 800, 360, 320, 320, "", "#FFFFFF", true));
     }
 
     ThemeConfig withDefaults() {
@@ -34,11 +44,11 @@ public final class ThemeConfig {
         else defaults.screens.forEach(screens::putIfAbsent);
         if (elements == null) elements = defaults.elements;
         else defaults.elements.forEach((id, value) -> elements.putIfAbsent(id, value));
-        // Category filtering was removed from Frame Selection; discard its obsolete editor entry.
         elements.remove("frame-selection-category");
         if (designWidth <= 0) designWidth = 1920;
         if (designHeight <= 0) designHeight = 1080;
         elements.forEach((id, e) -> {
+            if (e == null) return;
             Element factory = defaults.elements.get(id);
             if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image;
             if (e.defaultTransparent == null) e.defaultTransparent = e.transparent;
@@ -76,15 +86,10 @@ public final class ThemeConfig {
         }
         public Element(String image, int x, int y, int width, int height,
                        String text, String foreground, boolean visible) {
-            this.image = image;
-            this.defaultImage = image;
-            this.defaultTransparent = false;
-            this.text = text;
-            this.defaultText = text;
-            this.foreground = foreground;
-            this.defaultForeground = foreground;
-            this.visible = visible;
-            this.defaultVisible = visible;
+            this.image = image; this.defaultImage = image; this.defaultTransparent = false;
+            this.text = text; this.defaultText = text;
+            this.foreground = foreground; this.defaultForeground = foreground;
+            this.visible = visible; this.defaultVisible = visible;
             this.x = x; this.y = y; this.width = width; this.height = height;
         }
     }
