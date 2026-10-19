@@ -192,7 +192,9 @@ public final class ThemeEditorPanel extends JPanel {
     private void updateElementActionButtons(JButton transparency, JButton restoreDefault) {
         ThemeConfig.Element el = selectedElement == null ? null : ThemeManager.config().elements.get(selectedElement);
         boolean available = el != null;
-        transparency.setEnabled(available && el.image != null && !el.image.isBlank());
+        // Transparency applies to every element's visual rendering, including native
+        // Java buttons that do not have a user-selected PNG asset.
+        transparency.setEnabled(available);
         restoreDefault.setEnabled(available);
         transparency.setText(available && el.transparent ? "TAMPILKAN GAMBAR" : "SEMBUNYIKAN GAMBAR");
     }
@@ -317,9 +319,6 @@ public final class ThemeEditorPanel extends JPanel {
                         || !path.equals(cachedBackgroundPath)
                         || modified != cachedBackgroundModified
                         || size != cachedBackgroundSize) {
-                    // Load from bytes rather than URL/path so replacing an image at the
-                    // same filename cannot leave Toolkit's old image cached. ImageIcon
-                    // also retains animated GIF support in the editor preview.
                     backgroundIcon = new ImageIcon(Files.readAllBytes(path));
                     cachedBackgroundPath = path;
                     cachedBackgroundModified = modified;
@@ -411,9 +410,6 @@ public final class ThemeEditorPanel extends JPanel {
                     int left=(int)Math.round(el.x*sx), top=(int)Math.round(el.y*sy);
                     int w=(int)Math.round(el.width*sx), h=(int)Math.round(el.height*sy);
                     if (el.visible && !el.transparent && imagePath!=null && Files.isRegularFile(imagePath)) {
-                        // Decode the current file directly through ImageIO. ImageIcon caches
-                        // images by URL/path, so replacing a PNG at the same path can leave
-                        // the editor showing the old image even after repaint().
                         BufferedImage image = loadButtonImage(id, imagePath);
                         if (image != null) {
                             g.drawImage(image,left,top,w,h,this);

@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/** Loads factory assets and stores user edits under %APPDATA%\Phomoria\themes\default. */
+/** Loads factory backgrounds and stores user theme edits under %APPDATA%\\Phomoria\\themes\\default. */
 public final class ThemeManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path DEFAULT_ROOT = Path.of(System.getProperty("user.dir"), "themes", "default");
@@ -35,10 +35,12 @@ public final class ThemeManager {
         return resolveUserOrDefault("backgrounds", value.background);
     }
 
+    /** Button images are exclusively user overrides stored in APPDATA. */
     public static Path buttonImage(String id) {
         ThemeConfig.Element element = config().elements.get(id);
         if (element == null || element.image == null || element.image.isBlank()) return null;
-        return resolveUserOrDefault("buttons", element.image);
+        Path userAsset = ROOT.resolve("buttons").resolve(element.image);
+        return Files.isRegularFile(userAsset) ? userAsset : null;
     }
 
     private static Path resolveUserOrDefault(String category, String filename) {
@@ -53,21 +55,21 @@ public final class ThemeManager {
         Files.createDirectories(ROOT.resolve("buttons"));
         Files.writeString(CONFIG, GSON.toJson(config()), StandardCharsets.UTF_8);
     }
+
     public static synchronized void reload() { config = load(); }
 
-    /** Restore factory geometry for every element; restore PNG only when one exists. */
     public static synchronized void restoreDefaultButton(String id) throws IOException {
         restoreDefaultElement(id);
     }
 
-    /** Restore geometry, text, color, visibility and (when present) image for one element. */
+    /** Restore the code-defined factory state; remove any user PNG override. */
     public static synchronized void restoreDefaultElement(String id) throws IOException {
         ThemeConfig.Element element = config().elements.get(id);
         if (element == null) throw new IOException("Elemen tidak dikenal: " + id);
-        ThemeConfig defaults = new ThemeConfig();
-        ThemeConfig.Element factory = defaults.elements.get(id);
+        ThemeConfig.Element factory = new ThemeConfig().elements.get(id);
         if (factory == null) throw new IOException("Pengaturan bawaan tidak ditemukan: " + id);
 
+        String previousImage = element.image;
         element.x = factory.x;
         element.y = factory.y;
         element.width = factory.width;
@@ -76,24 +78,16 @@ public final class ThemeManager {
         element.foreground = factory.foreground;
         element.visible = factory.visible;
         element.transparent = factory.transparent;
+        element.image = factory.image;
+        element.defaultImage = factory.image;
         element.defaultText = factory.text;
         element.defaultForeground = factory.foreground;
         element.defaultVisible = factory.visible;
         element.defaultTransparent = factory.transparent;
 
-        if (factory.image != null && !factory.image.isBlank()) {
-            Path factoryAsset = DEFAULT_ROOT.resolve("buttons").resolve(factory.image);
-            if (!Files.isRegularFile(factoryAsset)) {
-                throw new IOException("File aset bawaan tidak ditemukan: " + factoryAsset);
-            }
-            if (element.image != null && !element.image.isBlank()) {
-                Files.deleteIfExists(ROOT.resolve("buttons").resolve(element.image));
-            }
-            element.image = factory.image;
-            element.defaultImage = factory.image;
-        } else {
-            element.image = null;
-            element.defaultImage = null;
+        if (previousImage != null && !previousImage.isBlank()
+                && !previousImage.equals(factory.image)) {
+            Files.deleteIfExists(ROOT.resolve("buttons").resolve(previousImage));
         }
         save();
     }
@@ -103,13 +97,18 @@ public final class ThemeManager {
             Files.createDirectories(ROOT.resolve("backgrounds"));
             Files.createDirectories(ROOT.resolve("buttons"));
             ThemeConfig loaded;
-            if (Files.isRegularFile(CONFIG)) loaded = GSON.fromJson(Files.readString(CONFIG, StandardCharsets.UTF_8), ThemeConfig.class);
-            else {
-                Path factoryConfig = DEFAULT_ROOT.resolve("theme.json");
-                loaded = Files.isRegularFile(factoryConfig) ? GSON.fromJson(Files.readString(factoryConfig, StandardCharsets.UTF_8), ThemeConfig.class) : new ThemeConfig();
+            if (Files.isRegularFile(CONFIG)) {
+                loaded = GSON.fromJson(Files.readString(CONFIG, StandardCharsets.UTF_8), ThemeConfig.class);
+            } else {
+                // Factory layout/text comes from Java definitions. Do not load the old
+                // packaged theme.json because it contains legacy PNG button defaults.
+                loaded = new ThemeConfig();
             }
             ThemeConfig result = (loaded == null ? new ThemeConfig() : loaded).withDefaults();
-            if (Files.notExists(CONFIG)) { config = result; save(); }
+            if (Files.notExists(CONFIG)) {
+                config = result;
+                save();
+            }
             return result;
         } catch (Exception ex) {
             System.err.println("[Theme] Gagal membaca tema: " + ex.getMessage());
@@ -118,8 +117,39 @@ public final class ThemeManager {
     }
 
     public static void replaceAsset(Path source, Path destination) throws IOException {
-        if (source == null || !Files.isRegularFile(source)) throw new IOException("File sumber tidak ditemukan: " + source);
-        Files.createDirectories(destination.getParent());
-        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+        if (source == null || !Files.isRegularFile(source)) {
+            throw new IOException("File sumber tidak ditemukan: " + source);
+        }
+        if (destination == null) {
+            throw new IOException("Lokasi tujuan aset tidak valid.");
+        }
+
+        Files.createDirectories(destination.toAbsolutePath().getParent());
+
+        // Selecting the currently active asset again is a valid no-op. Avoid asking
+        // Windows to overwrite a file with itself (which can report it as locked).
+        if (Files.exists(destination) && Files.isSameFile(source, destination)) {
+            return;
+        }
+
+        // Stage the new bytes beside the destination, then replace the destination
+        // in one move. Never delete the old asset before the new one is ready.
+        Path temporary = Files.createTempFile(
+                destination.toAbsolutePath().getParent(),
+                destination.getFileName().toString() + ".",
+                ".tmp"
+        );
+        try {
+            Files.copy(source, temporary, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.move(temporary, destination,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 }

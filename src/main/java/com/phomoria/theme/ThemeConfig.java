@@ -16,8 +16,12 @@ public final class ThemeConfig {
         screens.put("main", new Screen("main.png"));
         screens.put("effect", new Screen("effect.png"));
         screens.put("result", new Screen("result.png"));
-        elements.put("start-payment", new Element("start-payment.png", 810, 650, 300, 70));
-        elements.put("start-settings", new Element("start-settings.png", 900, 735, 120, 48));
+
+        // Factory buttons are rendered by Swing/code. PNGs are user overrides only.
+        elements.put("start-payment", new Element(null, 810, 650, 300, 70,
+                "BAYAR & MULAI FOTO", "#FFFFFF", true));
+        elements.put("start-settings", new Element(null, 900, 735, 120, 48,
+                "SETTINGS", "#FFFFFF", true));
         elements.put("frame-selection-header", new Element(null, 160, 18, 1600, 75, "PILIH FRAME", "#FFFFFF", true));
         elements.put("frame-selection-preview", new Element(null, 70, 175, 820, 790));
         elements.put("frame-selection-list", new Element(null, 930, 175, 920, 790));
@@ -25,9 +29,8 @@ public final class ThemeConfig {
         elements.put("frame-selection-selected-name", new Element(null, 70, 900, 820, 48, "", "#FFFFFF", false));
         elements.put("frame-selection-card-name", new Element(null, 0, 0, 190, 32, "", "#FFFFFF", false));
         elements.put("frame-selection-card-info", new Element(null, 0, 0, 190, 28, "", "#C8C8D0", false));
-        elements.put("frame-selection-continue", new Element("frame-selection-continue.png", 1500, 970, 300, 70, "LANJUTKAN", "#FFFFFF", true));
+        elements.put("frame-selection-continue", new Element(null, 1500, 970, 300, 70, "LANJUTKAN", "#FFFFFF", true));
 
-        // Main / Photo Capture. Camera and preview keep their own aspect-aware painting.
         elements.put("main-title", new Element(null, 30, 18, 650, 58, "PHOMORIA  •  PHOTO BOOTH", "#FFFFFF", true));
         elements.put("main-status", new Element(null, 950, 18, 940, 58, "", "#78DC96", true));
         elements.put("main-camera", new Element(null, 30, 100, 1260, 850));

@@ -9,7 +9,7 @@ import java.awt.Image;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Theme-aware button. The Swing button remains functional when its image is hidden. */
+/** Theme-aware button. A user PNG fully replaces the code-rendered button label. */
 public class ThemeButton extends JButton {
     private final String themeId;
     private Path cachedImagePath;
@@ -33,7 +33,7 @@ public class ThemeButton extends JButton {
 
     public final void applyTheme(ThemeConfig.Element element) {
         if (element == null) return;
-        if (element.text != null) setText(element.text);
+        if (getIcon() == null && element.text != null) setText(element.text);
         if (element.foreground != null) {
             try { setForeground(Color.decode(element.foreground)); }
             catch (RuntimeException ignored) { }
@@ -62,12 +62,14 @@ public class ThemeButton extends JButton {
                 }
                 setContentAreaFilled(false);
                 setBorderPainted(false);
-                if (element != null && element.text != null) setText(element.text);
+                // The PNG itself is the complete button design; do not overlay Swing text.
+                setText("");
                 return;
             } catch (Exception ignored) { }
         }
         setIcon(null);
         cachedImagePath = null;
+        cachedImageModified = -1L;
         cachedWidth = -1;
         cachedHeight = -1;
         if (element != null && element.text != null) setText(element.text);
@@ -85,6 +87,7 @@ public class ThemeButton extends JButton {
     @Override protected void paintComponent(Graphics graphics) {
         if (!visuallyTransparent()) super.paintComponent(graphics);
     }
+
     @Override protected void paintBorder(Graphics graphics) {
         if (!visuallyTransparent()) super.paintBorder(graphics);
     }
