@@ -131,7 +131,11 @@ public final class FrameSelectionScreen extends JPanel {
         if (selectedNameStyle != null) selectedName.setForeground(parseColor(selectedNameStyle.foreground, Color.WHITE));
         ThemeConfig.Element button = config.elements.get("frame-selection-continue");
         if (button != null) {
-            continueButton.setText(button.text == null || button.text.isBlank() ? "LANJUTKAN" : button.text);
+            // Tampilkan teks hanya jika tombol tidak menggunakan PNG.
+            if (continueButton.getIcon() == null) {
+                continueButton.setText(button.text == null || button.text.isBlank() ? "LANJUTKAN" : button.text);
+            }
+
             continueButton.setForeground(parseColor(button.foreground, Color.WHITE));
             continueButton.setVisible(Boolean.TRUE.equals(button.visible));
             continueButton.setBounds(
