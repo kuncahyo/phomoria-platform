@@ -20,6 +20,7 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.File;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,7 +28,12 @@ public final class ResultScreen extends JPanel {
     private static final Set<String> AUTO_PRINT_ATTEMPTED = ConcurrentHashMap.newKeySet();
     private final ApplicationFrame frame;
     private final ResultFramePanel framePanel = new ResultFramePanel();
-    private final JPanel photoStrip = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
+    private final JPanel photoStrip = new JPanel(new GridLayout(0, 1, 10, 10));
+    private final JPanel photoContent = new JPanel(new BorderLayout(8, 12));
+    private final JPanel gifPreviewPanel = new JPanel(new BorderLayout(6, 6));
+    private final JLabel gifPreviewLabel = new JLabel("GIF BELUM TERSEDIA", SwingConstants.CENTER);
+    private final JLabel gifTitle = new JLabel("ANIMATED GIF", SwingConstants.CENTER);
+    private File gifFile;
     private final JLabel uploadStatus = new JLabel("Mempersiapkan hasil...", SwingConstants.CENTER);
     private final JButton qrButton = new JButton("TAMPILKAN QR DOWNLOAD");
     private final JButton printButton = new JButton("PRINT");
@@ -60,8 +66,22 @@ public final class ResultScreen extends JPanel {
         photosTitle.setForeground(Color.WHITE);
         photosTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
         right.add(photosTitle, BorderLayout.NORTH);
-        JScrollPane scroll = new JScrollPane(photoStrip);
+        photoContent.setBackground(new Color(24, 24, 28));
+        photoStrip.setBackground(new Color(24, 24, 28));
+        photoContent.add(photoStrip, BorderLayout.NORTH);
+
+        gifPreviewPanel.setBackground(new Color(24, 24, 28));
+        gifTitle.setForeground(Color.WHITE);
+        gifTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
+        gifPreviewLabel.setForeground(new Color(190, 190, 200));
+        gifPreviewLabel.setPreferredSize(new Dimension(220, 130));
+        gifPreviewPanel.add(gifTitle, BorderLayout.NORTH);
+        gifPreviewPanel.add(gifPreviewLabel, BorderLayout.CENTER);
+        photoContent.add(gifPreviewPanel, BorderLayout.SOUTH);
+
+        JScrollPane scroll = new JScrollPane(photoContent);
         scroll.setBorder(null);
+        scroll.getViewport().addChangeListener(e -> updatePhotoGridColumns());
         right.add(scroll, BorderLayout.CENTER);
         split.setRightComponent(right);
         add(split, BorderLayout.CENTER);
@@ -108,6 +128,7 @@ public final class ResultScreen extends JPanel {
 
         try {
             sessionFolder = createSessionFolder(originals, processed);
+            createAnimatedGifSafely(processed);
             renderedFile = new File(sessionFolder, "result.png");
             ResultRenderer.render(originals, renderedFile);
             if (!renderedFile.isFile() || renderedFile.length() <= 0) {
@@ -145,24 +166,13 @@ public final class ResultScreen extends JPanel {
         for (int i = 0; i < photos.size(); i++) {
             JPanel card = new JPanel(new BorderLayout(4, 4));
             card.setBackground(new Color(30, 30, 36));
+            card.setPreferredSize(new Dimension(150, 190));
+            card.setMinimumSize(new Dimension(110, 150));
 
-            JLabel image = new JLabel(
-                    new ImageIcon(
-                            scale(
-                                    photos.get(i),
-                                    220,
-                                    260
-                            )
-                    )
-            );
-
+            JLabel image = new JLabel(new ImageIcon(scale(photos.get(i), 140, 155)));
             image.setHorizontalAlignment(SwingConstants.CENTER);
 
-            JLabel label = new JLabel(
-                    "FOTO " + (i + 1),
-                    SwingConstants.CENTER
-            );
-
+            JLabel label = new JLabel("FOTO " + (i + 1), SwingConstants.CENTER);
             label.setForeground(Color.WHITE);
 
             card.add(image, BorderLayout.CENTER);
@@ -170,8 +180,47 @@ public final class ResultScreen extends JPanel {
             photoStrip.add(card);
         }
 
+        updatePhotoGridColumns();
         photoStrip.revalidate();
         photoStrip.repaint();
+    }
+
+    private void updatePhotoGridColumns() {
+        int availableWidth = photoContent.getWidth();
+        if (availableWidth <= 0) {
+            availableWidth = 480;
+        }
+        int columns = Math.max(1, Math.min(3, (availableWidth + 10) / 160));
+        int rows = Math.max(1, (photoStrip.getComponentCount() + columns - 1) / columns);
+        photoStrip.setLayout(new GridLayout(rows, columns, 10, 10));
+        photoStrip.revalidate();
+    }
+
+    private void createAnimatedGifSafely(List<BufferedImage> photos) {
+        try {
+            if (photos == null || photos.isEmpty() || sessionFolder == null) {
+                return;
+            }
+
+            gifFile = new File(sessionFolder, "animation.gif");
+            GifGenerator.write(photos, gifFile, 800);
+
+            if (gifFile.isFile() && gifFile.length() > 0) {
+                ImageIcon animatedGif = new ImageIcon(gifFile.getAbsolutePath());
+                gifPreviewLabel.setText("");
+                gifPreviewLabel.setIcon(animatedGif);
+                gifPreviewLabel.setPreferredSize(new Dimension(
+                        Math.max(160, animatedGif.getIconWidth()),
+                        Math.max(100, animatedGif.getIconHeight())
+                ));
+                DebugLog.info("Animated GIF created: " + gifFile.getAbsolutePath());
+            }
+        } catch (Exception ex) {
+            gifFile = null;
+            gifPreviewLabel.setIcon(null);
+            gifPreviewLabel.setText("GIF TIDAK DAPAT DIBUAT");
+            DebugLog.error("Animated GIF generation failed; continuing photo flow.", ex);
+        }
     }
 
     private File createSessionFolder(

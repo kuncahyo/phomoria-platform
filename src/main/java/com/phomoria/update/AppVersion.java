@@ -1,7 +1,7 @@
 package com.phomoria.update;
 
 public final class AppVersion {
-    private static final String VERSION = "0.3.3";
+    private static final String VERSION = "0.3.4";
 
     private AppVersion() {}
 

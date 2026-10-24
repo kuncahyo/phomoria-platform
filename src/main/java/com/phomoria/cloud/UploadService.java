@@ -33,6 +33,12 @@ public final class UploadService {
         builder.addTextBody("frame_name", frameName, ContentType.TEXT_PLAIN);
         builder.addBinaryBody("result", result, ContentType.DEFAULT_BINARY, result.getName());
 
+        // GIF is a separate upload field; it is never treated as a result/photo image.
+        File gif = new File(sessionFolder, "animation.gif");
+        if (gif.isFile() && gif.length() > 0) {
+            builder.addBinaryBody("gif", gif, ContentType.create("image/gif"), gif.getName());
+        }
+
         File[] files = sessionFolder.listFiles();
         int index = 1;
         if (files != null) {
