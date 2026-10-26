@@ -55,14 +55,7 @@ public final class PaymentDialog extends JDialog {
         cancel.addActionListener(e -> closeAndCancel());
         addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosing(java.awt.event.WindowEvent e) { closeAndCancel(); } });
         pollTimer = new Timer(2500, e -> pollStatus());
-        countdownTimer = new Timer(1000, e -> {
-            remainingSeconds--;
-            updateQrisCountdown();
-            if (remainingSeconds <= 0) {
-                countdownTimer.stop();
-                closeAndCancel();
-            }
-        });
+        countdownTimer = new Timer(1000, e -> handleCountdownTick());
         beginPayment();
     }
 
@@ -120,6 +113,15 @@ public final class PaymentDialog extends JDialog {
         if (!paid && payment != null && service != null) new SwingWorker<Void, Void>() {
             @Override protected Void doInBackground() throws Exception { service.cancel(payment.orderId()); return null; }
         }.execute();
+    }
+
+    private void handleCountdownTick() {
+        remainingSeconds--;
+        updateQrisCountdown();
+        if (remainingSeconds <= 0) {
+            countdownTimer.stop();
+            closeAndCancel();
+        }
     }
 
     private void updateQrisCountdown() {
