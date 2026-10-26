@@ -50,6 +50,7 @@ public final class MainScreenThemeLayout implements LayoutManager2 {
             component.setBounds(new Rectangle(x, y, w, h));
             component.setVisible(Boolean.TRUE.equals(element.visible));
             applyStyle(component, id, element, sy);
+            if (component instanceof com.phomoria.theme.ThemeCountdownTimer timer) timer.applyTheme(id);
         }
         Component countdown = components.get("main-camera");
         if (countdown instanceof java.awt.Container cameraLayer) {
