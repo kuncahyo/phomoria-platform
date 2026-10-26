@@ -8,6 +8,9 @@ import com.phomoria.effects.PhotoEffectSession;
 import com.phomoria.effects.PhotoEffectSettings;
 import com.phomoria.effects.PhotoEffectProcessor;
 import com.phomoria.session.PhotoSession;
+import com.phomoria.theme.ThemeConfig;
+import com.phomoria.theme.ThemeManager;
+import com.phomoria.theme.ThemeCountdownTimer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,6 +27,7 @@ public final class EffectScreen extends JPanel {
     private final JPanel effectButtons = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
     private final JRadioButton applyAll = new JRadioButton("Terapkan ke semua foto");
     private int selectedIndex = 0;
+    private final ThemeCountdownTimer pageTimer = new ThemeCountdownTimer("effect-timer");
 
     public EffectScreen(ApplicationFrame frame) {
         this.frame = frame;
@@ -31,14 +35,16 @@ public final class EffectScreen extends JPanel {
         this.settings = AppContext.settings().getPhotoEffectSettings();
         this.effectSession = new PhotoEffectSession(session.getSlotCount());
 
-        setLayout(new BorderLayout(14, 14));
+        setLayout(new BorderLayout());
+        JPanel content = new JPanel(new BorderLayout(14, 14));
+        content.setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
         setBackground(new Color(18, 18, 22));
 
         JLabel title = new JLabel("PILIH EFEK FOTO", SwingConstants.CENTER);
         title.setForeground(Color.WHITE);
         title.setFont(new Font("SansSerif", Font.BOLD, 28));
-        add(title, BorderLayout.NORTH);
+        content.add(title, BorderLayout.NORTH);
 
         JPanel center = new JPanel(new BorderLayout(10, 10));
         center.setOpaque(false);
@@ -56,7 +62,7 @@ public final class EffectScreen extends JPanel {
         right.add(photoButtons, BorderLayout.CENTER);
         center.add(right, BorderLayout.EAST);
 
-        add(center, BorderLayout.CENTER);
+        content.add(center, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new BorderLayout(8, 8));
         bottom.setOpaque(false);
@@ -92,7 +98,31 @@ public final class EffectScreen extends JPanel {
         nav.add(back);
         nav.add(next);
         bottom.add(nav, BorderLayout.SOUTH);
-        add(bottom, BorderLayout.SOUTH);
+        content.add(bottom, BorderLayout.SOUTH);
+
+        JLayeredPane layers = new JLayeredPane();
+        layers.setLayout(null);
+        layers.add(content, JLayeredPane.DEFAULT_LAYER);
+        layers.add(pageTimer, JLayeredPane.PALETTE_LAYER);
+        layers.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                content.setBounds(0, 0, layers.getWidth(), layers.getHeight());
+                ThemeConfig config = ThemeManager.config();
+                ThemeConfig.Element element = config.elements.get("effect-timer");
+                if (element != null) {
+                    double sx = layers.getWidth() / (double) config.designWidth;
+                    double sy = layers.getHeight() / (double) config.designHeight;
+                    pageTimer.setBounds((int)Math.round(element.x * sx), (int)Math.round(element.y * sy),
+                            Math.max(1, (int)Math.round(element.width * sx)),
+                            Math.max(1, (int)Math.round(element.height * sy)));
+                    pageTimer.applyTheme("effect-timer");
+                    pageTimer.setVisible(Boolean.TRUE.equals(element.visible));
+                }
+            }
+        });
+        add(layers, BorderLayout.CENTER);
+        pageTimer.applyTheme("effect-timer");
+        pageTimer.start(AppContext.settings().getEffectTimerSeconds(), this::finishEffects);
 
         buildPhotoButtons();
         buildEffectButtons();
@@ -150,9 +180,15 @@ public final class EffectScreen extends JPanel {
     }
 
     private void finishEffects() {
+        pageTimer.stop();
         DebugLog.info("EffectScreen finished. applyAll=" + effectSession.isApplyToAll() + ", effects=" + effectSession.getEffects());
         AppContext.setEffectSession(effectSession);
         frame.showFinalResult();
+    }
+
+    @Override public void removeNotify() {
+        pageTimer.stop();
+        super.removeNotify();
     }
 
     private BufferedImage scale(BufferedImage image, int maxW, int maxH) {
