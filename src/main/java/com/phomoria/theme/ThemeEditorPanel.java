@@ -147,11 +147,15 @@ public final class ThemeEditorPanel extends JPanel {
                         || selectedElement.equals("main-countdown")
                         || selectedElement.endsWith("-timer");
                 elementText.setEditable(!dynamicText);
-                elementText.setToolTipText(dynamicText
+                elementText.setToolTipText(pageTimer
+                        ? "Angka countdown diperbarui otomatis; atur warna, posisi, ukuran, background PNG, dan visibilitas."
+                        : dynamicText
                         ? "Teks atau angka berasal dari status sesi; atur tampil/sembunyi dan warnanya di sini."
                         : "Ubah teks label elemen ini.");
-                elementText.setText(dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
+                elementText.setText(pageTimer ? "(angka countdown otomatis)"
+                        : dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
                 boolean liveLoader = "result-live-photo-loading".equals(selectedElement);
+                boolean pageTimer = selectedElement.endsWith("-timer");
                 elementVisible.setSelected(Boolean.TRUE.equals(el.visible));
                 elementVisible.setEnabled(!liveLoader);
                 elementVisible.setToolTipText(liveLoader
