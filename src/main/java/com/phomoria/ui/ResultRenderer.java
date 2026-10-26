@@ -59,7 +59,7 @@ public final class ResultRenderer {
         if (clipDirectories == null || clipDirectories.isEmpty()) return null;
 
         List<List<Path>> clips = new ArrayList<>();
-        for (int slot = 0; slot < session.getPhotos().size(); slot++) {
+        for (int slot = 0; slot < session.getSlotCount(); slot++) {
             Path directory = clipDirectories.get(slot);
             List<Path> files = new ArrayList<>();
             if (directory != null && Files.isDirectory(directory)) {
@@ -80,7 +80,9 @@ public final class ResultRenderer {
             return null;
         }
 
-        List<BufferedImage> stillPhotos = AppContext.effectSession().process(session.getPhotos());
+        List<BufferedImage> stillPhotos = new ArrayList<>(
+                AppContext.effectSession().process(session.getPhotos()));
+        while (stillPhotos.size() < session.getSlotCount()) stillPhotos.add(null);
         int[] paper = selectedPaperCanvas();
         Composition composition = resolveComposition(stillPhotos.size(), paper[0], paper[1]);
         int width = composition.width;
