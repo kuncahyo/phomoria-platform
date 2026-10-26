@@ -19,12 +19,15 @@ public class ThemeBackgroundPanel extends JPanel {
         this.overlayAlpha = Math.max(0f, Math.min(1f, overlayAlpha));
         Path path = ThemeManager.background(screenId);
         if (path != null && Files.isRegularFile(path)) image = new ImageIcon(path.toString()).getImage();
-        setOpaque(true);
-        setBackground(new Color(18, 18, 22));
+        // No selected background means use the host application's base surface.
+        // Do not paint a factory color or the normal dark overlay in this mode.
+        setOpaque(image != null);
+        setBackground(UIManager.getColor("Panel.background"));
     }
 
     public void setImage(Path path) {
         image = path != null && Files.isRegularFile(path) ? new ImageIcon(path.toString()).getImage() : null;
+        setOpaque(image != null);
         repaint();
     }
 
@@ -41,7 +44,7 @@ public class ThemeBackgroundPanel extends JPanel {
                     g.drawImage(image, (getWidth()-w)/2, (getHeight()-h)/2, w, h, this);
                 }
             }
-            if (overlayAlpha > 0) {
+            if (image != null && overlayAlpha > 0) {
                 g.setColor(new Color(0, 0, 0, Math.round(overlayAlpha * 255)));
                 g.fillRect(0, 0, getWidth(), getHeight());
             }
