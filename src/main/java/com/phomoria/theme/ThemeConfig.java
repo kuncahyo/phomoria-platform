@@ -74,6 +74,10 @@ public final class ThemeConfig {
             if (e.defaultText == null) e.defaultText = e.text;
             if (e.defaultForeground == null) e.defaultForeground = e.foreground;
             if (e.defaultVisible == null) e.defaultVisible = e.visible;
+            if ("result-live-photo-loading".equals(id)
+                    && (e.loadingTextPosition == null || e.loadingTextPosition.isBlank())) {
+                e.loadingTextPosition = "BOTTOM";
+            }
         });
         return this;
     }
