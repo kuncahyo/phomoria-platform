@@ -43,6 +43,12 @@ public final class SettingsScreen extends JPanel {
     private final JSpinner captureCountdown;
     private final JSpinner photoPreview;
     private final JSpinner finalReview;
+    private final JSpinner qrisTimer;
+    private final JSpinner frameSelectionTimer;
+    private final JSpinner mainSessionTimer;
+    private final JSpinner mainExtensionTimer;
+    private final JSpinner effectTimer;
+    private final JSpinner resultTimer;
     private final JCheckBox remember;
     private final JCheckBox showCancelSession;
     private final JCheckBox livePhotoEnabled;
@@ -131,6 +137,13 @@ public final class SettingsScreen extends JPanel {
                         settings.getFinalReviewSeconds(), 1, 120, 1
                 )
         );
+
+        qrisTimer = new JSpinner(new SpinnerNumberModel(settings.getQrisTimerSeconds(), 5, 3600, 5));
+        frameSelectionTimer = new JSpinner(new SpinnerNumberModel(settings.getFrameSelectionTimerSeconds(), 5, 3600, 5));
+        mainSessionTimer = new JSpinner(new SpinnerNumberModel(settings.getMainSessionTimerSeconds(), 5, 3600, 5));
+        mainExtensionTimer = new JSpinner(new SpinnerNumberModel(settings.getMainExtensionTimerSeconds(), 5, 3600, 5));
+        effectTimer = new JSpinner(new SpinnerNumberModel(settings.getEffectTimerSeconds(), 5, 3600, 5));
+        resultTimer = new JSpinner(new SpinnerNumberModel(settings.getResultTimerSeconds(), 5, 3600, 5));
 
         remember =
                 new JCheckBox(
@@ -431,6 +444,13 @@ public final class SettingsScreen extends JPanel {
                 form, g, row++,
                 "Waktu review akhir / retake (detik)", finalReview
         );
+
+        addRow(form, g, row++, "Timer QRIS (detik)", qrisTimer);
+        addRow(form, g, row++, "Timer pilih frame (detik)", frameSelectionTimer);
+        addRow(form, g, row++, "Timer sesi foto utama (detik)", mainSessionTimer);
+        addRow(form, g, row++, "Waktu tambahan sesi foto (detik)", mainExtensionTimer);
+        addRow(form, g, row++, "Timer efek foto (detik)", effectTimer);
+        addRow(form, g, row++, "Timer preview final (detik)", resultTimer);
 
         g.gridx = 1;
         g.gridy = row++;
@@ -1018,6 +1038,13 @@ public final class SettingsScreen extends JPanel {
         settings.setFinalReviewSeconds(
                 (Integer) finalReview.getValue()
         );
+
+        settings.setQrisTimerSeconds((Integer) qrisTimer.getValue());
+        settings.setFrameSelectionTimerSeconds((Integer) frameSelectionTimer.getValue());
+        settings.setMainSessionTimerSeconds((Integer) mainSessionTimer.getValue());
+        settings.setMainExtensionTimerSeconds((Integer) mainExtensionTimer.getValue());
+        settings.setEffectTimerSeconds((Integer) effectTimer.getValue());
+        settings.setResultTimerSeconds((Integer) resultTimer.getValue());
 
         settings.setRememberLogin(
                 remember.isSelected()
