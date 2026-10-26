@@ -135,6 +135,7 @@ public final class ThemeEditorPanel extends JPanel {
         selectedElement = (String) elementChoice.getSelectedItem();
         ThemeConfig.Element el = selectedElement == null ? null : ThemeManager.config().elements.get(selectedElement);
         updatingControls = true;
+        timerPng.setEnabled(false);
         try {
             if (el != null) {
                 x.setValue(el.x); y.setValue(el.y); width.setValue(el.width); height.setValue(el.height);
@@ -530,7 +531,13 @@ public final class ThemeEditorPanel extends JPanel {
                             Path timerPath = ThemeManager.timerBackground(id);
                             if (timerPath != null) {
                                 ImageIcon timerIcon = new ImageIcon(timerPath.toString());
-                                g.drawImage(timerIcon.getImage(), left, top, w, h, this);
+                                Image timerImage = timerIcon.getImage();
+                                int iw = timerIcon.getIconWidth(), ih = timerIcon.getIconHeight();
+                                if (iw > 0 && ih > 0) {
+                                    double fit = Math.max(w / (double) iw, h / (double) ih);
+                                    int dw = (int)Math.ceil(iw * fit), dh = (int)Math.ceil(ih * fit);
+                                    g.drawImage(timerImage, left + (w - dw) / 2, top + (h - dh) / 2, dw, dh, this);
+                                }
                             } else {
                                 double cx = left + w / 2.0, cy = top + h / 2.0;
                                 double radius = Math.min(w, h) * 0.46;
