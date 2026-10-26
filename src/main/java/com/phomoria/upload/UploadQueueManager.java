@@ -51,6 +51,11 @@ public final class UploadQueueManager {
     }
 
     public static synchronized void enqueue(String sessionId, String frameName, File source) throws Exception {
+        enqueue(sessionId, frameName, source, System.currentTimeMillis());
+    }
+
+    public static synchronized void enqueue(String sessionId, String frameName, File source,
+                                             long previewStartedAt) throws Exception {
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("Session ID kosong.");
         }
@@ -85,7 +90,8 @@ public final class UploadQueueManager {
         UploadQueueEntry entry = new UploadQueueEntry();
         entry.sessionId = sessionId;
         entry.frameName = frameName == null ? "" : frameName;
-        entry.createdAt = entry.updatedAt = System.currentTimeMillis();
+        entry.createdAt = previewStartedAt > 0 ? previewStartedAt : System.currentTimeMillis();
+        entry.updatedAt = System.currentTimeMillis();
         try (java.io.FileWriter writer = new java.io.FileWriter(new File(staging, "manifest.json"))) {
             new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(entry, writer);
         }
