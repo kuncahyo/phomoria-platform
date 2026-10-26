@@ -46,6 +46,7 @@ public final class ResultScreen extends JPanel {
     private final JPanel photoStrip = new JPanel(new GridLayout(0, 1, 8, 8));
     private final JPanel photoContent = new JPanel(new BorderLayout(8, 10));
     private final JPanel gifPreviewPanel = new MediaCardPanel(new BorderLayout(6, 6));
+    private final JPanel gifPreviewHolder = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
     private final ResponsiveImageLabel gifPreviewLabel = new ResponsiveImageLabel("GIF BELUM TERSEDIA");
     private final JLabel gifTitle = new JLabel("ANIMATED GIF", SwingConstants.CENTER);
     private File gifFile;
@@ -96,7 +97,12 @@ public final class ResultScreen extends JPanel {
         photoContent.add(photoStrip, BorderLayout.NORTH);
         gifPreviewPanel.setOpaque(false);
         gifPreviewPanel.setBackground(new Color(0, 0, 0, 0));
-        gifPreviewPanel.setBorder(BorderFactory.createEmptyBorder(9, 9, 9, 9));
+        gifPreviewPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        gifPreviewPanel.setPreferredSize(new Dimension(380, 300));
+        gifPreviewPanel.setMinimumSize(new Dimension(250, 200));
+        gifPreviewHolder.setOpaque(false);
+        gifPreviewHolder.setBackground(new Color(0, 0, 0, 0));
+        gifPreviewHolder.add(gifPreviewPanel);
         gifTitle.setForeground(Color.WHITE);
         gifTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
         gifPreviewLabel.setForeground(new Color(230, 230, 235));
@@ -104,7 +110,7 @@ public final class ResultScreen extends JPanel {
         gifPreviewLabel.setPreferredSize(new Dimension(220, 130));
         gifPreviewPanel.add(gifTitle, BorderLayout.NORTH);
         gifPreviewPanel.add(gifPreviewLabel, BorderLayout.CENTER);
-        photoContent.add(gifPreviewPanel, BorderLayout.SOUTH);
+        photoContent.add(gifPreviewHolder, BorderLayout.SOUTH);
 
         photoScroll.setBorder(null);
         photoScroll.setOpaque(false);
@@ -404,6 +410,7 @@ public final class ResultScreen extends JPanel {
             if (gifFile.isFile() && gifFile.length() > 0) {
                 int frameCount = gifPreviewLabel.loadAnimatedGif(gifFile);
                 gifPreviewLabel.setPreferredSize(new Dimension(360, 260));
+                gifPreviewPanel.setPreferredSize(new Dimension(380, 300));
                 DebugLog.info("Animated GIF created and decoded for desktop preview: "
                         + gifFile.getAbsolutePath() + ", frames=" + frameCount);
                 if (frameCount == 0) {
