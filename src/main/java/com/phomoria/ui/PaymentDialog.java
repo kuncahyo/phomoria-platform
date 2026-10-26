@@ -19,11 +19,12 @@ public final class PaymentDialog extends JDialog {
     private final JButton cancel = new JButton("BATAL");
     private final Timer pollTimer;
     private final Timer countdownTimer;
+    private Timer expiryGraceTimer;
     private int remainingSeconds;
     private LegacyPaymentService service;
     private LegacyPaymentService.Payment payment;
     private long startedAt;
-    private boolean paid, closing, polling;
+    private boolean paid, closing, polling, expirationPending;
 
     public PaymentDialog(JFrame owner, Runnable paymentSuccess) {
         super(owner, "Pembayaran QRIS", true);
@@ -88,7 +89,6 @@ public final class PaymentDialog extends JDialog {
 
     private void pollStatus() {
         if (polling || closing || payment == null) return;
-        if (System.currentTimeMillis() - startedAt >= com.phomoria.app.AppContext.settings().getQrisTimerSeconds() * 1000L) { closeAndCancel(); return; }
         polling = true;
         new SwingWorker<String, Void>() {
             @Override protected String doInBackground() throws Exception { return service.checkStatus(payment.orderId()); }
@@ -98,9 +98,20 @@ public final class PaymentDialog extends JDialog {
                 try {
                     String status = get();
                     if ("settlement".equalsIgnoreCase(status) || "capture".equalsIgnoreCase(status)) {
-                        paid = true; closing = true; pollTimer.stop(); dispose(); paymentSuccess.run();
+                        paid = true;
+                        closing = true;
+                        stopPaymentTimers();
+                        dispose();
+                        paymentSuccess.run();
                     } else if ("expire".equalsIgnoreCase(status) || "deny".equalsIgnoreCase(status) || "cancel".equalsIgnoreCase(status)) {
-                        pollTimer.stop(); showError("Transaksi berakhir dengan status: " + status);
+                        stopPaymentTimers();
+                        if (expirationPending) {
+                            closeAfterExpiry();
+                        } else {
+                            showError("Transaksi berakhir dengan status: " + status);
+                        }
+                    } else if (expirationPending) {
+                        note.setText("Memastikan status pembayaran terakhir...");
                     }
                 } catch (Exception ex) { note.setText("Memeriksa pembayaran... koneksi terganggu."); }
             }
@@ -109,18 +120,60 @@ public final class PaymentDialog extends JDialog {
 
     private void closeAndCancel() {
         if (closing) return;
-        closing = true; pollTimer.stop(); countdownTimer.stop(); cancel.setEnabled(false); dispose();
+        closing = true;
+        stopPaymentTimers();
+        cancel.setEnabled(false);
+        dispose();
         if (!paid && payment != null && service != null) new SwingWorker<Void, Void>() {
             @Override protected Void doInBackground() throws Exception { service.cancel(payment.orderId()); return null; }
         }.execute();
+    }
+
+    private void stopPaymentTimers() {
+        pollTimer.stop();
+        countdownTimer.stop();
+        if (expiryGraceTimer != null) {
+            expiryGraceTimer.stop();
+            expiryGraceTimer = null;
+        }
+    }
+
+    /**
+     * The visual QR timer is not proof that a payment failed. Give Midtrans
+     * time to publish a payment made at the deadline and keep checking status.
+     */
+    private void beginFinalPaymentCheck() {
+        if (closing || expirationPending || payment == null) return;
+        expirationPending = true;
+        countdownTimer.stop();
+        qrisCountdown.setText("00:00");
+        qrisCountdown.setForeground(new Color(210, 55, 55));
+        note.setText("Waktu QR habis. Memastikan pembayaran terakhir...");
+        cancel.setEnabled(true);
+        pollTimer.setDelay(1000);
+        pollTimer.setInitialDelay(0);
+        pollTimer.start();
+        pollStatus();
+
+        expiryGraceTimer = new Timer(15000, e -> closeAfterExpiry());
+        expiryGraceTimer.setRepeats(false);
+        expiryGraceTimer.start();
+    }
+
+    private void closeAfterExpiry() {
+        if (closing || paid) return;
+        closing = true;
+        stopPaymentTimers();
+        dispose();
+        // Do not send a cancellation when the final server status is unknown:
+        // a late settlement must never be cancelled by this UI timeout.
     }
 
     private void handleCountdownTick() {
         remainingSeconds--;
         updateQrisCountdown();
         if (remainingSeconds <= 0) {
-            countdownTimer.stop();
-            closeAndCancel();
+            beginFinalPaymentCheck();
         }
     }
 
