@@ -143,7 +143,8 @@ public final class ThemeEditorPanel extends JPanel {
                         || selectedElement.endsWith("selected-name")
                         || selectedElement.equals("main-status")
                         || selectedElement.equals("main-counter")
-                        || selectedElement.equals("main-countdown");
+                        || selectedElement.equals("main-countdown")
+                        || selectedElement.endsWith("-timer");
                 elementText.setEditable(!dynamicText);
                 elementText.setToolTipText(dynamicText
                         ? "Teks atau angka berasal dari status sesi; atur tampil/sembunyi dan warnanya di sini."
