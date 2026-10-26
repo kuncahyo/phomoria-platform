@@ -283,13 +283,13 @@ public final class ResultScreen extends JPanel {
 
             @Override
             protected List<BufferedImage> doInBackground() throws Exception {
-                Path movie = sessionFolder.toPath().resolve("live_photo.mp4");
+                Path movie = currentSessionFolder.toPath().resolve("live_photo.mp4");
                 Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
                 if (frames == null || !Files.isRegularFile(movie)
                         || Files.size(movie) <= 0) {
                     throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
                 }
-                previewWorkDirectory = sessionFolder.toPath().resolve("live-photo-preview-frames");
+                previewWorkDirectory = currentSessionFolder.toPath().resolve("live-photo-preview-frames");
                 return LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
             }
 
@@ -306,7 +306,7 @@ public final class ResultScreen extends JPanel {
                 } catch (Exception ex) {
                     DebugLog.error("Live Photo preparation failed; continuing standard upload.", ex);
                 } finally {
-                    Path livePhotoFile = sessionFolder.toPath().resolve("live_photo.mp4");
+                    Path livePhotoFile = currentSessionFolder.toPath().resolve("live_photo.mp4");
                     boolean livePhotoReady = Files.isRegularFile(livePhotoFile);
                     try {
                         livePhotoReady = livePhotoReady && Files.size(livePhotoFile) > 0;
