@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
 
 /** Loads factory backgrounds and stores user theme edits under %APPDATA%\\Phomoria\\themes\\default. */
 public final class ThemeManager {
@@ -36,11 +37,27 @@ public final class ThemeManager {
     }
 
     /** User-selected animated GIF for the Live Photo loading overlay. */
-    public static Path livePhotoLoadingImage() {
+    public static synchronized Path livePhotoLoadingImage() {
         ThemeConfig.Element element = config().elements.get("result-live-photo-loading");
-        if (element == null || element.image == null || element.image.isBlank()) return null;
-        Path asset = ROOT.resolve("animations").resolve(element.image);
-        return Files.isRegularFile(asset) ? asset : null;
+        if (element != null && element.image != null && !element.image.isBlank()) {
+            Path custom = ROOT.resolve("animations").resolve(element.image);
+            if (Files.isRegularFile(custom)) return custom;
+        }
+
+        // Every installation ships with this factory GIF. Extract it to the
+        // writable theme folder so Swing ImageIcon can animate it from a Path.
+        Path factory = ROOT.resolve("animations").resolve("phomoria-default-live-photo-loading.gif");
+        if (!Files.isRegularFile(factory)) {
+            try (InputStream in = ThemeManager.class.getResourceAsStream("/animations/live-photo-loading.gif")) {
+                if (in != null) {
+                    Files.createDirectories(factory.getParent());
+                    Files.copy(in, factory, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException ex) {
+                System.err.println("[Theme] Gagal menyiapkan GIF loading bawaan: " + ex.getMessage());
+            }
+        }
+        return Files.isRegularFile(factory) ? factory : null;
     }
 
     /** Button images are exclusively user overrides stored in APPDATA. */
