@@ -1,6 +1,7 @@
 package com.phomoria.app;
 
 import com.phomoria.ui.UpdateScreen;
+import com.phomoria.upload.UploadQueueManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -17,6 +18,7 @@ public final class Main {
             }
 
             AppContext.initialize();
+            UploadQueueManager.start();
 
             ApplicationFrame frame = new ApplicationFrame();
             frame.setVisible(true);
