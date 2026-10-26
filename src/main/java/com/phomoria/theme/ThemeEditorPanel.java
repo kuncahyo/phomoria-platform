@@ -58,7 +58,7 @@ public final class ThemeEditorPanel extends JPanel {
         properties.add(new JLabel("Visibilitas")); properties.add(elementVisible);
         addField(properties, "Posisi teks GIF", loadingTextPosition);
         JPanel right = new JPanel(new BorderLayout()); right.add(properties, BorderLayout.NORTH);
-        right.add(new JLabel("<html>Seret elemen pada preview untuk mengubah posisi.<br>Untuk Live Photo: pilih elemen result-live-photo-loading, unggah GIF, lalu atur posisi teks. Pilih NONE untuk menyembunyikan teks.</html>", SwingConstants.LEFT), BorderLayout.CENTER);
+        right.add(new JLabel("<html>Seret elemen pada preview untuk mengubah posisi.<br>Untuk timer: pilih elemen yang berakhiran -timer, atur visibilitas dan warna angka, lalu unggah PNG sebagai background. Jika PNG tidak dipilih, timer memakai lingkaran dekoratif bawaan.<br>Untuk Live Photo: pilih result-live-photo-loading, unggah GIF, lalu atur posisi teks. Pilih NONE untuk menyembunyikan teks.</html>", SwingConstants.LEFT), BorderLayout.CENTER);
         add(new JScrollPane(canvas), BorderLayout.CENTER); add(right, BorderLayout.EAST);
 
         screenChoice.addActionListener(e -> { refreshElements(); canvas.repaint(); });
