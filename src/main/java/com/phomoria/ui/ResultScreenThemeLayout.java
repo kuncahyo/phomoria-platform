@@ -44,7 +44,21 @@ public final class ResultScreenThemeLayout implements LayoutManager2 {
                 continue;
             }
             ThemeConfig.Element element = config.elements.get(id);
-            if (element == null) continue;
+            if (element == null) {
+                // The Live Photo loader is a runtime overlay, not a theme-editor
+                // element. Give it the exact preview bounds so its animation can
+                // actually paint above the preview on every screen size.
+                if ("result-live-photo-loading".equals(id)) {
+                    Component preview = components.get("result-preview");
+                    if (preview != null) {
+                        component.setBounds(preview.getBounds());
+                        component.setVisible(component.isVisible());
+                    } else {
+                        component.setBounds(0, 0, parent.getWidth(), parent.getHeight());
+                    }
+                }
+                continue;
+            }
             int x = (int)Math.round(element.x * sx);
             int y = (int)Math.round(element.y * sy);
             int w = Math.max(1, (int)Math.round(element.width * sx));
