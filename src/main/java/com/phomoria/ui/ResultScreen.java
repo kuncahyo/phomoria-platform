@@ -43,9 +43,9 @@ public final class ResultScreen extends JPanel {
     private final ApplicationFrame frame;
     private final ResultFramePanel framePanel = new ResultFramePanel();
     private final LivePhotoLoadingPanel livePhotoLoadingPanel = new LivePhotoLoadingPanel();
-    private final JPanel photoStrip = new JPanel(new GridLayout(0, 1, 10, 10));
-    private final JPanel photoContent = new JPanel(new BorderLayout(8, 12));
-    private final JPanel gifPreviewPanel = new JPanel(new BorderLayout(6, 6));
+    private final JPanel photoStrip = new JPanel(new GridLayout(0, 1, 8, 8));
+    private final JPanel photoContent = new JPanel(new BorderLayout(8, 10));
+    private final JPanel gifPreviewPanel = new MediaCardPanel(new BorderLayout(6, 6));
     private final ResponsiveImageLabel gifPreviewLabel = new ResponsiveImageLabel("GIF BELUM TERSEDIA");
     private final JLabel gifTitle = new JLabel("ANIMATED GIF", SwingConstants.CENTER);
     private File gifFile;
@@ -88,7 +88,7 @@ public final class ResultScreen extends JPanel {
         photosTitle.setForeground(Color.WHITE);
         photosTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
         add(photosTitle, "result-photo-list-title");
-        // All preview containers are transparent so the Result theme remains visible.
+        // Compact media cards create a consistent gallery rhythm over the themed background.
         photoContent.setOpaque(false);
         photoContent.setBackground(new Color(0, 0, 0, 0));
         photoStrip.setOpaque(false);
@@ -96,8 +96,9 @@ public final class ResultScreen extends JPanel {
         photoContent.add(photoStrip, BorderLayout.NORTH);
         gifPreviewPanel.setOpaque(false);
         gifPreviewPanel.setBackground(new Color(0, 0, 0, 0));
+        gifPreviewPanel.setBorder(BorderFactory.createEmptyBorder(9, 9, 9, 9));
         gifTitle.setForeground(Color.WHITE);
-        gifTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
+        gifTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
         gifPreviewLabel.setForeground(new Color(230, 230, 235));
         gifPreviewLabel.setOpaque(false);
         gifPreviewLabel.setPreferredSize(new Dimension(220, 130));
@@ -345,9 +346,8 @@ public final class ResultScreen extends JPanel {
         photoStrip.removeAll();
 
         for (int i = 0; i < photos.size(); i++) {
-            JPanel card = new JPanel(new BorderLayout(4, 4));
-            card.setOpaque(false);
-            card.setBackground(new Color(0, 0, 0, 0));
+            JPanel card = new MediaCardPanel(new BorderLayout(5, 7));
+            card.setBorder(BorderFactory.createEmptyBorder(8, 8, 7, 8));
             card.setPreferredSize(new Dimension(180, 210));
             card.setMinimumSize(new Dimension(100, 130));
 
@@ -355,10 +355,12 @@ public final class ResultScreen extends JPanel {
             image.setImage(photos.get(i));
             image.setOpaque(false);
             image.setHorizontalAlignment(SwingConstants.CENTER);
+            image.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255, 85), 1));
 
-            JLabel label = new JLabel("FOTO " + (i + 1), SwingConstants.CENTER);
+            JLabel label = new JLabel("FOTO  " + String.format("%02d", i + 1), SwingConstants.CENTER);
             label.setOpaque(false);
-            label.setForeground(Color.WHITE);
+            label.setForeground(new Color(250, 250, 252));
+            label.setFont(new Font("SansSerif", Font.BOLD, 11));
 
             card.add(image, BorderLayout.CENTER);
             card.add(label, BorderLayout.SOUTH);
@@ -376,17 +378,17 @@ public final class ResultScreen extends JPanel {
         if (availableWidth <= 0) {
             availableWidth = 480;
         }
-        int columns = Math.max(1, Math.min(3, (availableWidth + 10) / 210));
+        int columns = Math.max(1, Math.min(3, (availableWidth + 8) / 205));
         int rows = Math.max(1, (photoStrip.getComponentCount() + columns - 1) / columns);
-        int cardWidth = Math.max(100, (availableWidth - (columns - 1) * 10) / columns);
+        int cardWidth = Math.max(100, (availableWidth - (columns - 1) * 8) / columns);
         int cardHeight = Math.max(145, (int) Math.round(cardWidth * 0.92));
-        photoStrip.setLayout(new GridLayout(rows, columns, 10, 10));
+        photoStrip.setLayout(new GridLayout(rows, columns, 8, 8));
         for (Component component : photoStrip.getComponents()) {
             if (component instanceof JComponent card) {
                 card.setPreferredSize(new Dimension(cardWidth, cardHeight));
             }
         }
-        photoStrip.setPreferredSize(new Dimension(availableWidth, rows * cardHeight + Math.max(0, rows - 1) * 10));
+        photoStrip.setPreferredSize(new Dimension(availableWidth, rows * cardHeight + Math.max(0, rows - 1) * 8));
         photoStrip.revalidate();
     }
 
@@ -1124,6 +1126,31 @@ public final class ResultScreen extends JPanel {
                 || message.isBlank()
                 ? current.getClass().getSimpleName()
                 : message;
+    }
+
+    /** Rounded dark glass card with a soft shadow for gallery media. */
+    private static final class MediaCardPanel extends JPanel {
+        MediaCardPanel(LayoutManager layout) {
+            super(layout);
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth();
+            int h = getHeight();
+            g.setColor(new Color(0, 0, 0, 34));
+            g.fillRoundRect(3, 4, Math.max(0, w - 6), Math.max(0, h - 6), 16, 16);
+            g.setColor(new Color(30, 31, 38, 218));
+            g.fillRoundRect(0, 0, Math.max(0, w - 4), Math.max(0, h - 4), 16, 16);
+            g.setColor(new Color(255, 255, 255, 78));
+            g.setStroke(new BasicStroke(1f));
+            g.drawRoundRect(0, 0, Math.max(1, w - 5), Math.max(1, h - 5), 16, 16);
+            g.dispose();
+            super.paintComponent(graphics);
+        }
     }
 
     private BufferedImage scale(
