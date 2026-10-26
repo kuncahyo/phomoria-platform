@@ -1122,7 +1122,6 @@ public final class MainScreen
         captureController.stop();
         stopAllTimers();
         pageTimer.stop();
-        pageTimer.stop();
 
         if (reconnectController != null) {
             reconnectController.stop();
