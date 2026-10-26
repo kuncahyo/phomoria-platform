@@ -84,6 +84,7 @@ public final class ThemeConfig {
             if (e == null) return;
             Element factory = defaults.elements.get(id);
             if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image;
+            if (e.defaultTimerBackground == null) e.defaultTimerBackground = e.timerBackground;
             if (e.defaultTransparent == null) e.defaultTransparent = e.transparent;
             if (e.text == null && factory != null) e.text = factory.text;
             if (e.foreground == null && factory != null) e.foreground = factory.foreground;
