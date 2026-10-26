@@ -61,6 +61,17 @@ public final class ThemeConfig {
         if (elements == null) elements = defaults.elements;
         else defaults.elements.forEach((id, value) -> elements.putIfAbsent(id, value));
         elements.remove("frame-selection-category");
+        // Migrate the old thin loading-bar bounds to the full Result preview overlay.
+        Element loader = elements.get("result-live-photo-loading");
+        Element preview = elements.get("result-preview");
+        if (loader != null && preview != null
+                && loader.x == 70 && loader.y == 910
+                && loader.width == 1200 && loader.height == 70) {
+            loader.x = preview.x;
+            loader.y = preview.y;
+            loader.width = preview.width;
+            loader.height = preview.height;
+        }
         if (designWidth <= 0) designWidth = 1920;
         if (designHeight <= 0) designHeight = 1080;
         elements.forEach((id, e) -> {
