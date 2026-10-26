@@ -704,45 +704,6 @@ public final class ResultScreen extends JPanel {
         }
     }
 
-    /**
-     * Compact animated status placed directly below the large result preview.
-     * Its visibility is controlled by the Live Photo workflow, not by static theme visibility.
-     */
-    private static final class LivePhotoLoadingPanel extends JPanel {
-        private final JProgressBar progress = new JProgressBar();
-
-        private LivePhotoLoadingPanel() {
-            super(new BorderLayout(0, 6));
-            setOpaque(true);
-            setBackground(new Color(27, 29, 36));
-            setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(65, 70, 86), 1, true),
-                    BorderFactory.createEmptyBorder(8, 14, 9, 14)));
-
-            JLabel title = new JLabel("Loading Live Photo");
-            title.setForeground(new Color(238, 240, 248));
-            title.setFont(new Font("SansSerif", Font.BOLD, 13));
-
-            progress.setIndeterminate(true);
-            progress.setBorderPainted(false);
-            progress.setOpaque(false);
-            progress.setForeground(new Color(105, 190, 255));
-            progress.setBackground(new Color(48, 53, 66));
-            progress.setPreferredSize(new Dimension(100, 5));
-
-            add(title, BorderLayout.NORTH);
-            add(progress, BorderLayout.CENTER);
-            setPreferredSize(new Dimension(180, 54));
-        }
-
-        private void setActive(boolean active) {
-            setVisible(active);
-            progress.setIndeterminate(active);
-            revalidate();
-            repaint();
-        }
-    }
-
     private void startUploadAnimation() {
         uploadDots = 0;
         uploadStatus.setText("UPLOADING");
