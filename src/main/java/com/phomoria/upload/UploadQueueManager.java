@@ -131,6 +131,7 @@ public final class UploadQueueManager {
             entry.sessionCode = response.getSessionCode();
             entry.serverId = response.getServerId();
             entry.status = "RESERVED";
+            entry.serverStatus = "UPLOADING";
             entry.lastError = "";
             entry.attemptCount = 0;
             entry.nextAttemptAt = 0;
