@@ -187,6 +187,9 @@ public final class UploadQueueManager {
                 service.uploadAsset(entry.sessionId, next.getKey(), next.getFile());
                 entry.uploadedAssetKeys.add(next.getKey());
                 entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
+                if ("COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
+                    entry.status = "COMPLETED";
+                }
                 entry.lastError = "";
                 entry.attemptCount = 0;
                 entry.nextAttemptAt = 0;
