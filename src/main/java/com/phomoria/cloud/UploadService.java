@@ -31,6 +31,9 @@ public final class UploadService {
 
     /** Compatibility method: reserve first, then upload every manifest asset. */
     public UploadResult upload(String frameName, File sessionFolder, String clientSessionId) throws Exception {
+        if (clientSessionId == null || clientSessionId.isBlank()) {
+            clientSessionId = UUID.randomUUID().toString();
+        }
         UploadResult reservation = reserveSession(frameName, sessionFolder, clientSessionId);
         for (AssetFile asset : getAssets(sessionFolder)) {
             uploadAsset(clientSessionId, asset.getKey(), asset.getFile());
