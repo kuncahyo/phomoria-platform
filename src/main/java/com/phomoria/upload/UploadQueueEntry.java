@@ -7,6 +7,7 @@ public final class UploadQueueEntry {
     public String sessionId;
     public String frameName = "";
     public String status = "PENDING";
+    public String serverStatus = "";
     public String galleryUrl = "";
     public String sessionCode = "";
     public String serverId = "";
