@@ -37,6 +37,7 @@ public final class ThemeEditorPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton background = new JButton("GANTI BACKGROUND PNG/GIF");
+        JButton defaultBackground = new JButton("DEFAULT BACKGROUND");
         JButton buttonImage = new JButton("GANTI PNG TOMBOL");
         JButton transparency = new JButton("JADIKAN TRANSPARAN");
         JButton restoreDefault = new JButton("DEFAULT");
@@ -44,7 +45,7 @@ public final class ThemeEditorPanel extends JPanel {
         JButton backButton = new JButton("KEMBALI KE SETTINGS");
         top.add(new JLabel("Halaman:")); top.add(screenChoice);
         top.add(new JLabel("Elemen:")); top.add(elementChoice);
-        top.add(background); top.add(buttonImage); top.add(loadingGif); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
+        top.add(background); top.add(defaultBackground); top.add(buttonImage); top.add(loadingGif); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
         add(top, BorderLayout.NORTH);
 
         JPanel properties = new JPanel(new GridLayout(0, 2, 6, 6));
@@ -70,6 +71,7 @@ public final class ThemeEditorPanel extends JPanel {
         textColor.addActionListener(e -> chooseTextColor());
         elementVisible.addActionListener(e -> applyTextAndStyle());
         background.addActionListener(e -> chooseBackground());
+        defaultBackground.addActionListener(e -> restoreDefaultBackground());
         buttonImage.addActionListener(e -> chooseElementImage());
         loadingGif.addActionListener(e -> chooseLoadingGif());
         loadingTextPosition.addActionListener(e -> applyLoadingTextPosition());
@@ -281,6 +283,27 @@ public final class ThemeEditorPanel extends JPanel {
         } catch (IOException ex) { showError(ex); }
     }
 
+    private void restoreDefaultBackground() {
+        String screen = (String) screenChoice.getSelectedItem();
+        if (screen == null) return;
+        int answer = JOptionPane.showConfirmDialog(this,
+                "Hapus pilihan background untuk halaman '" + screen
+                        + "' dan gunakan background dasar aplikasi tanpa PNG/GIF maupun overlay?",
+                "Default Background", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (answer != JOptionPane.YES_OPTION) return;
+        try {
+            ThemeConfig.Screen settings = ThemeManager.config().screens.get(screen);
+            if (settings == null) throw new IOException("Konfigurasi halaman tidak ditemukan: " + screen);
+            settings.background = null;
+            ThemeManager.save();
+            canvas.invalidateBackgroundImage();
+            canvas.repaint();
+            JOptionPane.showMessageDialog(this,
+                    "Background halaman dikembalikan ke mode dasar aplikasi.",
+                    "Theme Editor", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) { showError(ex); }
+    }
+
     private void chooseBackground() {
         JFileChooser chooser = imageChooser();
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
@@ -393,7 +416,10 @@ public final class ThemeEditorPanel extends JPanel {
         }
 
         CanvasPanel() {
-            setPreferredSize(new Dimension(960, 540)); setBackground(new Color(35,35,40)); setBorder(new LineBorder(Color.GRAY));
+            setPreferredSize(new Dimension(960, 540));
+            Color base = UIManager.getColor("Panel.background");
+            setBackground(base == null ? new Color(238, 238, 238) : base);
+            setBorder(new LineBorder(Color.GRAY));
             MouseAdapter mouse = new MouseAdapter() {
                 private String draggingElement;
                 private Point dragStart;
