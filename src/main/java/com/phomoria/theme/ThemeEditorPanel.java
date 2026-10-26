@@ -540,7 +540,7 @@ public final class ThemeEditorPanel extends JPanel {
                 };
                 if (overlay > 0f) {
                     g.setColor(new Color(0, 0, 0, Math.round(overlay * 255)));
-                    g.fillRect(0, 0, getWidth(), getHeight());
+                    g.fillRect(designX, designY, designW, designH);
                 }
                 for (java.util.Map.Entry<String, ThemeConfig.Element> entry : ThemeManager.config().elements.entrySet()) {
                     String id = entry.getKey();
