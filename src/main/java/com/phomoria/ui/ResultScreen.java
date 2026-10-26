@@ -481,7 +481,7 @@ public final class ResultScreen extends JPanel {
                             stopLivePhotoLoading();
                         } else if (!entry.galleryUrl.isBlank()
                                 && System.currentTimeMillis() - entry.createdAt >= 60_000L
-                                && !"COMPLETED".equals(entry.status)) {
+                                && !"COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
                             uploadStatus.setText("UPLOAD SELESAI SEBAGIAN — QR SIAP");
                             stopUploadAnimation();
                         } else if ("RETRY".equals(entry.status)) {
