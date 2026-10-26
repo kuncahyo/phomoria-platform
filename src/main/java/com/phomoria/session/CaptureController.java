@@ -107,7 +107,8 @@ public final class CaptureController {
             // still-photo capture begins (which may take seconds on DSLR).
             List<WebcamLivePhotoBuffer.Frame> livePhotoFrames = List.of();
             if (AppContext.settings().isLivePhotoEnabled()
-                    && CameraManager.current() != null) {
+                    && (CameraManager.current() != null
+                    || CameraManager.currentBackend() != null)) {
                 livePhotoFrames = CameraManager.snapshotLivePhoto(
                         AppContext.settings().getLivePhotoDurationSeconds());
             }
