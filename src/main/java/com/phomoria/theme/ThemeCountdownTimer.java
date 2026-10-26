@@ -86,6 +86,26 @@ public final class ThemeCountdownTimer extends JPanel {
         return Integer.toString(Math.max(0, remainingSeconds));
     }
 
+    private void paintDefaultRing(Graphics2D g) {
+        double cx = getWidth() / 2.0, cy = getHeight() / 2.0;
+        double radius = Math.min(getWidth(), getHeight()) * 0.46;
+        Color ring = new Color(numberColor.getRed(), numberColor.getGreen(), numberColor.getBlue(), 185);
+        for (int i = 0; i < 120; i++) {
+            double angle = (Math.PI * 2.0 * i / 120.0) - Math.PI / 2.0;
+            boolean major = i % 5 == 0;
+            double inner = radius * (major ? 0.83 : 0.87);
+            double outer = radius;
+            int x1 = (int)Math.round(cx + inner * Math.cos(angle));
+            int y1 = (int)Math.round(cy + inner * Math.sin(angle));
+            int x2 = (int)Math.round(cx + outer * Math.cos(angle));
+            int y2 = (int)Math.round(cy + outer * Math.sin(angle));
+            g.setColor(ring);
+            g.setStroke(new java.awt.BasicStroke(Math.max(1.2f, (float)(Math.min(getWidth(), getHeight()) * (major ? 0.027 : 0.019))),
+                    java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+            g.drawLine(x1, y1, x2, y2);
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics graphics) {
         Graphics2D g = (Graphics2D) graphics.create();
@@ -99,6 +119,8 @@ public final class ThemeCountdownTimer extends JPanel {
                     int w = (int) Math.ceil(iw * scale), h = (int) Math.ceil(ih * scale);
                     g.drawImage(background, (getWidth() - w) / 2, (getHeight() - h) / 2, w, h, this);
                 }
+            } else {
+                paintDefaultRing(g);
             }
             String value = displayValue();
             int heightFit = (int) (getHeight() * 0.52);
