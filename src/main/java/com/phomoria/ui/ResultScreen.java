@@ -263,6 +263,7 @@ public final class ResultScreen extends JPanel {
      */
     private void prepareLivePhotoAndUpload(PhotoSession session) {
         final File currentSessionFolder = sessionFolder;
+        final String currentFrameName = AppContext.settings().getFrameName();
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (!AppContext.settings().isLivePhotoEnabled()
@@ -270,7 +271,7 @@ public final class ResultScreen extends JPanel {
                 || session.getLivePhotoClips().isEmpty()
                 || currentSessionFolder == null) {
             if (isActiveSession) stopLivePhotoLoading();
-            uploadResult(session, currentSessionFolder);
+            uploadResult(session, currentSessionFolder, currentFrameName);
             return;
         }
 
@@ -464,7 +465,7 @@ public final class ResultScreen extends JPanel {
         return folder;
     }
 
-    private void uploadResult(PhotoSession session, File folder) {
+    private void uploadResult(PhotoSession session, File folder, String frameName) {
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (isActiveSession) {
@@ -481,7 +482,6 @@ public final class ResultScreen extends JPanel {
 
         final String sessionId = session.getSessionId();
         final File queuedFolder = folder;
-        final String frameName = AppContext.settings().getFrameName();
 
         new SwingWorker<Void, Void>() {
             @Override
