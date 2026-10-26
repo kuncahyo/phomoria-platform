@@ -60,6 +60,14 @@ public final class ThemeManager {
         return Files.isRegularFile(factory) ? factory : null;
     }
 
+    /** Optional PNG background for an inactivity timer element. */
+    public static Path timerBackground(String id) {
+        ThemeConfig.Element element = config().elements.get(id);
+        if (element == null || element.timerBackground == null || element.timerBackground.isBlank()) return null;
+        Path asset = ROOT.resolve("timers").resolve(element.timerBackground);
+        return Files.isRegularFile(asset) ? asset : null;
+    }
+
     /** Button images are exclusively user overrides stored in APPDATA. */
     public static Path buttonImage(String id) {
         ThemeConfig.Element element = config().elements.get(id);
@@ -79,6 +87,7 @@ public final class ThemeManager {
         Files.createDirectories(ROOT.resolve("backgrounds"));
         Files.createDirectories(ROOT.resolve("buttons"));
         Files.createDirectories(ROOT.resolve("animations"));
+        Files.createDirectories(ROOT.resolve("timers"));
         Files.writeString(CONFIG, GSON.toJson(config()), StandardCharsets.UTF_8);
     }
 
@@ -96,6 +105,7 @@ public final class ThemeManager {
         if (factory == null) throw new IOException("Pengaturan bawaan tidak ditemukan: " + id);
 
         String previousImage = element.image;
+        String previousTimerBackground = element.timerBackground;
         element.x = factory.x;
         element.y = factory.y;
         element.width = factory.width;
@@ -105,6 +115,8 @@ public final class ThemeManager {
         element.visible = factory.visible;
         element.transparent = factory.transparent;
         element.image = factory.image;
+        element.timerBackground = factory.timerBackground;
+        element.defaultTimerBackground = factory.timerBackground;
         element.defaultImage = factory.image;
         element.defaultText = factory.text;
         element.defaultForeground = factory.foreground;
@@ -112,6 +124,10 @@ public final class ThemeManager {
         element.defaultTransparent = factory.transparent;
         element.loadingTextPosition = factory.loadingTextPosition;
 
+        if (previousTimerBackground != null && !previousTimerBackground.isBlank()
+                && !previousTimerBackground.equals(factory.timerBackground)) {
+            Files.deleteIfExists(ROOT.resolve("timers").resolve(previousTimerBackground));
+        }
         if (previousImage != null && !previousImage.isBlank()
                 && !previousImage.equals(factory.image)) {
             Path assetDirectory = "result-live-photo-loading".equals(id)
@@ -126,6 +142,7 @@ public final class ThemeManager {
             Files.createDirectories(ROOT.resolve("backgrounds"));
             Files.createDirectories(ROOT.resolve("buttons"));
             Files.createDirectories(ROOT.resolve("animations"));
+            Files.createDirectories(ROOT.resolve("timers"));
             ThemeConfig loaded;
             if (Files.isRegularFile(CONFIG)) {
                 loaded = GSON.fromJson(Files.readString(CONFIG, StandardCharsets.UTF_8), ThemeConfig.class);
