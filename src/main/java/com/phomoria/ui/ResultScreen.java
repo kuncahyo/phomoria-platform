@@ -14,6 +14,7 @@ import com.phomoria.upload.UploadQueueManager;
 import com.phomoria.theme.ThemeButton;
 import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeManager;
+import com.phomoria.theme.ThemeCountdownTimer;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -58,6 +59,7 @@ public final class ResultScreen extends JPanel {
     private final JLabel photosTitle = new JLabel("FOTO INDIVIDUAL", SwingConstants.CENTER);
     private final JScrollPane photoScroll = new JScrollPane(photoContent);
     private final ThemeBackgroundPanel themeBackground = new ThemeBackgroundPanel("result", 0.18f);
+    private final ThemeCountdownTimer pageTimer = new ThemeCountdownTimer("result-timer");
 
     private File sessionFolder;
     private File renderedFile;
@@ -132,6 +134,7 @@ public final class ResultScreen extends JPanel {
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
+            pageTimer.stop();
             if (uploadStatusPollTimer != null) {
                 uploadStatusPollTimer.stop();
                 uploadStatusPollTimer = null;
@@ -145,6 +148,7 @@ public final class ResultScreen extends JPanel {
         add(qrButton, "result-qr");
         add(printButton, "result-print");
         add(newSessionButton, "result-new-session");
+        add(pageTimer, "result-timer");
         setComponentZOrder(themeBackground, getComponentCount() - 1);
         printButton.setVisible(AppContext.settings().isViewPrintButton());
 
@@ -200,6 +204,8 @@ public final class ResultScreen extends JPanel {
     }
 
     public void prepareResult() {
+        pageTimer.applyTheme("result-timer");
+        pageTimer.start(AppContext.settings().getResultTimerSeconds(), newSessionButton::doClick);
         if (uploadStatusPollTimer != null) {
             uploadStatusPollTimer.stop();
             uploadStatusPollTimer = null;
