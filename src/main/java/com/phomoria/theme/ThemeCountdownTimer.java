@@ -101,7 +101,9 @@ public final class ThemeCountdownTimer extends JPanel {
                 }
             }
             String value = displayValue();
-            int fontSize = Math.max(12, (int) (Math.min(getWidth(), getHeight()) * 0.52));
+            int heightFit = (int) (getHeight() * 0.52);
+            int widthFit = (int) (getWidth() / Math.max(1.0, value.length() * 0.66));
+            int fontSize = Math.max(12, Math.min(heightFit, widthFit));
             g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, fontSize));
             FontMetrics fm = g.getFontMetrics();
             int x = (getWidth() - fm.stringWidth(value)) / 2;
