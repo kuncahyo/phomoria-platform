@@ -29,7 +29,14 @@ public final class ResultRenderer {
 
     public static File render(List<BufferedImage> photos, File output) throws Exception {
         int[] canvas = selectedPaperCanvas();
-        return render(photos, output, canvas[0], canvas[1]);
+        List<BufferedImage> completeSlots = new ArrayList<>(photos == null ? List.of() : photos);
+        PhotoSession session = AppContext.session();
+        int slotCount = session == null ? completeSlots.size() : session.getSlotCount();
+        while (completeSlots.size() < slotCount) completeSlots.add(null);
+        // Null entries deliberately represent unfilled frame slots when the
+        // session timer ends before all photos have been captured.
+        if (completeSlots.isEmpty()) completeSlots.add(null);
+        return render(completeSlots, output, canvas[0], canvas[1]);
     }
 
     public static File render(List<BufferedImage> photos, File output,
