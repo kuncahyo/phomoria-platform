@@ -22,6 +22,7 @@ import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeButton;
 import com.phomoria.theme.ThemeConfig;
 import com.phomoria.theme.ThemeManager;
+import com.phomoria.theme.ThemeCountdownTimer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -44,6 +45,7 @@ public final class MainScreen
     private final ThemeButton retakeButton = new ThemeButton("main-retake", "RETAKE FOTO TERPILIH");
     private final ThemeButton cancelButton = new ThemeButton("main-cancel", "PILIH ULANG FRAME");
     private final ThemeBackgroundPanel mainBackground = new ThemeBackgroundPanel("main", 0f);
+    private final ThemeCountdownTimer pageTimer = new ThemeCountdownTimer("main-timer");
 
     private final LiveCameraPanel cameraView =
             new LiveCameraPanel();
@@ -107,6 +109,7 @@ public final class MainScreen
         if (AppContext.settings().isShowCancelSession()) {
             add(cancelButton, "main-cancel");
         }
+        add(pageTimer, "main-timer");
         setComponentZOrder(mainBackground, getComponentCount() - 1);
 
         preview.setSelectionListener(
@@ -189,6 +192,31 @@ public final class MainScreen
         );
 
         startCamera();
+    }
+
+    private void startPageTimer() {
+        pageTimer.applyTheme("main-timer");
+        pageTimer.start(AppContext.settings().getMainSessionTimerSeconds(), this::showAddTimePrompt);
+    }
+
+    private void showAddTimePrompt() {
+        if (!active || shuttingDown) return;
+        Object[] options = {"TAMBAH"};
+        JOptionPane.showOptionDialog(this,
+                "Waktu sesi foto telah habis. Tekan TAMBAH untuk mendapatkan waktu tambahan.",
+                "WAKTU SESI HABIS", JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+        if (!active || shuttingDown) return;
+        pageTimer.start(AppContext.settings().getMainExtensionTimerSeconds(), this::finishSessionByTimeout);
+    }
+
+    private void finishSessionByTimeout() {
+        if (!active || shuttingDown) return;
+        DebugLog.warn("Main session timer expired. Finishing session with "
+                + AppContext.session().getCapturedCount() + "/" + AppContext.session().getSlotCount()
+                + " photos; missing frame slots will remain empty.");
+        captureController.stop();
+        showResult();
     }
 
     private void cancelPhotoSession() {
@@ -369,6 +397,7 @@ public final class MainScreen
                                         1200,
                                         e -> {
                                             starterTimer.stop();
+                                            startPageTimer();
                                             startNextCapture();
                                         }
                                 );
@@ -1069,6 +1098,7 @@ public final class MainScreen
             finalReviewTimer.stop();
             finalReviewTimer = null;
         }
+        pageTimer.stop();
     }
 
     public void shutdown() {
