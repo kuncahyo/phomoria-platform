@@ -125,6 +125,12 @@ public final class FrameSelectionScreen extends JPanel {
         loadCachedFrames();
         refreshPresets();
         applyThemeGeometry();
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+                if (isShowing()) pageTimer.start(AppContext.settings().getFrameSelectionTimerSeconds(), this::continueWithDefaultFrame);
+                else pageTimer.stop();
+            }
+        });
     }
 
     private void applyThemeGeometry() {
@@ -465,11 +471,6 @@ public final class FrameSelectionScreen extends JPanel {
             }
         }
         if (stagedCachedFrame != null || stagedPreset != null) confirmSelection();
-    }
-
-    @Override public void addNotify() {
-        super.addNotify();
-        pageTimer.start(AppContext.settings().getFrameSelectionTimerSeconds(), this::continueWithDefaultFrame);
     }
 
     @Override public void removeNotify() {
