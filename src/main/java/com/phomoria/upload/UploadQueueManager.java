@@ -186,6 +186,7 @@ public final class UploadQueueManager {
                 STORE.save(entry);
                 service.uploadAsset(entry.sessionId, next.getKey(), next.getFile());
                 entry.uploadedAssetKeys.add(next.getKey());
+                entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
                 entry.lastError = "";
                 entry.attemptCount = 0;
                 entry.nextAttemptAt = 0;
@@ -194,8 +195,8 @@ public final class UploadQueueManager {
             } else {
                 // The server, not the local manifest, decides whether the
                 // gallery is fully synchronized.
-                String serverStatus = service.fetchSessionStatus(entry.sessionCode);
-                if ("COMPLETED".equalsIgnoreCase(serverStatus)) {
+                entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
+                if ("COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
                     entry.status = "COMPLETED";
                     entry.lastError = "";
                     entry.nextAttemptAt = 0;
