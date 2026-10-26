@@ -320,7 +320,7 @@ public final class ResultScreen extends JPanel {
                     }
                     // Always enqueue the captured session/folder, even if the
                     // customer has already moved to a newer session.
-                    uploadResult(session, currentSessionFolder);
+                    uploadResult(session, currentSessionFolder, currentFrameName);
                 }
             }
 
