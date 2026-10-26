@@ -59,7 +59,17 @@ public final class ThemeEditorPanel extends JPanel {
         addField(properties, "Posisi teks GIF", loadingTextPosition);
         JPanel right = new JPanel(new BorderLayout()); right.add(properties, BorderLayout.NORTH);
         right.add(new JLabel("<html>Seret elemen pada preview untuk mengubah posisi.<br>Untuk timer: pilih elemen yang berakhiran -timer, atur visibilitas dan warna angka, lalu unggah PNG sebagai background. Jika PNG tidak dipilih, timer memakai lingkaran dekoratif bawaan.<br>Untuk Live Photo: pilih result-live-photo-loading, unggah GIF, lalu atur posisi teks. Pilih NONE untuk menyembunyikan teks.</html>", SwingConstants.LEFT), BorderLayout.CENTER);
-        add(new JScrollPane(canvas), BorderLayout.CENTER); add(right, BorderLayout.EAST);
+        JScrollPane previewScroll = new JScrollPane(canvas);
+        previewScroll.setMinimumSize(new Dimension(640, 420));
+        right.setPreferredSize(new Dimension(360, 0));
+        right.setMinimumSize(new Dimension(300, 300));
+        JSplitPane editorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, previewScroll, right);
+        editorSplit.setResizeWeight(0.76);
+        editorSplit.setDividerLocation(0.76);
+        editorSplit.setContinuousLayout(true);
+        editorSplit.setOneTouchExpandable(true);
+        editorSplit.setBorder(null);
+        add(editorSplit, BorderLayout.CENTER);
 
         screenChoice.addActionListener(e -> { refreshElements(); canvas.repaint(); });
         elementChoice.addActionListener(e -> selectElement());
@@ -458,8 +468,9 @@ public final class ThemeEditorPanel extends JPanel {
                     draggingElement = null; dragStart = null;
                     String screen = (String) screenChoice.getSelectedItem();
                     if (screen == null) return;
-                    double sx = getWidth() / (double) ThemeManager.config().designWidth;
-                    double sy = getHeight() / (double) ThemeManager.config().designHeight;
+                    double scale = previewScale();
+                    double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
+                    double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
                     java.util.List<java.util.Map.Entry<String, ThemeConfig.Element>> entries =
                             new java.util.ArrayList<>(ThemeManager.config().elements.entrySet());
                     for (int i = entries.size() - 1; i >= 0; i--) {
@@ -467,8 +478,8 @@ public final class ThemeEditorPanel extends JPanel {
                         if (!entry.getKey().startsWith(screen + "-")) continue;
                         ThemeConfig.Element el = entry.getValue();
                         if (el == null) continue;
-                        int left = (int)Math.round(el.x * sx), top = (int)Math.round(el.y * sy);
-                        int w = (int)Math.round(el.width * sx), h = (int)Math.round(el.height * sy);
+                        int left = (int)Math.round(offsetX + el.x * scale), top = (int)Math.round(offsetY + el.y * scale);
+                        int w = (int)Math.round(el.width * scale), h = (int)Math.round(el.height * scale);
                         if (e.getX() >= left && e.getX() <= left + w && e.getY() >= top && e.getY() <= top + h) {
                             draggingElement = entry.getKey();
                             elementChoice.setSelectedItem(draggingElement);
@@ -485,8 +496,8 @@ public final class ThemeEditorPanel extends JPanel {
                     if (el == null) return;
                     double sx = getWidth() / (double) ThemeManager.config().designWidth;
                     double sy = getHeight() / (double) ThemeManager.config().designHeight;
-                    el.x = originalX + (int)Math.round((e.getX() - dragStart.x) / sx);
-                    el.y = originalY + (int)Math.round((e.getY() - dragStart.y) / sy);
+                    el.x = originalX + (int)Math.round((e.getX() - dragStart.x) / scale);
+                    el.y = originalY + (int)Math.round((e.getY() - dragStart.y) / scale);
                     syncControlsFromElement(el);
                     repaint();
                 }
@@ -494,6 +505,11 @@ public final class ThemeEditorPanel extends JPanel {
                 @Override public void mouseReleased(MouseEvent e) { dragStart = null; draggingElement = null; }
             };
             addMouseListener(mouse); addMouseMotionListener(mouse);
+        }
+
+        private double previewScale() {
+            return Math.min(getWidth() / (double) ThemeManager.config().designWidth,
+                    getHeight() / (double) ThemeManager.config().designHeight);
         }
 
         @Override protected void paintComponent(Graphics graphics) {
@@ -520,16 +536,17 @@ public final class ThemeEditorPanel extends JPanel {
                     g.setColor(new Color(0, 0, 0, Math.round(overlay * 255)));
                     g.fillRect(0, 0, getWidth(), getHeight());
                 }
-                double sx=getWidth()/(double)ThemeManager.config().designWidth;
-                double sy=getHeight()/(double)ThemeManager.config().designHeight;
+                double scale = previewScale();
+                double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
+                double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
                 for (java.util.Map.Entry<String, ThemeConfig.Element> entry : ThemeManager.config().elements.entrySet()) {
                     String id = entry.getKey();
                     if (!id.startsWith(screen + "-")) continue;
                     ThemeConfig.Element el = entry.getValue();
                     if (el == null) continue;
                     Path imagePath = ThemeManager.buttonImage(id);
-                    int left=(int)Math.round(el.x*sx), top=(int)Math.round(el.y*sy);
-                    int w=(int)Math.round(el.width*sx), h=(int)Math.round(el.height*sy);
+                    int left=(int)Math.round(offsetX + el.x*scale), top=(int)Math.round(offsetY + el.y*scale);
+                    int w=(int)Math.round(el.width*scale), h=(int)Math.round(el.height*scale);
                     if (id.endsWith("-timer")) {
                         if (Boolean.TRUE.equals(el.visible)) {
                             Path timerPath = ThemeManager.timerBackground(id);
