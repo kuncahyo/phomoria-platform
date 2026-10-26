@@ -531,6 +531,21 @@ public final class ThemeEditorPanel extends JPanel {
                             if (timerPath != null) {
                                 ImageIcon timerIcon = new ImageIcon(timerPath.toString());
                                 g.drawImage(timerIcon.getImage(), left, top, w, h, this);
+                            } else {
+                                double cx = left + w / 2.0, cy = top + h / 2.0;
+                                double radius = Math.min(w, h) * 0.46;
+                                for (int tick = 0; tick < 120; tick++) {
+                                    double angle = (Math.PI * 2.0 * tick / 120.0) - Math.PI / 2.0;
+                                    boolean major = tick % 5 == 0;
+                                    double inner = radius * (major ? 0.83 : 0.87);
+                                    g.setColor(new Color(85, 85, 85, 185));
+                                    g.setStroke(new BasicStroke(Math.max(1f, (float)(Math.min(w, h) * (major ? 0.027 : 0.019))),
+                                            BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                                    g.drawLine((int)Math.round(cx + inner * Math.cos(angle)),
+                                            (int)Math.round(cy + inner * Math.sin(angle)),
+                                            (int)Math.round(cx + radius * Math.cos(angle)),
+                                            (int)Math.round(cy + radius * Math.sin(angle)));
+                                }
                             }
                             String sample = "30";
                             g.setColor(parseColor(el.foreground, new Color(80, 80, 80)));
