@@ -35,6 +35,14 @@ public final class ThemeManager {
         return resolveUserOrDefault("backgrounds", value.background);
     }
 
+    /** User-selected animated GIF for the Live Photo loading overlay. */
+    public static Path livePhotoLoadingImage() {
+        ThemeConfig.Element element = config().elements.get("result-live-photo-loading");
+        if (element == null || element.image == null || element.image.isBlank()) return null;
+        Path asset = ROOT.resolve("animations").resolve(element.image);
+        return Files.isRegularFile(asset) ? asset : null;
+    }
+
     /** Button images are exclusively user overrides stored in APPDATA. */
     public static Path buttonImage(String id) {
         ThemeConfig.Element element = config().elements.get(id);
@@ -53,6 +61,7 @@ public final class ThemeManager {
     public static synchronized void save() throws IOException {
         Files.createDirectories(ROOT.resolve("backgrounds"));
         Files.createDirectories(ROOT.resolve("buttons"));
+        Files.createDirectories(ROOT.resolve("animations"));
         Files.writeString(CONFIG, GSON.toJson(config()), StandardCharsets.UTF_8);
     }
 
@@ -96,6 +105,7 @@ public final class ThemeManager {
         try {
             Files.createDirectories(ROOT.resolve("backgrounds"));
             Files.createDirectories(ROOT.resolve("buttons"));
+            Files.createDirectories(ROOT.resolve("animations"));
             ThemeConfig loaded;
             if (Files.isRegularFile(CONFIG)) {
                 loaded = GSON.fromJson(Files.readString(CONFIG, StandardCharsets.UTF_8), ThemeConfig.class);
