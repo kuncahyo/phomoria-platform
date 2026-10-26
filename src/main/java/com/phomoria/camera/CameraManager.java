@@ -281,7 +281,15 @@ public final class CameraManager {
 
     /** Snapshot of the rolling webcam buffer, ending at the current shutter time. */
     public static List<WebcamLivePhotoBuffer.Frame> snapshotLivePhoto(int durationSeconds) {
-        return webcamFrameBuffer.snapshotLast(durationSeconds);
+        synchronized (CAMERA_LOCK) {
+            if (currentBackend instanceof GPhoto2PersistentCameraBackend dslrBackend) {
+                return dslrBackend.snapshotLivePhoto(durationSeconds);
+            }
+            if (current != null) {
+                return webcamFrameBuffer.snapshotLast(durationSeconds);
+            }
+            return List.of();
+        }
     }
 
     /** Called only by the frame-pump thread; CAMERA_LOCK serializes device reads. */
