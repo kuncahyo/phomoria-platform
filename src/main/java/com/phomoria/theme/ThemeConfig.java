@@ -43,7 +43,9 @@ public final class ThemeConfig {
         // Final Preview elements. All coordinates use the shared 1920x1080 canvas.
         elements.put("result-title", new Element(null, 160, 12, 1600, 64, "HASIL FOTO", "#FFFFFF", true));
         elements.put("result-preview", new Element(null, 70, 105, 1200, 790));
-        elements.put("result-live-photo-loading", new Element(null, 70, 910, 1200, 70, "", "#FFFFFF", false));
+        Element liveLoading = new Element(null, 70, 105, 1200, 790, "MENYIAPKAN LIVE PHOTO", "#FFFFFF", true);
+        liveLoading.loadingTextPosition = "BOTTOM";
+        elements.put("result-live-photo-loading", liveLoading);
         elements.put("result-photo-list-title", new Element(null, 1300, 100, 550, 48, "FOTO INDIVIDUAL", "#FFFFFF", true));
         elements.put("result-photo-list", new Element(null, 1300, 158, 550, 772));
         elements.put("result-upload-status", new Element(null, 500, 945, 920, 42, "", "#C8C8D2", true));
@@ -93,6 +95,8 @@ public final class ThemeConfig {
         public String defaultForeground;
         public Boolean visible = Boolean.TRUE;
         public Boolean defaultVisible;
+        /** Placement of Live Photo loading text relative to its custom GIF: TOP, BOTTOM, LEFT, RIGHT, NONE. */
+        public String loadingTextPosition = "BOTTOM";
         public int x, y, width, height;
         public Element() {}
         public Element(String image, int x, int y, int width, int height) {
