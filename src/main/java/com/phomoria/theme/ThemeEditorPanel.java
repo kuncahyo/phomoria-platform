@@ -26,6 +26,8 @@ public final class ThemeEditorPanel extends JPanel {
     private final JTextField elementText = new JTextField(16);
     private final JButton textColor = new JButton("PILIH WARNA TEKS");
     private final JCheckBox elementVisible = new JCheckBox("Tampilkan elemen");
+    private final JComboBox<String> loadingTextPosition = new JComboBox<>(new String[]{"BOTTOM", "TOP", "LEFT", "RIGHT", "NONE"});
+    private final JButton loadingGif = new JButton("PILIH GIF LOADING");
     private String selectedElement;
     private boolean updatingControls;
 
@@ -42,7 +44,7 @@ public final class ThemeEditorPanel extends JPanel {
         JButton backButton = new JButton("KEMBALI KE SETTINGS");
         top.add(new JLabel("Halaman:")); top.add(screenChoice);
         top.add(new JLabel("Elemen:")); top.add(elementChoice);
-        top.add(background); top.add(buttonImage); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
+        top.add(background); top.add(buttonImage); top.add(loadingGif); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
         add(top, BorderLayout.NORTH);
 
         JPanel properties = new JPanel(new GridLayout(0, 2, 6, 6));
@@ -52,6 +54,7 @@ public final class ThemeEditorPanel extends JPanel {
         addField(properties, "Teks", elementText);
         addField(properties, "Warna teks", textColor);
         properties.add(new JLabel("Visibilitas")); properties.add(elementVisible);
+        addField(properties, "Posisi teks GIF", loadingTextPosition);
         JPanel right = new JPanel(new BorderLayout()); right.add(properties, BorderLayout.NORTH);
         right.add(new JLabel("Seret elemen pada preview untuk mengubah posisi. PNG tombol dapat diganti melalui tombol di atas.", SwingConstants.LEFT), BorderLayout.CENTER);
         add(new JScrollPane(canvas), BorderLayout.CENTER); add(right, BorderLayout.EAST);
@@ -68,6 +71,8 @@ public final class ThemeEditorPanel extends JPanel {
         elementVisible.addActionListener(e -> applyTextAndStyle());
         background.addActionListener(e -> chooseBackground());
         buttonImage.addActionListener(e -> chooseElementImage());
+        loadingGif.addActionListener(e -> chooseLoadingGif());
+        loadingTextPosition.addActionListener(e -> applyLoadingTextPosition());
         transparency.addActionListener(e -> {
             toggleSelectedTransparency();
             updateElementActionButtons(transparency, restoreDefault);
@@ -84,6 +89,11 @@ public final class ThemeEditorPanel extends JPanel {
     }
 
     private static void addField(JPanel p, String label, JSpinner field) {
+        p.add(new JLabel(label));
+        p.add(field);
+    }
+
+    private static void addField(JPanel p, String label, JComboBox<String> field) {
         p.add(new JLabel(label));
         p.add(field);
     }
@@ -137,6 +147,9 @@ public final class ThemeEditorPanel extends JPanel {
                 elementText.setText(dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
                 elementVisible.setSelected(Boolean.TRUE.equals(el.visible));
                 updateColorButton(el.foreground);
+                loadingTextPosition.setSelectedItem(el.loadingTextPosition == null ? "BOTTOM" : el.loadingTextPosition);
+                loadingTextPosition.setEnabled("result-live-photo-loading".equals(selectedElement));
+                loadingGif.setEnabled("result-live-photo-loading".equals(selectedElement));
             }
         } finally { updatingControls = false; }
         canvas.repaint();
@@ -157,6 +170,37 @@ public final class ThemeEditorPanel extends JPanel {
         if (elementText.isEditable()) el.text = elementText.getText();
         el.visible = elementVisible.isSelected();
         canvas.repaint();
+    }
+
+    private void applyLoadingTextPosition() {
+        if (updatingControls || !"result-live-photo-loading".equals(selectedElement)) return;
+        ThemeConfig.Element el = ThemeManager.config().elements.get(selectedElement);
+        if (el == null) return;
+        el.loadingTextPosition = (String) loadingTextPosition.getSelectedItem();
+        canvas.repaint();
+    }
+
+    private void chooseLoadingGif() {
+        if (!"result-live-photo-loading".equals(selectedElement)) {
+            JOptionPane.showMessageDialog(this, "Pilih elemen result-live-photo-loading terlebih dahulu.");
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Animated GIF", "gif"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        Path source = chooser.getSelectedFile().toPath();
+        if (!extension(source).equals("gif")) {
+            JOptionPane.showMessageDialog(this, "Silakan pilih file GIF.", "Format tidak didukung", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            String filename = "live-photo-loading.gif";
+            ThemeManager.replaceAsset(source, ThemeManager.root().resolve("animations").resolve(filename));
+            ThemeConfig.Element el = ThemeManager.config().elements.get("result-live-photo-loading");
+            el.image = filename;
+            ThemeManager.save();
+            canvas.repaint();
+        } catch (IOException ex) { showError(ex); }
     }
 
     private void chooseTextColor() {
@@ -412,7 +456,40 @@ public final class ThemeEditorPanel extends JPanel {
                     Path imagePath = ThemeManager.buttonImage(id);
                     int left=(int)Math.round(el.x*sx), top=(int)Math.round(el.y*sy);
                     int w=(int)Math.round(el.width*sx), h=(int)Math.round(el.height*sy);
-                    if (el.visible && !el.transparent && imagePath!=null && Files.isRegularFile(imagePath)) {
+                    if ("result-live-photo-loading".equals(id)) {
+                        if (el.visible) {
+                            Path gif = ThemeManager.livePhotoLoadingImage();
+                            ImageIcon icon = gif == null ? null : new ImageIcon(gif.toAbsolutePath().toString());
+                            Image img = icon == null ? null : icon.getImage();
+                            int iw = img == null ? 0 : icon.getIconWidth();
+                            int ih = img == null ? 0 : icon.getIconHeight();
+                            double fit = iw > 0 && ih > 0 ? Math.min(1.0, Math.min((w * 0.55) / iw, (h * 0.70) / ih)) : 1.0;
+                            int dw = (int)Math.round(iw * fit), dh = (int)Math.round(ih * fit);
+                            String pos = el.loadingTextPosition == null ? "BOTTOM" : el.loadingTextPosition;
+                            String label = el.text == null ? "" : el.text;
+                            FontMetrics fm = g.getFontMetrics();
+                            int tw = label.isBlank() || "NONE".equals(pos) ? 0 : fm.stringWidth(label);
+                            int th = tw == 0 ? 0 : fm.getHeight();
+                            int gap = tw > 0 && dw > 0 ? 10 : 0;
+                            boolean horizontal = "LEFT".equals(pos) || "RIGHT".equals(pos);
+                            int groupW = horizontal ? dw + tw + gap : Math.max(dw, tw);
+                            int groupH = horizontal ? Math.max(dh, th) : dh + th + gap;
+                            int gx = left + (w - groupW) / 2, gy = top + (h - groupH) / 2;
+                            if (img != null) {
+                                int ix = gx + (horizontal && "LEFT".equals(pos) ? tw + gap : (!horizontal ? (groupW-dw)/2 : 0));
+                                int iy = gy + (!horizontal && "TOP".equals(pos) ? th + gap : (!horizontal ? 0 : (groupH-dh)/2));
+                                g.drawImage(img, ix, iy, dw, dh, this);
+                            }
+                            if (tw > 0) {
+                                g.setColor(parseColor(el.foreground, Color.WHITE));
+                                int tx = gx + (horizontal ? ("LEFT".equals(pos) ? 0 : dw + gap) : (groupW - tw)/2);
+                                int ty = gy + (horizontal ? (groupH + fm.getAscent())/2 - 2 : ("TOP".equals(pos) ? fm.getAscent() : dh + gap + fm.getAscent()));
+                                g.drawString(label, tx, ty);
+                            }
+                            g.setColor(new Color(255,255,255,190));
+                            g.drawRect(left, top, w, h);
+                        }
+                    } else if (el.visible && !el.transparent && imagePath!=null && Files.isRegularFile(imagePath)) {
                         BufferedImage image = loadButtonImage(id, imagePath);
                         if (image != null) {
                             g.drawImage(image,left,top,w,h,this);
