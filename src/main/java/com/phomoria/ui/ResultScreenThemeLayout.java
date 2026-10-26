@@ -69,6 +69,7 @@ public final class ResultScreenThemeLayout implements LayoutManager2 {
                 component.setVisible(Boolean.TRUE.equals(element.visible));
             }
             applyStyle(component, id, element, sy);
+            if (component instanceof com.phomoria.theme.ThemeCountdownTimer timer) timer.applyTheme(id);
         }
     }
 
