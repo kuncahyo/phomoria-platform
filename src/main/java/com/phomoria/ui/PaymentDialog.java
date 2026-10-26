@@ -15,8 +15,11 @@ public final class PaymentDialog extends JDialog {
     private final Runnable paymentSuccess;
     private final JLabel qr = new JLabel("Menghubungkan ke pembayaran...", SwingConstants.CENTER);
     private final JLabel note = new JLabel("", SwingConstants.CENTER);
+    private final JLabel qrisCountdown = new JLabel("10:00", SwingConstants.RIGHT);
     private final JButton cancel = new JButton("BATAL");
     private final Timer pollTimer;
+    private final Timer countdownTimer;
+    private int remainingSeconds;
     private LegacyPaymentService service;
     private LegacyPaymentService.Payment payment;
     private long startedAt;
@@ -36,10 +39,24 @@ public final class PaymentDialog extends JDialog {
         south.add(note, BorderLayout.CENTER);
         JPanel buttons = new JPanel(new FlowLayout()); buttons.add(cancel);
         south.add(buttons, BorderLayout.SOUTH);
-        add(title, BorderLayout.NORTH); add(qr, BorderLayout.CENTER); add(south, BorderLayout.SOUTH);
+        JPanel qrPanel = new JPanel(new BorderLayout(4, 4));
+        qrPanel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+        qrisCountdown.setFont(new Font("SansSerif", Font.BOLD, 18));
+        qrisCountdown.setForeground(new Color(70, 70, 70));
+        qrPanel.add(qrisCountdown, BorderLayout.NORTH);
+        qrPanel.add(qr, BorderLayout.CENTER);
+        add(title, BorderLayout.NORTH); add(qrPanel, BorderLayout.CENTER); add(south, BorderLayout.SOUTH);
         cancel.addActionListener(e -> closeAndCancel());
         addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosing(java.awt.event.WindowEvent e) { closeAndCancel(); } });
         pollTimer = new Timer(2500, e -> pollStatus());
+        countdownTimer = new Timer(1000, e -> {
+            remainingSeconds--;
+            updateQrisCountdown();
+            if (remainingSeconds <= 0) {
+                countdownTimer.stop();
+                closeAndCancel();
+            }
+        });
         beginPayment();
     }
 
@@ -59,7 +76,12 @@ public final class PaymentDialog extends JDialog {
                     Image scaled = image.getScaledInstance(340, 340, Image.SCALE_SMOOTH);
                     qr.setText(null); qr.setIcon(new ImageIcon(scaled));
                     note.setText("Total: " + NumberFormat.getCurrencyInstance(new Locale("id", "ID")).format(payment.amount()) + "  •  Menunggu pembayaran");
-                    cancel.setEnabled(true); startedAt = System.currentTimeMillis(); pollTimer.start();
+                    cancel.setEnabled(true);
+                    startedAt = System.currentTimeMillis();
+                    remainingSeconds = com.phomoria.app.AppContext.settings().getQrisTimerSeconds();
+                    updateQrisCountdown();
+                    countdownTimer.start();
+                    pollTimer.start();
                 } catch (Exception ex) { showError(root(ex)); }
             }
         }.execute();
@@ -67,7 +89,7 @@ public final class PaymentDialog extends JDialog {
 
     private void pollStatus() {
         if (polling || closing || payment == null) return;
-        if (System.currentTimeMillis() - startedAt >= 10 * 60 * 1000L) { closeAndCancel(); return; }
+        if (System.currentTimeMillis() - startedAt >= com.phomoria.app.AppContext.settings().getQrisTimerSeconds() * 1000L) { closeAndCancel(); return; }
         polling = true;
         new SwingWorker<String, Void>() {
             @Override protected String doInBackground() throws Exception { return service.checkStatus(payment.orderId()); }
@@ -88,14 +110,20 @@ public final class PaymentDialog extends JDialog {
 
     private void closeAndCancel() {
         if (closing) return;
-        closing = true; pollTimer.stop(); cancel.setEnabled(false); dispose();
+        closing = true; pollTimer.stop(); countdownTimer.stop(); cancel.setEnabled(false); dispose();
         if (!paid && payment != null && service != null) new SwingWorker<Void, Void>() {
             @Override protected Void doInBackground() throws Exception { service.cancel(payment.orderId()); return null; }
         }.execute();
     }
 
+    private void updateQrisCountdown() {
+        int seconds = Math.max(0, remainingSeconds);
+        qrisCountdown.setText(String.format(java.util.Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60));
+        qrisCountdown.setForeground(seconds <= 60 ? new Color(210, 55, 55) : new Color(70, 70, 70));
+    }
+
     private void showError(String message) {
-        pollTimer.stop(); qr.setIcon(null); qr.setText("PEMBAYARAN TIDAK DAPAT DILANJUTKAN");
+        pollTimer.stop(); countdownTimer.stop(); qr.setIcon(null); qr.setText("PEMBAYARAN TIDAK DAPAT DILANJUTKAN");
         note.setText("<html><div style='text-align:center;width:360px'>" + escape(message) + "</div></html>");
         cancel.setText("TUTUP"); cancel.setEnabled(true);
     }
