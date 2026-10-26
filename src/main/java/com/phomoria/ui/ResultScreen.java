@@ -154,7 +154,10 @@ public final class ResultScreen extends JPanel {
 
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
-                    && !isShowing()) stopPlayback();
+                    && !isShowing()) {
+                stopPlayback();
+                pageTimer.stop();
+            }
         });
         applyResultTheme();
         printButton.setVisible(AppContext.settings().isViewPrintButton());
