@@ -64,6 +64,7 @@ public final class ResultScreen extends JPanel {
     private Timer uploadAnimationTimer;
     private Timer uploadStatusPollTimer;
     private String activeUploadSessionId = "";
+    private long resultPreparedAt;
     private int uploadDots;
 
     public ResultScreen(ApplicationFrame frame) {
@@ -198,6 +199,7 @@ public final class ResultScreen extends JPanel {
         }
         PhotoSession session = AppContext.session();
         activeUploadSessionId = session == null ? "" : session.getSessionId();
+        resultPreparedAt = System.currentTimeMillis();
         downloadUrl = "";
         qrButton.setEnabled(false);
         List<BufferedImage> originals = session.getPhotos();
@@ -229,7 +231,7 @@ public final class ResultScreen extends JPanel {
                 throw new IllegalStateException("File hasil render tidak dapat dibaca sebagai gambar.");
             }
             framePanel.setImage(renderedImage);
-            prepareLivePhotoAndUpload(session);
+            prepareLivePhotoAndUpload(session, resultPreparedAt);
             SwingUtilities.invokeLater(() -> {
                 PhotoSession current = AppContext.session();
                 if (current == null || !AppContext.settings().isAutoPrint()) return;
@@ -261,9 +263,10 @@ public final class ResultScreen extends JPanel {
      * desktop uploader can include it. A Live Photo failure must never block
      * the ordinary result, GIF, or original-photo upload.
      */
-    private void prepareLivePhotoAndUpload(PhotoSession session) {
+    private void prepareLivePhotoAndUpload(PhotoSession session, long previewStartedAt) {
         final File currentSessionFolder = sessionFolder;
         final String currentFrameName = AppContext.settings().getFrameName();
+        final long currentPreviewStartedAt = previewStartedAt;
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (!AppContext.settings().isLivePhotoEnabled()
@@ -271,7 +274,7 @@ public final class ResultScreen extends JPanel {
                 || session.getLivePhotoClips().isEmpty()
                 || currentSessionFolder == null) {
             if (isActiveSession) stopLivePhotoLoading();
-            uploadResult(session, currentSessionFolder, currentFrameName);
+            uploadResult(session, currentSessionFolder, currentFrameName, currentPreviewStartedAt);
             return;
         }
 
@@ -465,7 +468,7 @@ public final class ResultScreen extends JPanel {
         return folder;
     }
 
-    private void uploadResult(PhotoSession session, File folder, String frameName) {
+    private void uploadResult(PhotoSession session, File folder, String frameName, long previewStartedAt) {
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (isActiveSession) {
@@ -486,7 +489,7 @@ public final class ResultScreen extends JPanel {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                UploadQueueManager.enqueue(sessionId, frameName, queuedFolder);
+                UploadQueueManager.enqueue(sessionId, frameName, queuedFolder, previewStartedAt);
                 return null;
             }
 
