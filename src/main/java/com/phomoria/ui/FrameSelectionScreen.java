@@ -11,6 +11,7 @@ import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeButton;
 import com.phomoria.theme.ThemeConfig;
 import com.phomoria.theme.ThemeManager;
+import com.phomoria.theme.ThemeCountdownTimer;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -42,6 +43,7 @@ public final class FrameSelectionScreen extends JPanel {
     private final JLabel pageTitle = new JLabel("PILIH FRAME", SwingConstants.CENTER);
     private final JLabel listTitle = new JLabel("PILIH GAMBAR FRAME", SwingConstants.CENTER);
     private final ThemeButton continueButton = new ThemeButton("frame-selection-continue", "LANJUTKAN");
+    private final ThemeCountdownTimer pageTimer = new ThemeCountdownTimer("frame-selection-timer");
     private final ThemeBackgroundPanel themedBackground = new ThemeBackgroundPanel("frame-selection", 0f);
     private final JPanel previewPanel = new JPanel(new BorderLayout(8, 10));
     private final JPanel listPanel = new JPanel(new BorderLayout(8, 8));
@@ -103,6 +105,7 @@ public final class FrameSelectionScreen extends JPanel {
         continueButton.setEnabled(false);
         continueButton.addActionListener(e -> confirmSelection());
         themedBackground.add(continueButton);
+        themedBackground.add(pageTimer);
 
         themedBackground.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
@@ -134,6 +137,8 @@ public final class FrameSelectionScreen extends JPanel {
         setElementBounds(listPanel, "frame-selection-list", 930, 175, 920, 790, sx, sy, config);
         setElementBounds(listTitle, "frame-selection-list-title", 980, 190, 820, 52, sx, sy, config);
         setElementBounds(selectedName, "frame-selection-selected-name", 70, 900, 820, 48, sx, sy, config);
+        setElementBounds(pageTimer, "frame-selection-timer", 1740, 24, 130, 130, sx, sy, config);
+        pageTimer.applyTheme("frame-selection-timer");
         applyTextStyle(pageTitle, config.elements.get("frame-selection-header"), "PILIH FRAME");
         applyTextStyle(listTitle, config.elements.get("frame-selection-list-title"), "PILIH DESAIN FRAME");
         ThemeConfig.Element selectedNameStyle = config.elements.get("frame-selection-selected-name");
@@ -445,7 +450,35 @@ public final class FrameSelectionScreen extends JPanel {
         presetPanel.repaint();
     }
 
+    private void continueWithDefaultFrame() {
+        if (stagedCachedFrame == null && stagedPreset == null && !frameCards.isEmpty()) {
+            if (!cachedFrames.isEmpty()) {
+                stageCachedFrame(cachedFrames.get(0), frameCards.get(0));
+            } else {
+                for (var category : com.phomoria.frame.FrameCategory.values()) {
+                    List<FramePreset> presets = FrameCatalog.byCategory(category);
+                    if (!presets.isEmpty()) {
+                        stagePreset(presets.get(0), frameCards.get(0));
+                        break;
+                    }
+                }
+            }
+        }
+        if (stagedCachedFrame != null || stagedPreset != null) confirmSelection();
+    }
+
+    @Override public void addNotify() {
+        super.addNotify();
+        pageTimer.start(AppContext.settings().getFrameSelectionTimerSeconds(), this::continueWithDefaultFrame);
+    }
+
+    @Override public void removeNotify() {
+        pageTimer.stop();
+        super.removeNotify();
+    }
+
     private void confirmSelection() {
+        pageTimer.stop();
         if (stagedCachedFrame != null) {
             FrameCache.CacheMetadata metadata = stagedCachedFrame.metadata();
             AppContext.settings().setSelectedFrameId(Long.toString(metadata.getId()));
