@@ -11,6 +11,13 @@ public final class AppSettings {
     private int captureCountdownSeconds = 3;
     private int photoPreviewSeconds = 5;
     private int finalReviewSeconds = 10;
+    // Page inactivity timers (seconds).
+    private int qrisTimerSeconds = 600;
+    private int frameSelectionTimerSeconds = 30;
+    private int mainSessionTimerSeconds = 180;
+    private int mainExtensionTimerSeconds = 120;
+    private int effectTimerSeconds = 30;
+    private int resultTimerSeconds = 60;
     private boolean rememberLogin = true;
     private boolean showCancelSession = true;
     private String frameName = "Default Frame";
@@ -41,6 +48,19 @@ public final class AppSettings {
     public void setPhotoPreviewSeconds(int value) { photoPreviewSeconds = Math.max(1, Math.min(60, value)); }
     public int getFinalReviewSeconds() { return Math.max(1, Math.min(120, finalReviewSeconds)); }
     public void setFinalReviewSeconds(int value) { finalReviewSeconds = Math.max(1, Math.min(120, value)); }
+    public int getQrisTimerSeconds() { return clampTimer(qrisTimerSeconds); }
+    public void setQrisTimerSeconds(int value) { qrisTimerSeconds = clampTimer(value); }
+    public int getFrameSelectionTimerSeconds() { return clampTimer(frameSelectionTimerSeconds); }
+    public void setFrameSelectionTimerSeconds(int value) { frameSelectionTimerSeconds = clampTimer(value); }
+    public int getMainSessionTimerSeconds() { return clampTimer(mainSessionTimerSeconds); }
+    public void setMainSessionTimerSeconds(int value) { mainSessionTimerSeconds = clampTimer(value); }
+    public int getMainExtensionTimerSeconds() { return clampTimer(mainExtensionTimerSeconds); }
+    public void setMainExtensionTimerSeconds(int value) { mainExtensionTimerSeconds = clampTimer(value); }
+    public int getEffectTimerSeconds() { return clampTimer(effectTimerSeconds); }
+    public void setEffectTimerSeconds(int value) { effectTimerSeconds = clampTimer(value); }
+    public int getResultTimerSeconds() { return clampTimer(resultTimerSeconds); }
+    public void setResultTimerSeconds(int value) { resultTimerSeconds = clampTimer(value); }
+    private int clampTimer(int value) { return Math.max(5, Math.min(3600, value)); }
     public boolean isRememberLogin() { return rememberLogin; }
     public void setRememberLogin(boolean value) { rememberLogin = value; }
     public boolean isShowCancelSession() { return showCancelSession; }
