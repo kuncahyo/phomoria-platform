@@ -288,7 +288,7 @@ public final class ThemeEditorPanel extends JPanel {
         if (screen == null) return;
         int answer = JOptionPane.showConfirmDialog(this,
                 "Hapus pilihan background untuk halaman '" + screen
-                        + "' dan gunakan background dasar aplikasi tanpa PNG/GIF maupun overlay?",
+                        + "' dan gunakan kembali background dekoratif bawaan aplikasi (background yang digambar oleh kode), bukan PNG/GIF custom?",
                 "Default Background", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (answer != JOptionPane.YES_OPTION) return;
         try {
@@ -299,7 +299,7 @@ public final class ThemeEditorPanel extends JPanel {
             canvas.invalidateBackgroundImage();
             canvas.repaint();
             JOptionPane.showMessageDialog(this,
-                    "Background halaman dikembalikan ke mode dasar aplikasi.",
+                    "Background halaman dikembalikan ke background dekoratif bawaan aplikasi.",
                     "Theme Editor", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException ex) { showError(ex); }
     }
@@ -417,8 +417,8 @@ public final class ThemeEditorPanel extends JPanel {
 
         CanvasPanel() {
             setPreferredSize(new Dimension(960, 540));
-            Color base = UIManager.getColor("Panel.background");
-            setBackground(base == null ? new Color(238, 238, 238) : base);
+            setBackground(new Color(18, 18, 22));
+            setOpaque(true);
             setBorder(new LineBorder(Color.GRAY));
             MouseAdapter mouse = new MouseAdapter() {
                 private String draggingElement;
@@ -476,6 +476,20 @@ public final class ThemeEditorPanel extends JPanel {
                 ImageIcon background = loadBackgroundImage(bg);
                 if (background != null && background.getImage() != null) {
                     g.drawImage(background.getImage(), 0, 0, getWidth(), getHeight(), this);
+                } else {
+                    // Preview the factory/code-defined background when no custom
+                    // PNG/GIF is selected, matching ThemeBackgroundPanel.
+                    g.setColor(new Color(18, 18, 22));
+                    g.fillRect(0, 0, getWidth(), getHeight());
+                }
+                float overlay = switch (screen == null ? "" : screen) {
+                    case "start" -> 0.25f;
+                    case "result" -> 0.18f;
+                    default -> 0f;
+                };
+                if (overlay > 0f) {
+                    g.setColor(new Color(0, 0, 0, Math.round(overlay * 255)));
+                    g.fillRect(0, 0, getWidth(), getHeight());
                 }
                 double sx=getWidth()/(double)ThemeManager.config().designWidth;
                 double sy=getHeight()/(double)ThemeManager.config().designHeight;
