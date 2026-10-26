@@ -139,6 +139,7 @@ public final class ThemeEditorPanel extends JPanel {
         try {
             if (el != null) {
                 x.setValue(el.x); y.setValue(el.y); width.setValue(el.width); height.setValue(el.height);
+                boolean pageTimer = selectedElement.endsWith("-timer");
                 boolean dynamicText = selectedElement.endsWith("card-name")
                         || selectedElement.endsWith("card-info")
                         || selectedElement.endsWith("selected-name")
@@ -155,7 +156,6 @@ public final class ThemeEditorPanel extends JPanel {
                 elementText.setText(pageTimer ? "(angka countdown otomatis)"
                         : dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
                 boolean liveLoader = "result-live-photo-loading".equals(selectedElement);
-                boolean pageTimer = selectedElement.endsWith("-timer");
                 elementVisible.setSelected(Boolean.TRUE.equals(el.visible));
                 elementVisible.setEnabled(!liveLoader);
                 elementVisible.setToolTipText(liveLoader
