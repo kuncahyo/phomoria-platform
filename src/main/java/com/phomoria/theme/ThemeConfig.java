@@ -39,6 +39,17 @@ public final class ThemeConfig {
         elements.put("main-retake", new Element(null, 850, 975, 300, 70, "RETAKE FOTO TERPILIH", "#FFFFFF", true));
         elements.put("main-cancel", new Element(null, 1180, 975, 330, 70, "PILIH ULANG FRAME", "#FFFFFF", true));
         elements.put("main-countdown", new Element(null, 800, 360, 320, 320, "", "#FFFFFF", true));
+
+        // Final Preview elements. All coordinates use the shared 1920x1080 canvas.
+        elements.put("result-title", new Element(null, 160, 12, 1600, 64, "HASIL FOTO", "#FFFFFF", true));
+        elements.put("result-preview", new Element(null, 70, 105, 1200, 790));
+        elements.put("result-live-photo-loading", new Element(null, 70, 910, 1200, 70, "", "#FFFFFF", false));
+        elements.put("result-photo-list-title", new Element(null, 1300, 100, 550, 48, "FOTO INDIVIDUAL", "#FFFFFF", true));
+        elements.put("result-photo-list", new Element(null, 1300, 158, 550, 772));
+        elements.put("result-upload-status", new Element(null, 500, 945, 920, 42, "", "#C8C8D2", true));
+        elements.put("result-qr", new Element(null, 470, 1000, 300, 62, "TAMPILKAN QR DOWNLOAD", "#FFFFFF", true));
+        elements.put("result-print", new Element(null, 810, 1000, 220, 62, "PRINT", "#FFFFFF", true));
+        elements.put("result-new-session", new Element(null, 1070, 1000, 300, 62, "NEW SESSION", "#FFFFFF", true));
     }
 
     ThemeConfig withDefaults() {

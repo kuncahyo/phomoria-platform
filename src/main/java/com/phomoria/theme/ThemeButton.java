@@ -99,6 +99,9 @@ public class ThemeButton extends JButton {
             case "frame-selection-continue" -> "LANJUTKAN";
             case "main-retake" -> "RETAKE FOTO TERPILIH";
             case "main-cancel" -> "PILIH ULANG FRAME";
+            case "result-qr" -> "TAMPILKAN QR DOWNLOAD";
+            case "result-print" -> "PRINT";
+            case "result-new-session" -> "NEW SESSION";
             default -> id;
         };
     }

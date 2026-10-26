@@ -1,6 +1,9 @@
 package com.phomoria.session;
 
 import com.phomoria.camera.CameraManager;
+import com.phomoria.camera.WebcamLivePhotoBuffer;
+import com.phomoria.app.AppContext;
+import java.util.List;
 import com.phomoria.debug.DebugLog;
 
 import javax.swing.*;
@@ -20,6 +23,12 @@ public final class CaptureController {
                 boolean retake,
                 int targetIndex
         );
+
+        default void onCapturedWithLivePhoto(
+                BufferedImage image, boolean retake, int targetIndex,
+                List<WebcamLivePhotoBuffer.Frame> livePhotoFrames) {
+            onCaptured(image, retake, targetIndex);
+        }
 
         void onCaptureError(Exception error);
     }
@@ -94,7 +103,15 @@ public final class CaptureController {
 
             stop();
 
-            captureAsync();
+            // Freeze the rolling buffer at the shutter instant, before the
+            // still-photo capture begins (which may take seconds on DSLR).
+            List<WebcamLivePhotoBuffer.Frame> livePhotoFrames = List.of();
+            if (AppContext.settings().isLivePhotoEnabled()
+                    && CameraManager.current() != null) {
+                livePhotoFrames = CameraManager.snapshotLivePhoto(
+                        AppContext.settings().getLivePhotoDurationSeconds());
+            }
+            captureAsync(livePhotoFrames);
 
             return;
         }
@@ -116,13 +133,16 @@ public final class CaptureController {
      * This is important for gPhoto2 because a physical DSLR capture can
      * take several seconds while the camera writes/downloads the JPEG.
      */
-    private void captureAsync() {
+    private void captureAsync(
+            List<WebcamLivePhotoBuffer.Frame> livePhotoFrames) {
 
         final boolean captureRetake =
                 retake;
 
         final int captureTargetIndex =
                 targetIndex;
+        final List<WebcamLivePhotoBuffer.Frame> capturedLivePhotoFrames =
+                livePhotoFrames == null ? List.of() : List.copyOf(livePhotoFrames);
 
         SwingWorker<BufferedImage, Void> worker =
                 new SwingWorker<>() {
@@ -161,10 +181,9 @@ public final class CaptureController {
                                             + captureTargetIndex
                             );
 
-                            listener.onCaptured(
-                                    image,
-                                    captureRetake,
-                                    captureTargetIndex
+                            listener.onCapturedWithLivePhoto(
+                                    image, captureRetake, captureTargetIndex,
+                                    capturedLivePhotoFrames
                             );
 
                         } catch (Exception ex) {

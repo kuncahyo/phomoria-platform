@@ -5,11 +5,19 @@ import com.phomoria.app.ApplicationFrame;
 import com.phomoria.cloud.QrCodeGenerator;
 import com.phomoria.cloud.UploadService;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.camera.LivePhotoPreviewDecoder;
 import com.phomoria.effects.PhotoEffectSession;
 import com.phomoria.frame.PrintPaperSize;
 import com.phomoria.session.PhotoSession;
+import com.phomoria.theme.ThemeButton;
+import com.phomoria.theme.ThemeBackgroundPanel;
+import com.phomoria.theme.ThemeManager;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.metadata.IIOMetadataNode;
+import javax.imageio.stream.ImageInputStream;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -19,6 +27,10 @@ import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
@@ -28,15 +40,21 @@ public final class ResultScreen extends JPanel {
     private static final Set<String> AUTO_PRINT_ATTEMPTED = ConcurrentHashMap.newKeySet();
     private final ApplicationFrame frame;
     private final ResultFramePanel framePanel = new ResultFramePanel();
+    private final LivePhotoLoadingPanel livePhotoLoadingPanel = new LivePhotoLoadingPanel();
     private final JPanel photoStrip = new JPanel(new GridLayout(0, 1, 10, 10));
     private final JPanel photoContent = new JPanel(new BorderLayout(8, 12));
     private final JPanel gifPreviewPanel = new JPanel(new BorderLayout(6, 6));
-    private final JLabel gifPreviewLabel = new JLabel("GIF BELUM TERSEDIA", SwingConstants.CENTER);
+    private final ResponsiveImageLabel gifPreviewLabel = new ResponsiveImageLabel("GIF BELUM TERSEDIA");
     private final JLabel gifTitle = new JLabel("ANIMATED GIF", SwingConstants.CENTER);
     private File gifFile;
     private final JLabel uploadStatus = new JLabel("Mempersiapkan hasil...", SwingConstants.CENTER);
-    private final JButton qrButton = new JButton("TAMPILKAN QR DOWNLOAD");
-    private final JButton printButton = new JButton("PRINT");
+    private final ThemeButton qrButton = new ThemeButton("result-qr", "TAMPILKAN QR DOWNLOAD");
+    private final ThemeButton printButton = new ThemeButton("result-print", "PRINT");
+    private final ThemeButton newSessionButton = new ThemeButton("result-new-session", "NEW SESSION");
+    private final JLabel screenTitle = new JLabel("HASIL FOTO", SwingConstants.CENTER);
+    private final JLabel photosTitle = new JLabel("FOTO INDIVIDUAL", SwingConstants.CENTER);
+    private final JScrollPane photoScroll = new JScrollPane(photoContent);
+    private final ThemeBackgroundPanel themeBackground = new ThemeBackgroundPanel("result", 0.18f);
 
     private File sessionFolder;
     private File renderedFile;
@@ -46,69 +64,120 @@ public final class ResultScreen extends JPanel {
 
     public ResultScreen(ApplicationFrame frame) {
         this.frame = frame;
-        setLayout(new BorderLayout(12, 12));
-        setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
-        setBackground(new Color(18, 18, 22));
+        setLayout(new ResultScreenThemeLayout());
+        setOpaque(false);
+        setBorder(null);
+        add(themeBackground, "result-background");
 
-        JLabel title = new JLabel("HASIL FOTO", SwingConstants.CENTER);
-        title.setForeground(Color.WHITE);
-        title.setFont(new Font("SansSerif", Font.BOLD, 28));
-        add(title, BorderLayout.NORTH);
+        screenTitle.setForeground(Color.WHITE);
+        screenTitle.setFont(new Font("SansSerif", Font.BOLD, 28));
+        add(screenTitle, "result-title");
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        split.setResizeWeight(0.68);
-        split.setBorder(null);
-        split.setLeftComponent(framePanel);
+        // Let the themed screen background show through the preview letterbox area.
+        framePanel.setOpaque(false);
+        framePanel.setBackground(new Color(0, 0, 0, 0));
+        add(framePanel, "result-preview");
+        livePhotoLoadingPanel.setVisible(false);
+        add(livePhotoLoadingPanel, "result-live-photo-loading");
 
-        JPanel right = new JPanel(new BorderLayout(8, 8));
-        right.setBackground(new Color(24, 24, 28));
-        JLabel photosTitle = new JLabel("FOTO INDIVIDUAL", SwingConstants.CENTER);
         photosTitle.setForeground(Color.WHITE);
         photosTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
-        right.add(photosTitle, BorderLayout.NORTH);
-        photoContent.setBackground(new Color(24, 24, 28));
-        photoStrip.setBackground(new Color(24, 24, 28));
+        add(photosTitle, "result-photo-list-title");
+        // All preview containers are transparent so the Result theme remains visible.
+        photoContent.setOpaque(false);
+        photoContent.setBackground(new Color(0, 0, 0, 0));
+        photoStrip.setOpaque(false);
+        photoStrip.setBackground(new Color(0, 0, 0, 0));
         photoContent.add(photoStrip, BorderLayout.NORTH);
-
-        gifPreviewPanel.setBackground(new Color(24, 24, 28));
+        gifPreviewPanel.setOpaque(false);
+        gifPreviewPanel.setBackground(new Color(0, 0, 0, 0));
         gifTitle.setForeground(Color.WHITE);
         gifTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
-        gifPreviewLabel.setForeground(new Color(190, 190, 200));
+        gifPreviewLabel.setForeground(new Color(230, 230, 235));
+        gifPreviewLabel.setOpaque(false);
         gifPreviewLabel.setPreferredSize(new Dimension(220, 130));
         gifPreviewPanel.add(gifTitle, BorderLayout.NORTH);
         gifPreviewPanel.add(gifPreviewLabel, BorderLayout.CENTER);
         photoContent.add(gifPreviewPanel, BorderLayout.SOUTH);
 
-        JScrollPane scroll = new JScrollPane(photoContent);
-        scroll.setBorder(null);
-        scroll.getViewport().addChangeListener(e -> updatePhotoGridColumns());
-        right.add(scroll, BorderLayout.CENTER);
-        split.setRightComponent(right);
-        add(split, BorderLayout.CENTER);
+        photoScroll.setBorder(null);
+        photoScroll.setOpaque(false);
+        photoScroll.getViewport().setOpaque(false);
+        photoScroll.getViewport().setBackground(new Color(0, 0, 0, 0));
+        photoScroll.getVerticalScrollBar().setOpaque(false);
+        photoScroll.getHorizontalScrollBar().setOpaque(false);
+        photoScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        photoScroll.getViewport().addChangeListener(e -> updatePhotoGridColumns());
+        add(photoScroll, "result-photo-list");
+        installDragToScroll(photoScroll.getViewport());
+        installDragToScroll(photoContent);
+        installDragToScroll(photoStrip);
 
-        JPanel bottom = new JPanel(new BorderLayout(10, 8));
-        bottom.setOpaque(false);
         uploadStatus.setForeground(new Color(200, 200, 210));
-        bottom.add(uploadStatus, BorderLayout.NORTH);
+        add(uploadStatus, "result-upload-status");
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 5));
-        buttons.setOpaque(false);
         qrButton.setEnabled(false);
-
-        JButton newSession = new JButton("NEW SESSION");
-
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
-        newSession.addActionListener(e -> {
+        newSessionButton.addActionListener(e -> {
             AppContext.newSession();
             frame.showStart();
         });
+        add(qrButton, "result-qr");
+        add(printButton, "result-print");
+        add(newSessionButton, "result-new-session");
+        setComponentZOrder(themeBackground, getComponentCount() - 1);
+        printButton.setVisible(AppContext.settings().isViewPrintButton());
 
-        buttons.add(qrButton);
-        if (AppContext.settings().isViewPrintButton()) buttons.add(printButton);
-        buttons.add(newSession);
-        bottom.add(buttons, BorderLayout.SOUTH);
-        add(bottom, BorderLayout.SOUTH);
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
+                    && !isShowing()) stopPlayback();
+        });
+        applyResultTheme();
+        printButton.setVisible(AppContext.settings().isViewPrintButton());
+    }
+
+    private void applyResultTheme() {
+        revalidate();
+        repaint();
+    }
+
+    /** Touchscreen/mouse drag scrolling for the individual-photo column. */
+    private void installDragToScroll(Component component) {
+        if (component == null || Boolean.TRUE.equals(((JComponent) component).getClientProperty("phomoria.result.dragScroll"))) return;
+        ((JComponent) component).putClientProperty("phomoria.result.dragScroll", Boolean.TRUE);
+        final Point[] press = {null};
+        final Point[] viewportStart = {null};
+        final boolean[] dragged = {false};
+        component.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                press[0] = SwingUtilities.convertPoint(component, e.getPoint(), photoScroll.getViewport());
+                viewportStart[0] = photoScroll.getViewport().getViewPosition();
+                dragged[0] = false;
+            }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (dragged[0]) e.consume();
+                press[0] = null;
+                viewportStart[0] = null;
+            }
+        });
+        component.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override public void mouseDragged(java.awt.event.MouseEvent e) {
+                if (press[0] == null || viewportStart[0] == null) return;
+                Point now = SwingUtilities.convertPoint(component, e.getPoint(), photoScroll.getViewport());
+                int dy = now.y - press[0].y;
+                if (!dragged[0] && Math.abs(dy) < 7) return;
+                dragged[0] = true;
+                JViewport viewport = photoScroll.getViewport();
+                int maxY = Math.max(0, viewport.getViewSize().height - viewport.getExtentSize().height);
+                int y = Math.max(0, Math.min(maxY, viewportStart[0].y - dy));
+                viewport.setViewPosition(new Point(viewportStart[0].x, y));
+                e.consume();
+            }
+        });
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) if (child instanceof JComponent) installDragToScroll(child);
+        }
     }
 
     public void prepareResult() {
@@ -124,6 +193,9 @@ public final class ResultScreen extends JPanel {
                         + effects.getEffects()
         );
 
+        printButton.setVisible(AppContext.settings().isViewPrintButton());
+        applyResultTheme();
+        printButton.setVisible(AppContext.settings().isViewPrintButton());
         showPhotoStrip(processed);
 
         try {
@@ -139,7 +211,7 @@ public final class ResultScreen extends JPanel {
                 throw new IllegalStateException("File hasil render tidak dapat dibaca sebagai gambar.");
             }
             framePanel.setImage(renderedImage);
-            uploadResult();
+            prepareLivePhotoAndUpload(session);
             SwingUtilities.invokeLater(() -> {
                 PhotoSession current = AppContext.session();
                 if (current == null || !AppContext.settings().isAutoPrint()) return;
@@ -160,23 +232,103 @@ public final class ResultScreen extends JPanel {
         }
     }
 
+    /** Stop playback and release decoded frames when Final Preview is left. */
+    public void stopPlayback() {
+        framePanel.stopAnimation();
+        livePhotoLoadingPanel.setActive(false);
+    }
+
+    /**
+     * Render the Live Photo MP4 before starting the multipart upload so the
+     * desktop uploader can include it. A Live Photo failure must never block
+     * the ordinary result, GIF, or original-photo upload.
+     */
+    private void prepareLivePhotoAndUpload(PhotoSession session) {
+        if (!AppContext.settings().isLivePhotoEnabled()
+                || session == null
+                || session.getLivePhotoClips().isEmpty()
+                || sessionFolder == null) {
+            stopLivePhotoLoading();
+            uploadResult();
+            return;
+        }
+
+        startLivePhotoLoading();
+        uploadStatus.setText("MENYIAPKAN LIVE PHOTO...");
+        new SwingWorker<List<BufferedImage>, Void>() {
+            private Path previewWorkDirectory;
+
+            @Override
+            protected List<BufferedImage> doInBackground() throws Exception {
+                Path movie = sessionFolder.toPath().resolve("live_photo.mp4");
+                Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
+                if (frames == null || !Files.isRegularFile(movie)
+                        || Files.size(movie) <= 0) {
+                    throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
+                }
+                previewWorkDirectory = sessionFolder.toPath().resolve("live-photo-preview-frames");
+                return LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
+            }
+
+            @Override
+            protected void done() {
+                cleanupPreviewFrames();
+                try {
+                    List<BufferedImage> frames = get();
+                    if (isShowing() && !frames.isEmpty()) {
+                        framePanel.setAnimationFrames(frames);
+                        DebugLog.info("Live Photo Final Preview playback started.");
+                    }
+                } catch (Exception ex) {
+                    DebugLog.error("Live Photo preparation failed; continuing standard upload.", ex);
+                } finally {
+                    Path livePhotoFile = sessionFolder.toPath().resolve("live_photo.mp4");
+                    boolean livePhotoReady = Files.isRegularFile(livePhotoFile);
+                    try {
+                        livePhotoReady = livePhotoReady && Files.size(livePhotoFile) > 0;
+                    } catch (Exception ignored) {
+                        livePhotoReady = false;
+                    }
+                    if (!livePhotoReady) {
+                        stopLivePhotoLoading();
+                    }
+                    uploadResult();
+                }
+            }
+
+            private void cleanupPreviewFrames() {
+                if (previewWorkDirectory == null || !Files.exists(previewWorkDirectory)) return;
+                try (var stream = Files.walk(previewWorkDirectory)) {
+                    stream.sorted(Comparator.reverseOrder()).forEach(path -> {
+                        try { Files.deleteIfExists(path); } catch (Exception ignored) {}
+                    });
+                } catch (Exception ignored) {}
+            }
+        }.execute();
+    }
+
     private void showPhotoStrip(List<BufferedImage> photos) {
         photoStrip.removeAll();
 
         for (int i = 0; i < photos.size(); i++) {
             JPanel card = new JPanel(new BorderLayout(4, 4));
-            card.setBackground(new Color(30, 30, 36));
-            card.setPreferredSize(new Dimension(150, 190));
-            card.setMinimumSize(new Dimension(110, 150));
+            card.setOpaque(false);
+            card.setBackground(new Color(0, 0, 0, 0));
+            card.setPreferredSize(new Dimension(180, 210));
+            card.setMinimumSize(new Dimension(100, 130));
 
-            JLabel image = new JLabel(new ImageIcon(scale(photos.get(i), 140, 155)));
+            ResponsiveImageLabel image = new ResponsiveImageLabel("");
+            image.setImage(photos.get(i));
+            image.setOpaque(false);
             image.setHorizontalAlignment(SwingConstants.CENTER);
 
             JLabel label = new JLabel("FOTO " + (i + 1), SwingConstants.CENTER);
+            label.setOpaque(false);
             label.setForeground(Color.WHITE);
 
             card.add(image, BorderLayout.CENTER);
             card.add(label, BorderLayout.SOUTH);
+            installDragToScroll(card);
             photoStrip.add(card);
         }
 
@@ -190,9 +342,17 @@ public final class ResultScreen extends JPanel {
         if (availableWidth <= 0) {
             availableWidth = 480;
         }
-        int columns = Math.max(1, Math.min(3, (availableWidth + 10) / 160));
+        int columns = Math.max(1, Math.min(3, (availableWidth + 10) / 210));
         int rows = Math.max(1, (photoStrip.getComponentCount() + columns - 1) / columns);
+        int cardWidth = Math.max(100, (availableWidth - (columns - 1) * 10) / columns);
+        int cardHeight = Math.max(145, (int) Math.round(cardWidth * 0.92));
         photoStrip.setLayout(new GridLayout(rows, columns, 10, 10));
+        for (Component component : photoStrip.getComponents()) {
+            if (component instanceof JComponent card) {
+                card.setPreferredSize(new Dimension(cardWidth, cardHeight));
+            }
+        }
+        photoStrip.setPreferredSize(new Dimension(availableWidth, rows * cardHeight + Math.max(0, rows - 1) * 10));
         photoStrip.revalidate();
     }
 
@@ -206,20 +366,21 @@ public final class ResultScreen extends JPanel {
             GifGenerator.write(photos, gifFile, 800);
 
             if (gifFile.isFile() && gifFile.length() > 0) {
-                ImageIcon animatedGif = new ImageIcon(gifFile.getAbsolutePath());
-                gifPreviewLabel.setText("");
-                gifPreviewLabel.setIcon(animatedGif);
-                gifPreviewLabel.setPreferredSize(new Dimension(
-                        Math.max(160, animatedGif.getIconWidth()),
-                        Math.max(100, animatedGif.getIconHeight())
-                ));
-                DebugLog.info("Animated GIF created: " + gifFile.getAbsolutePath());
+                int frameCount = gifPreviewLabel.loadAnimatedGif(gifFile);
+                gifPreviewLabel.setPreferredSize(new Dimension(360, 260));
+                DebugLog.info("Animated GIF created and decoded for desktop preview: "
+                        + gifFile.getAbsolutePath() + ", frames=" + frameCount);
+                if (frameCount == 0) {
+                    throw new IllegalStateException("GIF berhasil dibuat tetapi tidak memiliki frame yang dapat dibaca.");
+                }
+            } else {
+                throw new IllegalStateException("File animation.gif tidak ditemukan atau kosong.");
             }
         } catch (Exception ex) {
             gifFile = null;
-            gifPreviewLabel.setIcon(null);
-            gifPreviewLabel.setText("GIF TIDAK DAPAT DIBUAT");
-            DebugLog.error("Animated GIF generation failed; continuing photo flow.", ex);
+            gifPreviewLabel.clearAnimation();
+            gifPreviewLabel.setText("GIF TIDAK DAPAT DITAMPILKAN");
+            DebugLog.error("Animated GIF generation/desktop preview failed; continuing photo flow.", ex);
         }
     }
 
@@ -294,6 +455,7 @@ public final class ResultScreen extends JPanel {
             @Override
             protected void done() {
                 stopUploadAnimation();
+                stopLivePhotoLoading();
 
                 try {
                     downloadUrl = get();
@@ -323,6 +485,189 @@ public final class ResultScreen extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    private void startLivePhotoLoading() {
+        livePhotoLoadingPanel.setActive(true);
+    }
+
+    private void stopLivePhotoLoading() {
+        livePhotoLoadingPanel.setActive(false);
+    }
+
+    /**
+     * Draws still images and animated GIFs into the available component area.
+     * The source image keeps its aspect ratio and is never tied to a fixed pixel size.
+     */
+    private static final class ResponsiveImageLabel extends JLabel {
+        private Image image;
+        private List<BufferedImage> animationFrames = List.of();
+        private int animationIndex;
+        private Timer animationTimer;
+
+        private ResponsiveImageLabel(String text) {
+            super(text, SwingConstants.CENTER);
+            setOpaque(false);
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setVerticalAlignment(SwingConstants.CENTER);
+        }
+
+        private void setImage(Image image) {
+            stopAnimation();
+            this.image = image;
+            repaint();
+        }
+
+        /**
+         * Decode every GIF frame explicitly. Relying on Toolkit/ImageIcon animation
+         * is unreliable when the image is painted manually by a custom JLabel.
+         */
+        private int loadAnimatedGif(File file) throws Exception {
+            clearAnimation();
+            Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("gif");
+            if (!readers.hasNext()) {
+                throw new IllegalStateException("GIF ImageIO reader tidak tersedia.");
+            }
+
+            ImageReader reader = readers.next();
+            List<BufferedImage> decoded = new ArrayList<>();
+            int delayMillis = 800;
+            try (ImageInputStream input = ImageIO.createImageInputStream(file)) {
+                if (input == null) throw new IllegalStateException("Tidak dapat membuka file GIF.");
+                reader.setInput(input, false, false);
+                int count = reader.getNumImages(true);
+                for (int i = 0; i < count; i++) {
+                    BufferedImage frame = reader.read(i);
+                    if (frame != null) {
+                        decoded.add(frame);
+                        if (i == 0) {
+                            delayMillis = readGifDelayMillis(reader.getImageMetadata(i));
+                        }
+                    }
+                }
+            } finally {
+                reader.dispose();
+            }
+
+            if (decoded.isEmpty()) return 0;
+            this.image = null;
+            this.animationFrames = List.copyOf(decoded);
+            this.animationIndex = 0;
+            setText("");
+            if (animationFrames.size() > 1) {
+                animationTimer = new Timer(Math.max(40, delayMillis), e -> {
+                    animationIndex = (animationIndex + 1) % animationFrames.size();
+                    repaint();
+                });
+                animationTimer.setCoalesce(true);
+                animationTimer.start();
+            }
+            revalidate();
+            repaint();
+            return animationFrames.size();
+        }
+
+        private static int readGifDelayMillis(IIOMetadata metadata) {
+            try {
+                String format = metadata.getNativeMetadataFormatName();
+                if (format == null) return 800;
+                IIOMetadataNode root = (IIOMetadataNode) metadata.getAsTree(format);
+                org.w3c.dom.NodeList controls = root.getElementsByTagName("GraphicControlExtension");
+                if (controls.getLength() > 0) {
+                    org.w3c.dom.Node node = controls.item(0);
+                    org.w3c.dom.NamedNodeMap attributes = node.getAttributes();
+                    org.w3c.dom.Node delay = attributes.getNamedItem("delayTime");
+                    if (delay != null) {
+                        int centiseconds = Integer.parseInt(delay.getNodeValue());
+                        if (centiseconds > 0) return centiseconds * 10;
+                    }
+                }
+            } catch (Exception ignored) {
+                // Keep the safe default delay when optional GIF metadata is absent.
+            }
+            return 800;
+        }
+
+        private void clearAnimation() {
+            stopAnimation();
+            image = null;
+            animationFrames = List.of();
+            animationIndex = 0;
+            repaint();
+        }
+
+        private void stopAnimation() {
+            if (animationTimer != null) {
+                animationTimer.stop();
+                animationTimer = null;
+            }
+        }
+
+        @Override protected void paintComponent(Graphics graphics) {
+            BufferedImage currentFrame = animationFrames.isEmpty()
+                    ? null : animationFrames.get(animationIndex);
+            Image currentImage = currentFrame != null ? currentFrame : image;
+            if (currentImage == null) {
+                super.paintComponent(graphics);
+                return;
+            }
+
+            Graphics2D g2 = (Graphics2D) graphics.create();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            int sourceW = currentImage.getWidth(this);
+            int sourceH = currentImage.getHeight(this);
+            if (sourceW <= 0 || sourceH <= 0 || getWidth() <= 0 || getHeight() <= 0) {
+                g2.dispose();
+                return;
+            }
+            double scale = Math.min(getWidth() / (double) sourceW, getHeight() / (double) sourceH);
+            int drawW = Math.max(1, (int) Math.round(sourceW * scale));
+            int drawH = Math.max(1, (int) Math.round(sourceH * scale));
+            int x = (getWidth() - drawW) / 2;
+            int y = (getHeight() - drawH) / 2;
+            g2.drawImage(currentImage, x, y, drawW, drawH, this);
+            g2.dispose();
+        }
+    }
+
+    /**
+     * Compact animated status placed directly below the large result preview.
+     * Its visibility is controlled by the Live Photo workflow, not by static theme visibility.
+     */
+    private static final class LivePhotoLoadingPanel extends JPanel {
+        private final JProgressBar progress = new JProgressBar();
+
+        private LivePhotoLoadingPanel() {
+            super(new BorderLayout(0, 6));
+            setOpaque(true);
+            setBackground(new Color(27, 29, 36));
+            setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(65, 70, 86), 1, true),
+                    BorderFactory.createEmptyBorder(8, 14, 9, 14)));
+
+            JLabel title = new JLabel("Loading Live Photo");
+            title.setForeground(new Color(238, 240, 248));
+            title.setFont(new Font("SansSerif", Font.BOLD, 13));
+
+            progress.setIndeterminate(true);
+            progress.setBorderPainted(false);
+            progress.setOpaque(false);
+            progress.setForeground(new Color(105, 190, 255));
+            progress.setBackground(new Color(48, 53, 66));
+            progress.setPreferredSize(new Dimension(100, 5));
+
+            add(title, BorderLayout.NORTH);
+            add(progress, BorderLayout.CENTER);
+            setPreferredSize(new Dimension(180, 54));
+        }
+
+        private void setActive(boolean active) {
+            setVisible(active);
+            progress.setIndeterminate(active);
+            revalidate();
+            repaint();
+        }
     }
 
     private void startUploadAnimation() {

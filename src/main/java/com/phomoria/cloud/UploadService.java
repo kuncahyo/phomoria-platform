@@ -31,12 +31,18 @@ public final class UploadService {
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addTextBody("device_uuid", device.getUuid(), ContentType.TEXT_PLAIN);
         builder.addTextBody("frame_name", frameName, ContentType.TEXT_PLAIN);
-        builder.addBinaryBody("result", result, ContentType.DEFAULT_BINARY, result.getName());
+        builder.addBinaryBody("result", result, ContentType.create("image/png"), result.getName());
 
-        // GIF is a separate upload field; it is never treated as a result/photo image.
+        // GIF and Live Photo are independent assets, not original-photo slots.
         File gif = new File(sessionFolder, "animation.gif");
         if (gif.isFile() && gif.length() > 0) {
             builder.addBinaryBody("gif", gif, ContentType.create("image/gif"), gif.getName());
+        }
+
+        File livePhoto = new File(sessionFolder, "live_photo.mp4");
+        if (livePhoto.isFile() && livePhoto.length() > 0) {
+            builder.addBinaryBody("live_photo", livePhoto,
+                    ContentType.create("video/mp4"), "live_photo.mp4");
         }
 
         File[] files = sessionFolder.listFiles();

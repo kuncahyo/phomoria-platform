@@ -23,148 +23,53 @@ public final class AppSettings {
     private String printerName = "";
     private boolean autoPrint = false;
     private boolean viewPrintButton = true;
-    private PhotoEffectSettings photoEffectSettings =
-            new PhotoEffectSettings();
+    private boolean livePhotoEnabled = false;
+    private int livePhotoDurationSeconds = 3;
+    private PhotoEffectSettings photoEffectSettings = new PhotoEffectSettings();
 
     public String getApiServer() { return apiServer; }
-
-    public void setApiServer(String value) {
-        apiServer = value == null || value.isBlank()
-                ? "https://phomoria.com/sub"
-                : value.trim();
-    }
-
+    public void setApiServer(String value) { apiServer = value == null || value.isBlank() ? "https://phomoria.com/sub" : value.trim(); }
     public String getCameraName() { return cameraName; }
-
-    public void setCameraName(String value) {
-        cameraName = value == null ? "" : value;
-    }
-
-    public int getPhotoSlotCount() {
-        return Math.max(1, Math.min(12, photoSlotCount));
-    }
-
-    public void setPhotoSlotCount(int value) {
-        photoSlotCount = Math.max(1, Math.min(12, value));
-    }
-
+    public void setCameraName(String value) { cameraName = value == null ? "" : value; }
+    public int getPhotoSlotCount() { return Math.max(1, Math.min(12, photoSlotCount)); }
+    public void setPhotoSlotCount(int value) { photoSlotCount = Math.max(1, Math.min(12, value)); }
     public int getPrice() { return Math.max(0, price); }
-
     public void setPrice(int value) { price = Math.max(0, value); }
-
-    public int getCaptureCountdownSeconds() {
-        return Math.max(1, Math.min(30, captureCountdownSeconds));
-    }
-
-    public void setCaptureCountdownSeconds(int value) {
-        captureCountdownSeconds = Math.max(1, Math.min(30, value));
-    }
-
-    public int getPhotoPreviewSeconds() {
-        return Math.max(1, Math.min(60, photoPreviewSeconds));
-    }
-
-    public void setPhotoPreviewSeconds(int value) {
-        photoPreviewSeconds = Math.max(1, Math.min(60, value));
-    }
-
-    public int getFinalReviewSeconds() {
-        return Math.max(1, Math.min(120, finalReviewSeconds));
-    }
-
-    public void setFinalReviewSeconds(int value) {
-        finalReviewSeconds = Math.max(1, Math.min(120, value));
-    }
-
+    public int getCaptureCountdownSeconds() { return Math.max(1, Math.min(30, captureCountdownSeconds)); }
+    public void setCaptureCountdownSeconds(int value) { captureCountdownSeconds = Math.max(1, Math.min(30, value)); }
+    public int getPhotoPreviewSeconds() { return Math.max(1, Math.min(60, photoPreviewSeconds)); }
+    public void setPhotoPreviewSeconds(int value) { photoPreviewSeconds = Math.max(1, Math.min(60, value)); }
+    public int getFinalReviewSeconds() { return Math.max(1, Math.min(120, finalReviewSeconds)); }
+    public void setFinalReviewSeconds(int value) { finalReviewSeconds = Math.max(1, Math.min(120, value)); }
     public boolean isRememberLogin() { return rememberLogin; }
-
     public void setRememberLogin(boolean value) { rememberLogin = value; }
-
     public boolean isShowCancelSession() { return showCancelSession; }
-
-    public void setShowCancelSession(boolean value) {
-        showCancelSession = value;
-    }
-
+    public void setShowCancelSession(boolean value) { showCancelSession = value; }
     public String getFrameName() { return frameName; }
-
-    public void setFrameName(String value) {
-        frameName = value == null ? "Default Frame" : value;
-    }
-
+    public void setFrameName(String value) { frameName = value == null ? "Default Frame" : value; }
     public String getSelectedFrameId() { return selectedFrameId; }
-
-    public void setSelectedFrameId(String value) {
-        selectedFrameId = value == null || value.isBlank()
-                ? "standard_vertical"
-                : value;
-    }
-
+    public void setSelectedFrameId(String value) { selectedFrameId = value == null || value.isBlank() ? "standard_vertical" : value; }
     public boolean isMirrorPhoto() { return mirrorPhoto; }
-
-    public void setMirrorPhoto(boolean mirrorPhoto) {
-        this.mirrorPhoto = mirrorPhoto;
-    }
-
-    public PrintPaperSize getPrintPaperSize() {
-        if (printPaperSize == null) {
-            printPaperSize = PrintPaperSize.FOUR_BY_SIX;
-        }
-        return printPaperSize;
-    }
-
-    public void setPrintPaperSize(PrintPaperSize value) {
-        printPaperSize = value == null
-                ? PrintPaperSize.FOUR_BY_SIX
-                : value;
-    }
-
-    public int getPrintDpi() {
-        return Math.max(72, Math.min(600, printDpi));
-    }
-
-    public void setPrintDpi(int value) {
-        printDpi = Math.max(72, Math.min(600, value));
-    }
-
-    public double getCustomPaperWidthInches() {
-        return customPaperWidthInches;
-    }
-
-    public void setCustomPaperWidthInches(double value) {
-        customPaperWidthInches = clampPaperDimension(value);
-    }
-
-    public double getCustomPaperHeightInches() {
-        return customPaperHeightInches;
-    }
-
-    public void setCustomPaperHeightInches(double value) {
-        customPaperHeightInches = clampPaperDimension(value);
-    }
-
-    private double clampPaperDimension(double value) {
-        return Math.max(0.5, Math.min(30.0, value));
-    }
-
-
+    public void setMirrorPhoto(boolean value) { mirrorPhoto = value; }
+    public PrintPaperSize getPrintPaperSize() { if (printPaperSize == null) printPaperSize = PrintPaperSize.FOUR_BY_SIX; return printPaperSize; }
+    public void setPrintPaperSize(PrintPaperSize value) { printPaperSize = value == null ? PrintPaperSize.FOUR_BY_SIX : value; }
+    public int getPrintDpi() { return Math.max(72, Math.min(600, printDpi)); }
+    public void setPrintDpi(int value) { printDpi = Math.max(72, Math.min(600, value)); }
+    public double getCustomPaperWidthInches() { return customPaperWidthInches; }
+    public void setCustomPaperWidthInches(double value) { customPaperWidthInches = clampPaperDimension(value); }
+    public double getCustomPaperHeightInches() { return customPaperHeightInches; }
+    public void setCustomPaperHeightInches(double value) { customPaperHeightInches = clampPaperDimension(value); }
+    private double clampPaperDimension(double value) { return Math.max(0.5, Math.min(30.0, value)); }
     public String getPrinterName() { return printerName == null ? "" : printerName; }
     public void setPrinterName(String value) { printerName = value == null ? "" : value.trim(); }
     public boolean isAutoPrint() { return autoPrint; }
     public void setAutoPrint(boolean value) { autoPrint = value; }
     public boolean isViewPrintButton() { return viewPrintButton; }
     public void setViewPrintButton(boolean value) { viewPrintButton = value; }
-
-    public PhotoEffectSettings getPhotoEffectSettings() {
-        if (photoEffectSettings == null) {
-            photoEffectSettings = new PhotoEffectSettings();
-        }
-        return photoEffectSettings;
-    }
-
-    public void setPhotoEffectSettings(PhotoEffectSettings value) {
-        photoEffectSettings = value == null
-                ? new PhotoEffectSettings()
-                : value;
-    }
+    public boolean isLivePhotoEnabled() { return livePhotoEnabled; }
+    public void setLivePhotoEnabled(boolean value) { livePhotoEnabled = value; }
+    public int getLivePhotoDurationSeconds() { return Math.max(1, Math.min(10, livePhotoDurationSeconds)); }
+    public void setLivePhotoDurationSeconds(int value) { livePhotoDurationSeconds = Math.max(1, Math.min(10, value)); }
+    public PhotoEffectSettings getPhotoEffectSettings() { if (photoEffectSettings == null) photoEffectSettings = new PhotoEffectSettings(); return photoEffectSettings; }
+    public void setPhotoEffectSettings(PhotoEffectSettings value) { photoEffectSettings = value == null ? new PhotoEffectSettings() : value; }
 }

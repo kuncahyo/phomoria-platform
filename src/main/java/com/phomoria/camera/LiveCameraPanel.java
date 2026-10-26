@@ -29,6 +29,8 @@ public final class LiveCameraPanel extends JPanel {
 
     private WebcamPanel webcamPanel;
     private CameraImagePanel backendImagePanel;
+    private Webcam webcam;
+    private Timer webcamPreviewTimer;
     private CameraBackend backend;
 
     private FrameDefinition frameDefinition;
@@ -61,10 +63,8 @@ public final class LiveCameraPanel extends JPanel {
         this.frameDefinition = definition;
         this.guideSlotIndex = Math.max(0, sourceSlotIndex);
 
-        if (webcamPanel != null
-                && webcamPanel.getWebcam() != null) {
-
-            updateCropGuide(webcamPanel.getWebcam());
+        if (webcam != null) {
+            updateCropGuide(webcam);
 
         } else if (backendImagePanel != null) {
             updateBackendCropGuide();
@@ -78,10 +78,8 @@ public final class LiveCameraPanel extends JPanel {
     public void showCropGuide() {
         cropGuideOverlay.setShadeAlpha(liveGuideShadeAlpha);
 
-        if (webcamPanel != null
-                && webcamPanel.getWebcam() != null) {
-
-            updateCropGuide(webcamPanel.getWebcam());
+        if (webcam != null) {
+            updateCropGuide(webcam);
 
         } else if (backendImagePanel != null) {
             updateBackendCropGuide();
@@ -93,8 +91,10 @@ public final class LiveCameraPanel extends JPanel {
      */
     public void attach(Webcam webcam) {
         stopBackendPreview();
+        stopWebcamPreview();
 
         backend = null;
+        this.webcam = webcam;
 
         content.removeAll();
         webcamPanel = null;
@@ -117,20 +117,17 @@ public final class LiveCameraPanel extends JPanel {
                         + webcam.getName()
         );
 
-        webcamPanel = new WebcamPanel(webcam);
+        backendImagePanel = new CameraImagePanel(
+                CameraManager.latestWebcamPreviewFrame()
+        );
 
         cropGuideOverlay.setShadeAlpha(
                 liveGuideShadeAlpha
         );
 
-        webcamPanel.setMirrored(true);
-        webcamPanel.setFillArea(true);
-        webcamPanel.setFPSLimit(25.0);
-        webcamPanel.setFPSLimited(true);
-        webcamPanel.setBackground(Color.BLACK);
-
         content.add(cropGuideOverlay);
-        content.add(webcamPanel);
+        content.add(backendImagePanel);
+        startWebcamPreview();
 
         revalidate();
         repaint();
@@ -150,7 +147,9 @@ public final class LiveCameraPanel extends JPanel {
      */
     public void attach(CameraBackend cameraBackend) {
         stopBackendPreview();
+        stopWebcamPreview();
 
+        webcam = null;
         backend = cameraBackend;
 
         content.removeAll();
@@ -187,6 +186,32 @@ public final class LiveCameraPanel extends JPanel {
         DebugLog.info(
                 "gPhoto2 live preview started."
         );
+    }
+
+    /**
+     * The webcam preview consumes the same sampled frames that feed the
+     * rolling Live Photo buffer. It must not open a second webcam reader.
+     */
+    private void startWebcamPreview() {
+        stopWebcamPreview();
+        if (webcam == null || backendImagePanel == null) return;
+
+        webcamPreviewTimer = new Timer(40, e -> {
+            if (webcam == null || backendImagePanel == null) return;
+            BufferedImage image = CameraManager.latestWebcamPreviewFrame();
+            if (image == null) return;
+            backendImagePanel.setImage(image);
+            updateBackendCropGuide(image);
+        });
+        webcamPreviewTimer.setCoalesce(true);
+        webcamPreviewTimer.start();
+    }
+
+    private void stopWebcamPreview() {
+        if (webcamPreviewTimer != null) {
+            webcamPreviewTimer.stop();
+            webcamPreviewTimer = null;
+        }
     }
 
     private void startBackendPreview() {
@@ -332,6 +357,8 @@ public final class LiveCameraPanel extends JPanel {
 
     public void showCapturedImage(BufferedImage image) {
         stopBackendPreview();
+        stopWebcamPreview();
+        webcam = null;
 
         content.removeAll();
 
@@ -416,6 +443,8 @@ public final class LiveCameraPanel extends JPanel {
 
     public void clear() {
         stopBackendPreview();
+        stopWebcamPreview();
+        webcam = null;
 
         content.removeAll();
 

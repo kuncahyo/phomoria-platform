@@ -5,6 +5,8 @@ import com.phomoria.app.AppContext;
 import com.phomoria.app.ApplicationFrame;
 import com.phomoria.camera.CameraBackend;
 import com.phomoria.camera.CameraManager;
+import com.phomoria.camera.LivePhotoClipStore;
+import com.phomoria.camera.WebcamLivePhotoBuffer;
 import com.phomoria.camera.CameraMirrorProcessor;
 import com.phomoria.camera.CameraReconnectController;
 import com.phomoria.camera.GPhoto2PersistentCameraBackend;
@@ -24,6 +26,7 @@ import com.phomoria.theme.ThemeManager;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.nio.file.Path;
 import java.util.List;
 
 
@@ -634,6 +637,54 @@ public final class MainScreen
                             + "  •  "
                             + seconds
             );
+        }
+    }
+
+
+    @Override
+    public void onCapturedWithLivePhoto(
+            BufferedImage image, boolean retake, int targetIndex,
+            List<WebcamLivePhotoBuffer.Frame> livePhotoFrames
+    ) {
+        if (!active || shuttingDown) {
+            return;
+        }
+        PhotoSession session = AppContext.session();
+        int previousCount = session.getCapturedCount();
+        BufferedImage previousPhoto = retake && targetIndex >= 0 && targetIndex < previousCount
+                ? session.getPhotos().get(targetIndex) : null;
+        int slotIndex = retake ? targetIndex : previousCount;
+        Path clipDirectory = null;
+        try {
+            if (AppContext.settings().isLivePhotoEnabled()
+                    && livePhotoFrames != null && !livePhotoFrames.isEmpty()) {
+                clipDirectory = LivePhotoClipStore.save(
+                        session.getSessionId(), slotIndex, livePhotoFrames);
+            }
+        } catch (Exception ex) {
+            DebugLog.error("Unable to persist Live Photo frames for slot "
+                    + (slotIndex + 1), ex);
+        }
+
+        // Keep the existing still-photo capture and UI flow as the authority.
+        onCaptured(image, retake, targetIndex);
+        boolean stillPhotoAccepted = retake
+                ? targetIndex >= 0 && targetIndex < session.getCapturedCount()
+                    && session.getPhotos().get(targetIndex) != previousPhoto
+                : session.getCapturedCount() > previousCount;
+        if (!stillPhotoAccepted) {
+            LivePhotoClipStore.deleteTree(clipDirectory);
+            DebugLog.warn("Live Photo clip discarded because still capture was not accepted. slot="
+                    + (slotIndex + 1));
+            return;
+        }
+
+        if (clipDirectory != null) {
+            session.setLivePhotoClip(slotIndex, clipDirectory);
+        } else if (AppContext.settings().isLivePhotoEnabled()) {
+            // A webcam may not have accumulated a complete window yet.
+            // Never leave an older clip attached to a newly retaken still.
+            session.setLivePhotoClip(slotIndex, null);
         }
     }
 

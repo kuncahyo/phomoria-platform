@@ -22,6 +22,8 @@ public final class CameraManager {
 
     private static Webcam current;
     private static CameraBackend currentBackend;
+    private static final WebcamLivePhotoBuffer webcamFrameBuffer =
+            new WebcamLivePhotoBuffer();
 
     /*
      * gPhoto2 detection is deliberately cached. SettingsScreen asks
@@ -257,6 +259,7 @@ public final class CameraManager {
 
             if (webcam.open()) {
                 current = webcam;
+                webcamFrameBuffer.start();
 
                 DebugLog.info(
                         "CameraManager.open -> "
@@ -268,6 +271,24 @@ public final class CameraManager {
                                 + webcam.getName()
                 );
             }
+        }
+    }
+
+    /** Returns the latest sampled UVC frame for the shared preview. */
+    public static BufferedImage latestWebcamPreviewFrame() {
+        return webcamFrameBuffer.getLatestPreviewFrame();
+    }
+
+    /** Snapshot of the rolling webcam buffer, ending at the current shutter time. */
+    public static List<WebcamLivePhotoBuffer.Frame> snapshotLivePhoto(int durationSeconds) {
+        return webcamFrameBuffer.snapshotLast(durationSeconds);
+    }
+
+    /** Called only by the frame-pump thread; CAMERA_LOCK serializes device reads. */
+    static BufferedImage readWebcamFrameForBuffer() throws Exception {
+        synchronized (CAMERA_LOCK) {
+            if (current == null || !current.isOpen()) return null;
+            return current.getImage();
         }
     }
 
@@ -294,6 +315,7 @@ public final class CameraManager {
     }
 
     public static void close() {
+        webcamFrameBuffer.stop();
         synchronized (CAMERA_LOCK) {
             if (currentBackend != null) {
                 try {

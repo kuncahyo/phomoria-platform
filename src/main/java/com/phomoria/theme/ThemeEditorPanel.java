@@ -254,7 +254,10 @@ public final class ThemeEditorPanel extends JPanel {
                 || selectedElement.equals("start-settings")
                 || selectedElement.equals("frame-selection-continue")
                 || selectedElement.equals("main-retake")
-                || selectedElement.equals("main-cancel");
+                || selectedElement.equals("main-cancel")
+                || selectedElement.equals("result-qr")
+                || selectedElement.equals("result-print")
+                || selectedElement.equals("result-new-session");
         if (!imageButton) {
             JOptionPane.showMessageDialog(this, "Elemen ini berupa area atau teks. Gunakan pengaturan background halaman atau pilih elemen tombol untuk mengganti PNG.");
             return;

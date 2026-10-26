@@ -45,6 +45,8 @@ public final class SettingsScreen extends JPanel {
     private final JSpinner finalReview;
     private final JCheckBox remember;
     private final JCheckBox showCancelSession;
+    private final JCheckBox livePhotoEnabled;
+    private final JSpinner livePhotoDuration;
 
     private final MirrorPhotoSettingsPanel mirrorPhotoSettingsPanel;
     private final PhotoEffectSettingsPanel effectSettingsPanel;
@@ -141,6 +143,11 @@ public final class SettingsScreen extends JPanel {
                         "Tampilkan tombol PILIH ULANG FRAME",
                         settings.isShowCancelSession()
                 );
+
+        livePhotoEnabled = new JCheckBox(
+                "Aktifkan Live Photo (webcam)", settings.isLivePhotoEnabled());
+        livePhotoDuration = new JSpinner(new SpinnerNumberModel(
+                settings.getLivePhotoDurationSeconds(), 1, 10, 1));
 
         mirrorPhotoSettingsPanel =
                 new MirrorPhotoSettingsPanel(
@@ -434,12 +441,17 @@ public final class SettingsScreen extends JPanel {
                 g
         );
 
-        g.gridy = row;
+        g.gridy = row++;
 
         form.add(
                 showCancelSession,
                 g
         );
+
+        g.gridy = row++;
+        form.add(livePhotoEnabled, g);
+
+        addRow(form, g, row, "Durasi Live Photo sebelum shutter (detik)", livePhotoDuration);
 
         return form;
     }
@@ -1014,6 +1026,9 @@ public final class SettingsScreen extends JPanel {
         settings.setShowCancelSession(
                 showCancelSession.isSelected()
         );
+
+        settings.setLivePhotoEnabled(livePhotoEnabled.isSelected());
+        settings.setLivePhotoDurationSeconds((Integer) livePhotoDuration.getValue());
 
         settings.setPhotoEffectSettings(
                 effectSettingsPanel.getSettings()

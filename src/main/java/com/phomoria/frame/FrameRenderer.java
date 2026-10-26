@@ -24,6 +24,19 @@ public final class FrameRenderer {
         if (photos == null || photos.isEmpty()) throw new IllegalArgumentException("No photos to render.");
         if (targetWidth <= 0 || targetHeight <= 0) throw new IllegalArgumentException("Target canvas size is invalid.");
 
+        BufferedImage out = renderImage(definition, frameAsset, photos, targetWidth, targetHeight);
+        if (!ImageIO.write(out, "png", output)) throw new IllegalStateException("PNG writer is not available.");
+        DebugLog.info("Frame rendered: " + output.getAbsolutePath() + " target=" + targetWidth + "x" + targetHeight);
+        return output;
+    }
+
+    /** Renders the exact same frame composition to memory, for video frame generation. */
+    public static BufferedImage renderImage(FrameDefinition definition, BufferedImage frameAsset,
+                                            List<BufferedImage> photos,
+                                            int targetWidth, int targetHeight) {
+        if (definition == null) throw new IllegalArgumentException("FrameDefinition is null.");
+        if (photos == null || photos.isEmpty()) throw new IllegalArgumentException("No photos to render.");
+        if (targetWidth <= 0 || targetHeight <= 0) throw new IllegalArgumentException("Target canvas size is invalid.");
         int sourceWidth = definition.getWidth(), sourceHeight = definition.getHeight();
         BufferedImage out = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
@@ -64,13 +77,10 @@ public final class FrameRenderer {
             g.setClip(oldClip);
         } finally { g.dispose(); }
 
-        if (!ImageIO.write(out, "png", output)) throw new IllegalStateException("PNG writer is not available.");
-        DebugLog.info("Frame rendered: " + output.getAbsolutePath() + " source=" + sourceWidth + "x" + sourceHeight
-                + " target=" + targetWidth + "x" + targetHeight + " placements=" + definition.getPlacements().size());
         if (Math.abs(sourceWidth / (double) sourceHeight - targetWidth / (double) targetHeight) > 0.005) {
             DebugLog.warn("Paper ratio differs from frame ratio; frame is center-cropped. Check selected paper dimensions/orientation.");
         }
-        return output;
+        return out;
     }
 
     private static void drawPhoto(Graphics2D g, BufferedImage photo, int x, int y, int w, int h,

@@ -46,7 +46,7 @@ call mvn dependency:copy-dependencies ^
 if errorlevel 1 exit /b 1
 
 echo.
-echo [4/4] Creating Windows application image...
+echo [4/7] Creating Windows application image...
 
 if exist target\phomoria-app rmdir /s /q target\phomoria-app
 
@@ -69,7 +69,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/6] Collecting native gPhoto2 runtime...
+echo [5/7] Collecting native gPhoto2 runtime...
 
 if not exist native\gphoto2\bin\phomoria-gphoto2-camera.exe (
     echo.
@@ -96,7 +96,37 @@ if exist native\gphoto2\share (
 echo gPhoto2 runtime copied successfully.
 
 echo.
-echo [6/6] Building PhomoriaUpdater...
+echo [6/7] Collecting FFmpeg runtime...
+
+if not exist native\ffmpeg\bin\ffmpeg.exe (
+    echo.
+    echo ERROR: FFmpeg executable not found.
+    echo Please place ffmpeg.exe at:
+    echo native\ffmpeg\bin\ffmpeg.exe
+    exit /b 1
+)
+
+if exist target\Phomoria\native\ffmpeg rmdir /s /q target\Phomoria\native\ffmpeg
+
+mkdir target\Phomoria\native\ffmpeg\bin
+
+copy /y native\ffmpeg\bin\ffmpeg.exe target\Phomoria\native\ffmpeg\bin\ffmpeg.exe >nul
+if errorlevel 1 exit /b 1
+
+if exist native\ffmpeg\LICENSE (
+    copy /y native\ffmpeg\LICENSE target\Phomoria\native\ffmpeg\LICENSE >nul
+    if errorlevel 1 exit /b 1
+)
+
+if exist native\ffmpeg\README.txt (
+    copy /y native\ffmpeg\README.txt target\Phomoria\native\ffmpeg\README.txt >nul
+    if errorlevel 1 exit /b 1
+)
+
+echo FFmpeg runtime copied successfully.
+
+echo.
+echo [7/7] Building PhomoriaUpdater...
 
 dotnet publish updater\PhomoriaUpdater\PhomoriaUpdater.csproj ^
     -c Release ^
