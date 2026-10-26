@@ -124,6 +124,13 @@ public final class ResultScreen extends JPanel {
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
+            if (uploadStatusPollTimer != null) {
+                uploadStatusPollTimer.stop();
+                uploadStatusPollTimer = null;
+            }
+            activeUploadSessionId = "";
+            downloadUrl = "";
+            qrButton.setEnabled(false);
             AppContext.newSession();
             frame.showStart();
         });
