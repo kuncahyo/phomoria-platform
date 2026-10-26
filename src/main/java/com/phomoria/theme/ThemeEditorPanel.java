@@ -56,7 +56,7 @@ public final class ThemeEditorPanel extends JPanel {
         properties.add(new JLabel("Visibilitas")); properties.add(elementVisible);
         addField(properties, "Posisi teks GIF", loadingTextPosition);
         JPanel right = new JPanel(new BorderLayout()); right.add(properties, BorderLayout.NORTH);
-        right.add(new JLabel("Seret elemen pada preview untuk mengubah posisi. PNG tombol dapat diganti melalui tombol di atas.", SwingConstants.LEFT), BorderLayout.CENTER);
+        right.add(new JLabel("<html>Seret elemen pada preview untuk mengubah posisi.<br>Untuk Live Photo: pilih elemen result-live-photo-loading, unggah GIF, lalu atur posisi teks. Pilih NONE untuk menyembunyikan teks.</html>", SwingConstants.LEFT), BorderLayout.CENTER);
         add(new JScrollPane(canvas), BorderLayout.CENTER); add(right, BorderLayout.EAST);
 
         screenChoice.addActionListener(e -> { refreshElements(); canvas.repaint(); });
@@ -145,11 +145,16 @@ public final class ThemeEditorPanel extends JPanel {
                         ? "Teks atau angka berasal dari status sesi; atur tampil/sembunyi dan warnanya di sini."
                         : "Ubah teks label elemen ini.");
                 elementText.setText(dynamicText ? "(otomatis dari data frame)" : (el.text == null ? "" : el.text));
+                boolean liveLoader = "result-live-photo-loading".equals(selectedElement);
                 elementVisible.setSelected(Boolean.TRUE.equals(el.visible));
+                elementVisible.setEnabled(!liveLoader);
+                elementVisible.setToolTipText(liveLoader
+                        ? "Loader aktif hanya selama Live Photo disiapkan. Atur teks dengan posisi NONE jika ingin menyembunyikannya."
+                        : null);
                 updateColorButton(el.foreground);
                 loadingTextPosition.setSelectedItem(el.loadingTextPosition == null ? "BOTTOM" : el.loadingTextPosition);
-                loadingTextPosition.setEnabled("result-live-photo-loading".equals(selectedElement));
-                loadingGif.setEnabled("result-live-photo-loading".equals(selectedElement));
+                loadingTextPosition.setEnabled(liveLoader);
+                loadingGif.setEnabled(liveLoader);
             }
         } finally { updatingControls = false; }
         canvas.repaint();
