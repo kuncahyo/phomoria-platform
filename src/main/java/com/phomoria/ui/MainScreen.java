@@ -78,6 +78,7 @@ public final class MainScreen
     private boolean retakeMode;
     private boolean active = false;
     private boolean shuttingDown = false;
+    private boolean pageTimerStarted = false;
 
     public MainScreen(ApplicationFrame frame) {
         this.frame = frame;
@@ -191,6 +192,13 @@ public final class MainScreen
                 this::handleCameraConnectionLost
         );
 
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
+                    && isShowing() && !pageTimerStarted) {
+                pageTimerStarted = true;
+                startPageTimer();
+            }
+        });
         startCamera();
     }
 
@@ -397,7 +405,6 @@ public final class MainScreen
                                         1200,
                                         e -> {
                                             starterTimer.stop();
-                                            startPageTimer();
                                             startNextCapture();
                                         }
                                 );
@@ -1098,7 +1105,6 @@ public final class MainScreen
             finalReviewTimer.stop();
             finalReviewTimer = null;
         }
-        pageTimer.stop();
     }
 
     public void shutdown() {
@@ -1115,6 +1121,7 @@ public final class MainScreen
 
         captureController.stop();
         stopAllTimers();
+        pageTimer.stop();
 
         if (reconnectController != null) {
             reconnectController.stop();
