@@ -7,6 +7,11 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public final class GPhoto2PersistentCameraBackend implements CameraBackend {
@@ -19,6 +24,9 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
     private OutputStream commandWriter;
     private InputStream binaryReader;
     private final Object ioLock = new Object();
+    private final Object livePhotoBufferLock = new Object();
+    private final Deque<WebcamLivePhotoBuffer.Frame> livePhotoFrames = new ArrayDeque<>();
+    private static final int LIVE_PHOTO_BUFFER_SECONDS = 10;
     private volatile boolean opened;
 
     public GPhoto2PersistentCameraBackend(String cameraName) {
@@ -53,6 +61,9 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
             DebugLog.info("Starting persistent libgphoto2 camera helper directly: "
                     + helper.toAbsolutePath().normalize() + " '" + requestedCameraName + "'");
 
+            synchronized (livePhotoBufferLock) {
+                livePhotoFrames.clear();
+            }
             process = pb.start();
 
             InputStream stdout = process.getInputStream();
@@ -169,6 +180,9 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
     @Override public void close() {
         synchronized (ioLock) {
             opened = false;
+            synchronized (livePhotoBufferLock) {
+                livePhotoFrames.clear();
+            }
 
             try {
                 if (commandWriter != null) {
@@ -268,6 +282,7 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
                     );
 
                     if (image != null) {
+                        recordLivePhotoFrame(jpeg, System.currentTimeMillis());
                         return image;
                     }
 
@@ -283,6 +298,60 @@ public final class GPhoto2PersistentCameraBackend implements CameraBackend {
                     throw new IOException(line);
                 }
             }
+        }
+    }
+
+    /**
+     * Keep the same preview JPEGs consumed by LiveCameraPanel in a bounded
+     * rolling buffer. No second libgphoto2 process or USB reader is started.
+     */
+    private void recordLivePhotoFrame(byte[] jpeg, long timestampMillis) {
+        if (jpeg == null || jpeg.length == 0) return;
+        synchronized (livePhotoBufferLock) {
+            livePhotoFrames.addLast(
+                    new WebcamLivePhotoBuffer.Frame(timestampMillis, jpeg)
+            );
+            long oldestAllowed = timestampMillis - LIVE_PHOTO_BUFFER_SECONDS * 1000L;
+            while (!livePhotoFrames.isEmpty()
+                    && livePhotoFrames.peekFirst().timestampMillis() < oldestAllowed) {
+                livePhotoFrames.removeFirst();
+            }
+        }
+    }
+
+    /**
+     * Freeze the DSLR preview history at shutter time. Returns an empty list
+     * unless the requested pre-shutter interval is fully warmed up.
+     */
+    public List<WebcamLivePhotoBuffer.Frame> snapshotLivePhoto(int durationSeconds) {
+        int seconds = Math.max(1, Math.min(LIVE_PHOTO_BUFFER_SECONDS, durationSeconds));
+        long shutterTime = System.currentTimeMillis();
+        long startTime = shutterTime - seconds * 1000L;
+
+        synchronized (livePhotoBufferLock) {
+            List<WebcamLivePhotoBuffer.Frame> result = new ArrayList<>();
+            for (WebcamLivePhotoBuffer.Frame frame : livePhotoFrames) {
+                if (frame.timestampMillis() >= startTime
+                        && frame.timestampMillis() <= shutterTime) {
+                    result.add(new WebcamLivePhotoBuffer.Frame(
+                            frame.timestampMillis(), frame.jpeg()
+                    ));
+                }
+            }
+
+            long requiredFirstFrame = startTime + 2L * 120L;
+            if (result.size() < 2
+                    || result.get(0).timestampMillis() > requiredFirstFrame
+                    || shutterTime - result.get(result.size() - 1).timestampMillis() > 750L) {
+                DebugLog.warn("DSLR Live Photo buffer not ready: requested="
+                        + seconds + "s, frames=" + result.size()
+                        + ". Ensure Live View has been running for the full interval.");
+                return List.of();
+            }
+
+            DebugLog.info("DSLR Live Photo buffer frozen: duration=" + seconds
+                    + "s, frames=" + result.size());
+            return Collections.unmodifiableList(result);
         }
     }
 
