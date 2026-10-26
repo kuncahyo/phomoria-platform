@@ -62,6 +62,8 @@ public final class ResultScreen extends JPanel {
     private File renderedFile;
     private String downloadUrl = "";
     private Timer uploadAnimationTimer;
+    private Timer uploadStatusPollTimer;
+    private String activeUploadSessionId = "";
     private int uploadDots;
 
     public ResultScreen(ApplicationFrame frame) {
@@ -183,7 +185,14 @@ public final class ResultScreen extends JPanel {
     }
 
     public void prepareResult() {
+        if (uploadStatusPollTimer != null) {
+            uploadStatusPollTimer.stop();
+            uploadStatusPollTimer = null;
+        }
         PhotoSession session = AppContext.session();
+        activeUploadSessionId = session == null ? "" : session.getSessionId();
+        downloadUrl = "";
+        qrButton.setEnabled(false);
         List<BufferedImage> originals = session.getPhotos();
         PhotoEffectSession effects = AppContext.effectSession();
         List<BufferedImage> processed = effects.process(originals);
@@ -463,7 +472,11 @@ public final class ResultScreen extends JPanel {
                     get();
                     DebugLog.info("Session persisted to upload queue. session=" + sessionId);
                     uploadStatus.setText("TERSIMPAN — MENUNGGU UPLOAD");
-                    Timer poll = new Timer(2000, event -> {
+                    uploadStatusPollTimer = new Timer(2000, event -> {
+                        if (!sessionId.equals(activeUploadSessionId)) {
+                            ((Timer) event.getSource()).stop();
+                            return;
+                        }
                         UploadQueueEntry entry = UploadQueueManager.find(sessionId);
                         if (entry == null) return;
 
@@ -497,7 +510,7 @@ public final class ResultScreen extends JPanel {
                             uploadStatus.setText("MENGIRIM HASIL...");
                         }
                     });
-                    poll.start();
+                    uploadStatusPollTimer.start();
                 } catch (Exception ex) {
                     stopUploadAnimation();
                     stopLivePhotoLoading();
