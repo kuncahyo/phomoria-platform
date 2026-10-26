@@ -39,12 +39,18 @@ public final class PaymentDialog extends JDialog {
         south.add(note, BorderLayout.CENTER);
         JPanel buttons = new JPanel(new FlowLayout()); buttons.add(cancel);
         south.add(buttons, BorderLayout.SOUTH);
-        JPanel qrPanel = new JPanel(new BorderLayout(4, 4));
+        JPanel qrPanel = new JPanel(null);
         qrPanel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
         qrisCountdown.setFont(new Font("SansSerif", Font.BOLD, 18));
         qrisCountdown.setForeground(new Color(70, 70, 70));
-        qrPanel.add(qrisCountdown, BorderLayout.NORTH);
-        qrPanel.add(qr, BorderLayout.CENTER);
+        qrPanel.add(qr);
+        qrPanel.add(qrisCountdown);
+        qrPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                qr.setBounds(0, 0, qrPanel.getWidth(), qrPanel.getHeight());
+                qrisCountdown.setBounds(Math.max(0, qrPanel.getWidth() - 92), 2, 82, 28);
+            }
+        });
         add(title, BorderLayout.NORTH); add(qrPanel, BorderLayout.CENTER); add(south, BorderLayout.SOUTH);
         cancel.addActionListener(e -> closeAndCancel());
         addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosing(java.awt.event.WindowEvent e) { closeAndCancel(); } });
