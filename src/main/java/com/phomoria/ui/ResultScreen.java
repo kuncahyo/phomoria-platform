@@ -305,6 +305,9 @@ public final class ResultScreen extends JPanel {
                     if (session.getSessionId().equals(activeUploadSessionId)
                             && isShowing() && !frames.isEmpty()) {
                         framePanel.setAnimationFrames(frames);
+                        // The preview is now decoded and its playback timer is running.
+                        // Hide only the Live Photo preparation indicator; upload continues independently.
+                        stopLivePhotoLoading();
                         DebugLog.info("Live Photo Final Preview playback started.");
                     }
                 } catch (Exception ex) {
@@ -519,7 +522,6 @@ public final class ResultScreen extends JPanel {
                             uploadStatus.setText("UPLOAD SELESAI — QR SIAP");
                             ((Timer) event.getSource()).stop();
                             stopUploadAnimation();
-                            stopLivePhotoLoading();
                         } else if (!entry.galleryUrl.isBlank()
                                 && System.currentTimeMillis() - entry.createdAt >= 60_000L
                                 && !"COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
