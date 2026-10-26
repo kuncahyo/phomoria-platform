@@ -9,6 +9,8 @@ import com.phomoria.camera.LivePhotoPreviewDecoder;
 import com.phomoria.effects.PhotoEffectSession;
 import com.phomoria.frame.PrintPaperSize;
 import com.phomoria.session.PhotoSession;
+import com.phomoria.upload.UploadQueueEntry;
+import com.phomoria.upload.UploadQueueManager;
 import com.phomoria.theme.ThemeButton;
 import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeManager;
@@ -440,48 +442,50 @@ public final class ResultScreen extends JPanel {
     private void uploadResult() {
         qrButton.setEnabled(false);
         startUploadAnimation();
+        PhotoSession currentSession = AppContext.session();
+        if (currentSession == null || sessionFolder == null) {
+            stopUploadAnimation();
+            uploadStatus.setText("UPLOAD TIDAK DAPAT DIMULAI");
+            return;
+        }
+        final String sessionId = currentSession.getSessionId();
 
-        new SwingWorker<String, Void>() {
+        new SwingWorker<Void, Void>() {
             @Override
-            protected String doInBackground() throws Exception {
-                DebugLog.info("Upload started.");
-
-                return new UploadService().upload(
-                        AppContext.settings().getFrameName(),
-                        sessionFolder
-                );
+            protected Void doInBackground() throws Exception {
+                UploadQueueManager.enqueue(sessionId, AppContext.settings().getFrameName(), sessionFolder);
+                return null;
             }
 
             @Override
             protected void done() {
-                stopUploadAnimation();
-                stopLivePhotoLoading();
-
                 try {
-                    downloadUrl = get();
-
-                    DebugLog.info(
-                            "Upload completed. gallery_url="
-                                    + downloadUrl
-                    );
-
-                    uploadStatus.setText(
-                            "UPLOAD SELESAI — QR SIAP"
-                    );
-
-                    qrButton.setEnabled(
-                            !downloadUrl.isBlank()
-                    );
-
+                    get();
+                    DebugLog.info("Session persisted to upload queue. session=" + sessionId);
+                    uploadStatus.setText("TERSIMPAN — MENUNGGU UPLOAD");
+                    Timer poll = new Timer(2000, event -> {
+                        UploadQueueEntry entry = UploadQueueManager.find(sessionId);
+                        if (entry == null) return;
+                        if ("COMPLETED".equals(entry.status)) {
+                            downloadUrl = entry.galleryUrl;
+                            qrButton.setEnabled(downloadUrl != null && !downloadUrl.isBlank());
+                            uploadStatus.setText("UPLOAD SELESAI — QR SIAP");
+                            ((Timer) event.getSource()).stop();
+                            stopUploadAnimation();
+                            stopLivePhotoLoading();
+                        } else if ("RETRY".equals(entry.status)) {
+                            uploadStatus.setText("UPLOAD TERTUNDA — AKAN DICOBA LAGI");
+                            stopUploadAnimation();
+                        } else if ("UPLOADING".equals(entry.status)) {
+                            uploadStatus.setText("MENGIRIM HASIL...");
+                        }
+                    });
+                    poll.start();
                 } catch (Exception ex) {
-                    DebugLog.error(
-                            "Upload failed.",
-                            ex
-                    );
-
-                    uploadStatus.setText(
-                            "UPLOAD GAGAL — COBA LAGI"
-                    );
+                    stopUploadAnimation();
+                    stopLivePhotoLoading();
+                    DebugLog.error("Failed to enqueue session upload.", ex);
+                    uploadStatus.setText("GAGAL MENYIMPAN ANTREAN UPLOAD");
                 }
             }
         }.execute();
