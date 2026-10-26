@@ -475,6 +475,7 @@ public final class ResultScreen extends JPanel {
 
             @Override
             protected void done() {
+                if (!sessionId.equals(activeUploadSessionId)) return;
                 try {
                     get();
                     DebugLog.info("Session persisted to upload queue. session=" + sessionId);
