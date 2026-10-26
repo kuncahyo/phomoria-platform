@@ -494,8 +494,7 @@ public final class ThemeEditorPanel extends JPanel {
                     if (dragStart == null || draggingElement == null) return;
                     ThemeConfig.Element el = ThemeManager.config().elements.get(draggingElement);
                     if (el == null) return;
-                    double sx = getWidth() / (double) ThemeManager.config().designWidth;
-                    double sy = getHeight() / (double) ThemeManager.config().designHeight;
+                    double scale = previewScale();
                     el.x = originalX + (int)Math.round((e.getX() - dragStart.x) / scale);
                     el.y = originalY + (int)Math.round((e.getY() - dragStart.y) / scale);
                     syncControlsFromElement(el);
