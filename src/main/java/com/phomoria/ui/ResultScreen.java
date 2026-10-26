@@ -466,17 +466,34 @@ public final class ResultScreen extends JPanel {
                     Timer poll = new Timer(2000, event -> {
                         UploadQueueEntry entry = UploadQueueManager.find(sessionId);
                         if (entry == null) return;
-                        if ("COMPLETED".equals(entry.status)) {
+
+                        // QR becomes available immediately after server reservation,
+                        // without waiting for the individual assets to finish.
+                        if (entry.galleryUrl != null && !entry.galleryUrl.isBlank()) {
                             downloadUrl = entry.galleryUrl;
-                            qrButton.setEnabled(downloadUrl != null && !downloadUrl.isBlank());
+                            qrButton.setEnabled(true);
+                        }
+
+                        if ("COMPLETED".equals(entry.status)) {
                             uploadStatus.setText("UPLOAD SELESAI — QR SIAP");
                             ((Timer) event.getSource()).stop();
                             stopUploadAnimation();
                             stopLivePhotoLoading();
-                        } else if ("RETRY".equals(entry.status)) {
-                            uploadStatus.setText("UPLOAD TERTUNDA — AKAN DICOBA LAGI");
+                        } else if (!entry.galleryUrl.isBlank()
+                                && System.currentTimeMillis() - entry.createdAt >= 60_000L
+                                && !"COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
+                            uploadStatus.setText("UPLOAD SELESAI SEBAGIAN — QR SIAP");
                             stopUploadAnimation();
-                        } else if ("UPLOADING".equals(entry.status)) {
+                        } else if ("RETRY".equals(entry.status)) {
+                            uploadStatus.setText(entry.galleryUrl.isBlank()
+                                    ? "UPLOAD TERTUNDA — AKAN DICOBA LAGI"
+                                    : "UPLOAD TERTUNDA — QR SUDAH SIAP");
+                            stopUploadAnimation();
+                        } else if ("RESERVING".equals(entry.status)) {
+                            uploadStatus.setText("MENDAFTARKAN SESI...");
+                        } else if ("UPLOADING".equals(entry.status)
+                                || "RESERVED".equals(entry.status)
+                                || "PARTIAL".equals(entry.status)) {
                             uploadStatus.setText("MENGIRIM HASIL...");
                         }
                     });
