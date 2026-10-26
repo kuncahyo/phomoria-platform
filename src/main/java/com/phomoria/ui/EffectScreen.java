@@ -122,7 +122,12 @@ public final class EffectScreen extends JPanel {
         });
         add(layers, BorderLayout.CENTER);
         pageTimer.applyTheme("effect-timer");
-        pageTimer.start(AppContext.settings().getEffectTimerSeconds(), this::finishEffects);
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+                if (isShowing()) pageTimer.start(AppContext.settings().getEffectTimerSeconds(), this::finishEffects);
+                else pageTimer.stop();
+            }
+        });
 
         buildPhotoButtons();
         buildEffectButtons();
