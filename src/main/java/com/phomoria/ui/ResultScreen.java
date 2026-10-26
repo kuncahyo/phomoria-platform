@@ -262,17 +262,22 @@ public final class ResultScreen extends JPanel {
      * the ordinary result, GIF, or original-photo upload.
      */
     private void prepareLivePhotoAndUpload(PhotoSession session) {
+        final File currentSessionFolder = sessionFolder;
+        boolean isActiveSession = session != null
+                && session.getSessionId().equals(activeUploadSessionId);
         if (!AppContext.settings().isLivePhotoEnabled()
                 || session == null
                 || session.getLivePhotoClips().isEmpty()
-                || sessionFolder == null) {
-            stopLivePhotoLoading();
-            uploadResult();
+                || currentSessionFolder == null) {
+            if (isActiveSession) stopLivePhotoLoading();
+            uploadResult(session, currentSessionFolder);
             return;
         }
 
-        startLivePhotoLoading();
-        uploadStatus.setText("MENYIAPKAN LIVE PHOTO...");
+        if (isActiveSession) {
+            startLivePhotoLoading();
+            uploadStatus.setText("MENYIAPKAN LIVE PHOTO...");
+        }
         new SwingWorker<List<BufferedImage>, Void>() {
             private Path previewWorkDirectory;
 
@@ -293,7 +298,8 @@ public final class ResultScreen extends JPanel {
                 cleanupPreviewFrames();
                 try {
                     List<BufferedImage> frames = get();
-                    if (isShowing() && !frames.isEmpty()) {
+                    if (session.getSessionId().equals(activeUploadSessionId)
+                            && isShowing() && !frames.isEmpty()) {
                         framePanel.setAnimationFrames(frames);
                         DebugLog.info("Live Photo Final Preview playback started.");
                     }
@@ -307,10 +313,13 @@ public final class ResultScreen extends JPanel {
                     } catch (Exception ignored) {
                         livePhotoReady = false;
                     }
-                    if (!livePhotoReady) {
+                    if (!livePhotoReady
+                            && session.getSessionId().equals(activeUploadSessionId)) {
                         stopLivePhotoLoading();
                     }
-                    uploadResult();
+                    // Always enqueue the captured session/folder, even if the
+                    // customer has already moved to a newer session.
+                    uploadResult(session, currentSessionFolder);
                 }
             }
 
@@ -455,26 +464,36 @@ public final class ResultScreen extends JPanel {
         return folder;
     }
 
-    private void uploadResult() {
-        qrButton.setEnabled(false);
-        startUploadAnimation();
-        PhotoSession currentSession = AppContext.session();
-        if (currentSession == null || sessionFolder == null) {
-            stopUploadAnimation();
-            uploadStatus.setText("UPLOAD TIDAK DAPAT DIMULAI");
+    private void uploadResult(PhotoSession session, File folder) {
+        boolean isActiveSession = session != null
+                && session.getSessionId().equals(activeUploadSessionId);
+        if (isActiveSession) {
+            qrButton.setEnabled(false);
+            startUploadAnimation();
+        }
+        if (session == null || folder == null) {
+            if (isActiveSession) {
+                stopUploadAnimation();
+                uploadStatus.setText("UPLOAD TIDAK DAPAT DIMULAI");
+            }
             return;
         }
-        final String sessionId = currentSession.getSessionId();
+
+        final String sessionId = session.getSessionId();
+        final File queuedFolder = folder;
+        final String frameName = AppContext.settings().getFrameName();
 
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                UploadQueueManager.enqueue(sessionId, AppContext.settings().getFrameName(), sessionFolder);
+                UploadQueueManager.enqueue(sessionId, frameName, queuedFolder);
                 return null;
             }
 
             @Override
             protected void done() {
+                // A previous session must never overwrite the active preview's
+                // QR, status label, or polling timer.
                 if (!sessionId.equals(activeUploadSessionId)) return;
                 try {
                     get();
@@ -488,8 +507,6 @@ public final class ResultScreen extends JPanel {
                         UploadQueueEntry entry = UploadQueueManager.find(sessionId);
                         if (entry == null) return;
 
-                        // QR becomes available immediately after server reservation,
-                        // without waiting for the individual assets to finish.
                         if (entry.galleryUrl != null && !entry.galleryUrl.isBlank()) {
                             downloadUrl = entry.galleryUrl;
                             qrButton.setEnabled(true);
