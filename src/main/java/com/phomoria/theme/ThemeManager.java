@@ -93,10 +93,13 @@ public final class ThemeManager {
         element.defaultForeground = factory.foreground;
         element.defaultVisible = factory.visible;
         element.defaultTransparent = factory.transparent;
+        element.loadingTextPosition = factory.loadingTextPosition;
 
         if (previousImage != null && !previousImage.isBlank()
                 && !previousImage.equals(factory.image)) {
-            Files.deleteIfExists(ROOT.resolve("buttons").resolve(previousImage));
+            Path assetDirectory = "result-live-photo-loading".equals(id)
+                    ? ROOT.resolve("animations") : ROOT.resolve("buttons");
+            Files.deleteIfExists(assetDirectory.resolve(previousImage));
         }
         save();
     }
