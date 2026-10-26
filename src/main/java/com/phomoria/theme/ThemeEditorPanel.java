@@ -517,15 +517,22 @@ public final class ThemeEditorPanel extends JPanel {
             Graphics2D g=(Graphics2D)graphics.create();
             try {
                 String screen=(String)screenChoice.getSelectedItem();
+                double scale = previewScale();
+                double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
+                double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
+                int designX = (int)Math.round(offsetX);
+                int designY = (int)Math.round(offsetY);
+                int designW = (int)Math.round(ThemeManager.config().designWidth * scale);
+                int designH = (int)Math.round(ThemeManager.config().designHeight * scale);
                 Path bg = ThemeManager.background(screen);
                 ImageIcon background = loadBackgroundImage(bg);
                 if (background != null && background.getImage() != null) {
-                    g.drawImage(background.getImage(), 0, 0, getWidth(), getHeight(), this);
+                    g.drawImage(background.getImage(), designX, designY, designW, designH, this);
                 } else {
                     // Preview the factory/code-defined background when no custom
                     // PNG/GIF is selected, matching ThemeBackgroundPanel.
                     g.setColor(new Color(18, 18, 22));
-                    g.fillRect(0, 0, getWidth(), getHeight());
+                    g.fillRect(designX, designY, designW, designH);
                 }
                 float overlay = switch (screen == null ? "" : screen) {
                     case "start" -> 0.25f;
@@ -536,9 +543,6 @@ public final class ThemeEditorPanel extends JPanel {
                     g.setColor(new Color(0, 0, 0, Math.round(overlay * 255)));
                     g.fillRect(0, 0, getWidth(), getHeight());
                 }
-                double scale = previewScale();
-                double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
-                double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
                 for (java.util.Map.Entry<String, ThemeConfig.Element> entry : ThemeManager.config().elements.entrySet()) {
                     String id = entry.getKey();
                     if (!id.startsWith(screen + "-")) continue;
