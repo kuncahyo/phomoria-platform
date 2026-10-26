@@ -28,6 +28,7 @@ public final class ThemeEditorPanel extends JPanel {
     private final JCheckBox elementVisible = new JCheckBox("Tampilkan elemen");
     private final JComboBox<String> loadingTextPosition = new JComboBox<>(new String[]{"BOTTOM", "TOP", "LEFT", "RIGHT", "NONE"});
     private final JButton loadingGif = new JButton("PILIH GIF LOADING");
+    private final JButton timerPng = new JButton("PILIH PNG BACKGROUND TIMER");
     private String selectedElement;
     private boolean updatingControls;
 
@@ -45,7 +46,7 @@ public final class ThemeEditorPanel extends JPanel {
         JButton backButton = new JButton("KEMBALI KE SETTINGS");
         top.add(new JLabel("Halaman:")); top.add(screenChoice);
         top.add(new JLabel("Elemen:")); top.add(elementChoice);
-        top.add(background); top.add(defaultBackground); top.add(buttonImage); top.add(loadingGif); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
+        top.add(background); top.add(defaultBackground); top.add(buttonImage); top.add(loadingGif); top.add(timerPng); top.add(transparency); top.add(restoreDefault); top.add(save); top.add(backButton);
         add(top, BorderLayout.NORTH);
 
         JPanel properties = new JPanel(new GridLayout(0, 2, 6, 6));
@@ -74,6 +75,7 @@ public final class ThemeEditorPanel extends JPanel {
         defaultBackground.addActionListener(e -> restoreDefaultBackground());
         buttonImage.addActionListener(e -> chooseElementImage());
         loadingGif.addActionListener(e -> chooseLoadingGif());
+        timerPng.addActionListener(e -> chooseTimerBackground());
         loadingTextPosition.addActionListener(e -> applyLoadingTextPosition());
         transparency.addActionListener(e -> {
             toggleSelectedTransparency();
@@ -157,6 +159,7 @@ public final class ThemeEditorPanel extends JPanel {
                 loadingTextPosition.setSelectedItem(el.loadingTextPosition == null ? "BOTTOM" : el.loadingTextPosition);
                 loadingTextPosition.setEnabled(liveLoader);
                 loadingGif.setEnabled(liveLoader);
+                timerPng.setEnabled(selectedElement.endsWith("-timer"));
             }
         } finally { updatingControls = false; }
         canvas.repaint();
@@ -205,6 +208,26 @@ public final class ThemeEditorPanel extends JPanel {
             ThemeManager.replaceAsset(source, ThemeManager.root().resolve("animations").resolve(filename));
             ThemeConfig.Element el = ThemeManager.config().elements.get("result-live-photo-loading");
             el.image = filename;
+            ThemeManager.save();
+            canvas.repaint();
+        } catch (IOException ex) { showError(ex); }
+    }
+
+    private void chooseTimerBackground() {
+        if (selectedElement == null || !selectedElement.endsWith("-timer")) return;
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PNG Timer Background", "png"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        Path source = chooser.getSelectedFile().toPath();
+        if (!extension(source).equals("png")) {
+            JOptionPane.showMessageDialog(this, "Background timer harus berupa PNG.", "Format tidak didukung", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            String filename = selectedElement + ".png";
+            ThemeManager.replaceAsset(source, ThemeManager.root().resolve("timers").resolve(filename));
+            ThemeConfig.Element element = ThemeManager.config().elements.get(selectedElement);
+            element.timerBackground = filename;
             ThemeManager.save();
             canvas.repaint();
         } catch (IOException ex) { showError(ex); }
@@ -501,6 +524,22 @@ public final class ThemeEditorPanel extends JPanel {
                     Path imagePath = ThemeManager.buttonImage(id);
                     int left=(int)Math.round(el.x*sx), top=(int)Math.round(el.y*sy);
                     int w=(int)Math.round(el.width*sx), h=(int)Math.round(el.height*sy);
+                    if (id.endsWith("-timer")) {
+                        if (Boolean.TRUE.equals(el.visible)) {
+                            Path timerPath = ThemeManager.timerBackground(id);
+                            if (timerPath != null) {
+                                ImageIcon timerIcon = new ImageIcon(timerPath.toString());
+                                g.drawImage(timerIcon.getImage(), left, top, w, h, this);
+                            }
+                            String sample = "30";
+                            g.setColor(parseColor(el.foreground, new Color(80, 80, 80)));
+                            g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, Math.max(12, (int)(Math.min(w, h) * 0.52))));
+                            FontMetrics metrics = g.getFontMetrics();
+                            g.drawString(sample, left + (w - metrics.stringWidth(sample)) / 2,
+                                    top + (h - metrics.getHeight()) / 2 + metrics.getAscent());
+                        }
+                        continue;
+                    }
                     if ("result-live-photo-loading".equals(id)) {
                         if (el.visible) {
                             Path gif = ThemeManager.livePhotoLoadingImage();
