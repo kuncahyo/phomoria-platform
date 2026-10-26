@@ -40,6 +40,10 @@ public final class ThemeConfig {
         elements.put("main-cancel", new Element(null, 1180, 975, 330, 70, "PILIH ULANG FRAME", "#FFFFFF", true));
         elements.put("main-countdown", new Element(null, 800, 360, 320, 320, "", "#FFFFFF", true));
 
+        // Inactivity countdowns. Their numbers are drawn at runtime; PNG is an optional background.
+        elements.put("frame-selection-timer", new Element(null, 1740, 24, 130, 130, "30", "#555555", true));
+        elements.put("main-timer", new Element(null, 1740, 24, 130, 130, "180", "#555555", true));
+
         // Final Preview elements. All coordinates use the shared 1920x1080 canvas.
         elements.put("result-title", new Element(null, 160, 12, 1600, 64, "HASIL FOTO", "#FFFFFF", true));
         elements.put("result-preview", new Element(null, 70, 105, 1200, 790));
@@ -52,6 +56,8 @@ public final class ThemeConfig {
         elements.put("result-qr", new Element(null, 470, 1000, 300, 62, "TAMPILKAN QR DOWNLOAD", "#FFFFFF", true));
         elements.put("result-print", new Element(null, 810, 1000, 220, 62, "PRINT", "#FFFFFF", true));
         elements.put("result-new-session", new Element(null, 1070, 1000, 300, 62, "NEW SESSION", "#FFFFFF", true));
+        elements.put("effect-timer", new Element(null, 1740, 24, 130, 130, "30", "#555555", true));
+        elements.put("result-timer", new Element(null, 1740, 24, 130, 130, "60", "#555555", true));
     }
 
     ThemeConfig withDefaults() {
@@ -102,6 +108,8 @@ public final class ThemeConfig {
     public static final class Element {
         public String image;
         public String defaultImage;
+        public String timerBackground;
+        public String defaultTimerBackground;
         public boolean transparent;
         public Boolean defaultTransparent;
         public String text;
