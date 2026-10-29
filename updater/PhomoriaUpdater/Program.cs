@@ -337,7 +337,10 @@ static void InstallFfmpegIfIncluded(
         DeleteDirectoryWithRetry(target);
         if (hadPrevious && Directory.Exists(backup))
             MoveDirectoryWithRetry(backup, target);
-        throw;
+
+        // Keep the application update usable even if the optional runtime
+        // dependency cannot be replaced. The previous FFmpeg is restored.
+        Log("WARNING: FFmpeg update was not applied; application update will continue.");
     }
 }
 
