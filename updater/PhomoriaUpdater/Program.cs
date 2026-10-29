@@ -202,6 +202,13 @@ try
             throw;
         }
 
+        // Newer update archives may carry FFmpeg beside app/. Older
+        // archives remain compatible and leave an existing FFmpeg untouched.
+        InstallFfmpegIfIncluded(
+            extractedDirectory,
+            installDirectory,
+            backupDirectory);
+
         Log("Cleaning temporary files.");
         DeleteDirectoryWithRetry(tempDirectory);
 
@@ -278,6 +285,60 @@ catch (Exception ex)
     Log("============================================");
 
     Environment.Exit(10);
+}
+
+static void InstallFfmpegIfIncluded(
+    string extractedDirectory,
+    string installDirectory,
+    string backupDirectory)
+{
+    string source = Path.Combine(extractedDirectory, "native", "ffmpeg");
+    string target = Path.Combine(installDirectory, "native", "ffmpeg");
+    string sourceExe = Path.Combine(source, "bin", "ffmpeg.exe");
+    string targetExe = Path.Combine(target, "bin", "ffmpeg.exe");
+    string backup = Path.Combine(backupDirectory, "native", "ffmpeg");
+
+    if (!Directory.Exists(source))
+    {
+        Log("Update ZIP has no native/ffmpeg directory; preserving installed FFmpeg.");
+        if (File.Exists(targetExe))
+            Log("Existing FFmpeg detected.");
+        else
+            Log("WARNING: FFmpeg is not installed and this update package does not include it.");
+        return;
+    }
+
+    if (!File.Exists(sourceExe) || new FileInfo(sourceExe).Length < 1024)
+        throw new InvalidDataException(
+            "Update ZIP contains native/ffmpeg but bin/ffmpeg.exe is missing or invalid.");
+
+    Log("FFmpeg runtime found in update package.");
+    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+
+    bool hadPrevious = Directory.Exists(target);
+    if (hadPrevious)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+        MoveDirectoryWithRetry(target, backup);
+        Log("Previous FFmpeg runtime backed up.");
+    }
+
+    try
+    {
+        CopyDirectory(source, target);
+        if (!File.Exists(targetExe) || new FileInfo(targetExe).Length < 1024)
+            throw new InvalidDataException("Installed FFmpeg validation failed.");
+
+        Log($"FFmpeg installed successfully: {targetExe}");
+    }
+    catch
+    {
+        Log("FFmpeg installation failed; restoring previous dependency.");
+        DeleteDirectoryWithRetry(target);
+        if (hadPrevious && Directory.Exists(backup))
+            MoveDirectoryWithRetry(backup, target);
+        throw;
+    }
 }
 
 static void WaitForProcess(int processId)
