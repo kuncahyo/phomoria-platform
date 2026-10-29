@@ -153,6 +153,12 @@ if errorlevel 1 (
 
 rmdir /s /q target\Phomoria\updater-publish
 
+echo.
+echo [8/8] Creating update ZIP with FFmpeg runtime...
+
+call packaging\windows\build-update-package.bat
+if errorlevel 1 exit /b 1
+
 echo ============================================
 echo BUILD SUCCESSFUL
 echo ============================================
