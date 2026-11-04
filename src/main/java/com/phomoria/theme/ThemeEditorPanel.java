@@ -408,7 +408,10 @@ public final class ThemeEditorPanel extends JPanel {
                 || selectedElement.equals("payment-dialog-cancel")
                 || selectedElement.equals("voucher-dialog-submit")
                 || selectedElement.equals("voucher-dialog-cancel");
-        if (!imageButton) {
+        boolean dialogImage = (selectedElement.startsWith("payment-dialog-")
+                || selectedElement.startsWith("voucher-dialog-"))
+                && !selectedElement.endsWith("-code-field");
+        if (!imageButton && !dialogImage) {
             JOptionPane.showMessageDialog(this, "Elemen ini berupa area atau teks. Gunakan pengaturan background halaman atau pilih elemen tombol untuk mengganti PNG.");
             return;
         }
