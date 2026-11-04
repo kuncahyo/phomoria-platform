@@ -33,7 +33,13 @@ public final class PaymentDialog extends JDialog {
         this.paymentSuccess = paymentSuccess;
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         JPanel content = ThemeDialogSupport.createPanel("payment-dialog");
-        ThemeDialogSupport.add(content, "payment-dialog-title", new JLabel("", SwingConstants.CENTER),
+        JLabel title = new JLabel("", SwingConstants.CENTER);
+        title.setFont(new Font("SansSerif", Font.BOLD, 22));
+        qr.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        note.setFont(new Font("SansSerif", Font.BOLD, 16));
+        qrisCountdown.setFont(new Font("SansSerif", Font.BOLD, 18));
+        voucher.setFont(new Font("SansSerif", Font.BOLD, 12));
+        ThemeDialogSupport.add(content, "payment-dialog-title", title,
                 "SCAN QR UNTUK PEMBAYARAN", 20, 12, 460, 36, true);
         ThemeDialogSupport.add(content, "payment-dialog-qr", qr,
                 "QRIS", 70, 60, 360, 360, false);

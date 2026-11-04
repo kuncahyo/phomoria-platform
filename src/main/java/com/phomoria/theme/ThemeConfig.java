@@ -77,6 +77,18 @@ public final class ThemeConfig {
         elements.put("voucher-dialog-status", new Element(null, 15, 102, 400, 34, "Masukkan kode voucher untuk memulai sesi foto.", "#222222", true));
         elements.put("voucher-dialog-submit", new Element(null, 105, 148, 105, 32, "SELESAI", "#FFFFFF", true));
         elements.put("voucher-dialog-cancel", new Element(null, 220, 148, 105, 32, "BATAL", "#FFFFFF", true));
+        elements.get("payment-dialog-title").fontSize = 22;
+        elements.get("payment-dialog-qr").fontSize = 16;
+        elements.get("payment-dialog-countdown").fontSize = 18;
+        elements.get("payment-dialog-voucher").fontSize = 12;
+        elements.get("payment-dialog-note").fontSize = 16;
+        elements.get("payment-dialog-cancel").fontSize = 14;
+        elements.get("voucher-dialog-title").fontSize = 19;
+        elements.get("voucher-dialog-code-label").fontSize = 14;
+        elements.get("voucher-dialog-code-field").fontSize = 14;
+        elements.get("voucher-dialog-status").fontSize = 13;
+        elements.get("voucher-dialog-submit").fontSize = 14;
+        elements.get("voucher-dialog-cancel").fontSize = 14;
     }
 
     ThemeConfig withDefaults() {

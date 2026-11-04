@@ -17,9 +17,13 @@ public final class VoucherDialog extends JDialog {
         super(owner, "Gunakan Voucher", true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         JPanel content = ThemeDialogSupport.createPanel("voucher-dialog");
-        ThemeDialogSupport.add(content, "voucher-dialog-title", new JLabel("", SwingConstants.CENTER),
+        JLabel title = new JLabel("", SwingConstants.CENTER);
+        title.setFont(new Font("SansSerif", Font.BOLD, 19));
+        status.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        JLabel codeLabel = new JLabel("Kode voucher", SwingConstants.LEFT);
+        ThemeDialogSupport.add(content, "voucher-dialog-title", title,
                 "GUNAKAN VOUCHER", 15, 12, 400, 32, true);
-        ThemeDialogSupport.add(content, "voucher-dialog-code-label", new JLabel("Kode voucher", SwingConstants.LEFT),
+        ThemeDialogSupport.add(content, "voucher-dialog-code-label", codeLabel,
                 "Kode voucher", 25, 62, 95, 30, true);
         ThemeDialogSupport.add(content, "voucher-dialog-code-field", codeField,
                 "", 125, 62, 280, 30, false);
