@@ -14,7 +14,7 @@ import javax.imageio.ImageIO;
 
 /** Theme editor embedded inside Settings. Canvas uses the theme's design coordinates. */
 public final class ThemeEditorPanel extends JPanel {
-    private static final String[] SCREENS = {"start", "frame-selection", "main", "effect", "result"};
+    private static final String[] SCREENS = {"start", "frame-selection", "main", "effect", "result", "payment-dialog", "voucher-dialog"};
     private final Runnable back;
     private final JComboBox<String> screenChoice = new JComboBox<>(SCREENS);
     private final JComboBox<String> elementChoice = new JComboBox<>();
@@ -25,6 +25,8 @@ public final class ThemeEditorPanel extends JPanel {
     private final JSpinner height = new JSpinner(new SpinnerNumberModel(70, 1, 10000, 1));
     private final JTextField elementText = new JTextField(16);
     private final JButton textColor = new JButton("PILIH WARNA TEKS");
+    private final JButton elementBackgroundColor = new JButton("PILIH WARNA LATAR");
+    private final JSpinner fontSize = new JSpinner(new SpinnerNumberModel(18, 8, 160, 1));
     private final JCheckBox elementVisible = new JCheckBox("Tampilkan elemen");
     private final JComboBox<String> loadingTextPosition = new JComboBox<>(new String[]{"BOTTOM", "TOP", "LEFT", "RIGHT", "NONE"});
     private final JButton loadingGif = new JButton("PILIH GIF LOADING");
@@ -55,6 +57,8 @@ public final class ThemeEditorPanel extends JPanel {
         addField(properties, "Lebar", width); addField(properties, "Tinggi", height);
         addField(properties, "Teks", elementText);
         addField(properties, "Warna teks", textColor);
+        addField(properties, "Warna latar elemen", elementBackgroundColor);
+        addField(properties, "Ukuran font", fontSize);
         properties.add(new JLabel("Visibilitas")); properties.add(elementVisible);
         addField(properties, "Posisi teks GIF", loadingTextPosition);
         JPanel right = new JPanel(new BorderLayout()); right.add(properties, BorderLayout.NORTH);
@@ -80,6 +84,8 @@ public final class ThemeEditorPanel extends JPanel {
             @Override public void focusLost(FocusEvent e) { applyTextAndStyle(); }
         });
         textColor.addActionListener(e -> chooseTextColor());
+        elementBackgroundColor.addActionListener(e -> chooseElementBackgroundColor());
+        fontSize.addChangeListener(new ChangeListenerAdapter(() -> { applyTextAndStyle(); canvas.repaint(); }));
         elementVisible.addActionListener(e -> applyTextAndStyle());
         background.addActionListener(e -> chooseBackground());
         defaultBackground.addActionListener(e -> restoreDefaultBackground());
@@ -149,6 +155,8 @@ public final class ThemeEditorPanel extends JPanel {
         try {
             if (el != null) {
                 x.setValue(el.x); y.setValue(el.y); width.setValue(el.width); height.setValue(el.height);
+                fontSize.setValue(el.fontSize > 0 ? el.fontSize : 18);
+                updateBackgroundColorButton(el.background);
                 boolean pageTimer = selectedElement.endsWith("-timer");
                 boolean dynamicText = selectedElement.endsWith("card-name")
                         || selectedElement.endsWith("card-info")
@@ -195,6 +203,7 @@ public final class ThemeEditorPanel extends JPanel {
         if (el == null) return;
         if (elementText.isEditable()) el.text = elementText.getText();
         el.visible = elementVisible.isSelected();
+        el.fontSize = (Integer) fontSize.getValue();
         canvas.repaint();
     }
 
@@ -268,6 +277,25 @@ public final class ThemeEditorPanel extends JPanel {
         textColor.setOpaque(true);
     }
 
+    private void chooseElementBackgroundColor() {
+        if (selectedElement == null) return;
+        ThemeConfig.Element el = ThemeManager.config().elements.get(selectedElement);
+        if (el == null) return;
+        Color initial = parseColor(el.background, new Color(245, 245, 247));
+        Color chosen = JColorChooser.showDialog(this, "Pilih warna latar elemen", initial);
+        if (chosen == null) return;
+        el.background = String.format("#%02X%02X%02X", chosen.getRed(), chosen.getGreen(), chosen.getBlue());
+        updateBackgroundColorButton(el.background);
+        canvas.repaint();
+    }
+
+    private void updateBackgroundColorButton(String hex) {
+        Color c = parseColor(hex, new Color(245, 245, 247));
+        elementBackgroundColor.setBackground(c);
+        elementBackgroundColor.setForeground((c.getRed() + c.getGreen() + c.getBlue()) < 360 ? Color.WHITE : Color.BLACK);
+        elementBackgroundColor.setOpaque(true);
+    }
+
     private static Color parseColor(String value, Color fallback) {
         try { return value == null ? fallback : Color.decode(value); }
         catch (RuntimeException ex) { return fallback; }
@@ -313,7 +341,9 @@ public final class ThemeEditorPanel extends JPanel {
             try {
                 elementText.setText(restored.text == null ? "" : restored.text);
                 elementVisible.setSelected(Boolean.TRUE.equals(restored.visible));
+                fontSize.setValue(restored.fontSize > 0 ? restored.fontSize : 18);
                 updateColorButton(restored.foreground);
+                updateBackgroundColorButton(restored.background);
             } finally { updatingControls = false; }
             canvas.invalidateButtonImage(selectedElement);
             canvas.repaint();
@@ -368,7 +398,11 @@ public final class ThemeEditorPanel extends JPanel {
                 || selectedElement.equals("main-cancel")
                 || selectedElement.equals("result-qr")
                 || selectedElement.equals("result-print")
-                || selectedElement.equals("result-new-session");
+                || selectedElement.equals("result-new-session")
+                || selectedElement.equals("payment-dialog-voucher")
+                || selectedElement.equals("payment-dialog-cancel")
+                || selectedElement.equals("voucher-dialog-submit")
+                || selectedElement.equals("voucher-dialog-cancel");
         if (!imageButton) {
             JOptionPane.showMessageDialog(this, "Elemen ini berupa area atau teks. Gunakan pengaturan background halaman atau pilih elemen tombol untuk mengganti PNG.");
             return;
@@ -404,6 +438,16 @@ public final class ThemeEditorPanel extends JPanel {
         } catch (IOException ex) { showError(ex); }
     }
     private void showError(Exception ex) { JOptionPane.showMessageDialog(this, "Gagal memproses aset tema:\n"+ex.getMessage(), "Theme Editor", JOptionPane.ERROR_MESSAGE); }
+
+    private int designWidthFor(String screen) {
+        ThemeConfig.Screen value = screen == null ? null : ThemeManager.config().screens.get(screen);
+        return value == null || value.designWidth <= 0 ? ThemeManager.config().designWidth : value.designWidth;
+    }
+
+    private int designHeightFor(String screen) {
+        ThemeConfig.Screen value = screen == null ? null : ThemeManager.config().screens.get(screen);
+        return value == null || value.designHeight <= 0 ? ThemeManager.config().designHeight : value.designHeight;
+    }
 
     private final class CanvasPanel extends JPanel {
         private final Map<String, BufferedImage> buttonImageCache = new HashMap<>();
@@ -469,8 +513,8 @@ public final class ThemeEditorPanel extends JPanel {
                     String screen = (String) screenChoice.getSelectedItem();
                     if (screen == null) return;
                     double scale = previewScale();
-                    double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
-                    double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
+                    double offsetX = (getWidth() - designWidthFor(screen) * scale) / 2.0;
+                    double offsetY = (getHeight() - designHeightFor(screen) * scale) / 2.0;
                     java.util.List<java.util.Map.Entry<String, ThemeConfig.Element>> entries =
                             new java.util.ArrayList<>(ThemeManager.config().elements.entrySet());
                     for (int i = entries.size() - 1; i >= 0; i--) {
@@ -507,8 +551,9 @@ public final class ThemeEditorPanel extends JPanel {
         }
 
         private double previewScale() {
-            return Math.min(getWidth() / (double) ThemeManager.config().designWidth,
-                    getHeight() / (double) ThemeManager.config().designHeight);
+            String screen = (String) screenChoice.getSelectedItem();
+            return Math.min(getWidth() / (double) designWidthFor(screen),
+                    getHeight() / (double) designHeightFor(screen));
         }
 
         @Override protected void paintComponent(Graphics graphics) {
@@ -517,12 +562,14 @@ public final class ThemeEditorPanel extends JPanel {
             try {
                 String screen=(String)screenChoice.getSelectedItem();
                 double scale = previewScale();
-                double offsetX = (getWidth() - ThemeManager.config().designWidth * scale) / 2.0;
-                double offsetY = (getHeight() - ThemeManager.config().designHeight * scale) / 2.0;
+                int logicalWidth = designWidthFor(screen);
+                int logicalHeight = designHeightFor(screen);
+                double offsetX = (getWidth() - logicalWidth * scale) / 2.0;
+                double offsetY = (getHeight() - logicalHeight * scale) / 2.0;
                 int designX = (int)Math.round(offsetX);
                 int designY = (int)Math.round(offsetY);
-                int designW = (int)Math.round(ThemeManager.config().designWidth * scale);
-                int designH = (int)Math.round(ThemeManager.config().designHeight * scale);
+                int designW = (int)Math.round(logicalWidth * scale);
+                int designH = (int)Math.round(logicalHeight * scale);
                 Path bg = ThemeManager.background(screen);
                 ImageIcon background = loadBackgroundImage(bg);
                 if (background != null && background.getImage() != null) {
@@ -530,7 +577,7 @@ public final class ThemeEditorPanel extends JPanel {
                 } else {
                     // Preview the factory/code-defined background when no custom
                     // PNG/GIF is selected, matching ThemeBackgroundPanel.
-                    g.setColor(new Color(18, 18, 22));
+                    g.setColor(ThemeDialogSupport.screenBackgroundColor(screen));
                     g.fillRect(designX, designY, designW, designH);
                 }
                 float overlay = switch (screen == null ? "" : screen) {
@@ -550,6 +597,10 @@ public final class ThemeEditorPanel extends JPanel {
                     Path imagePath = ThemeManager.buttonImage(id);
                     int left=(int)Math.round(offsetX + el.x*scale), top=(int)Math.round(offsetY + el.y*scale);
                     int w=(int)Math.round(el.width*scale), h=(int)Math.round(el.height*scale);
+                    if (el.background != null && !el.background.isBlank() && !el.transparent) {
+                        g.setColor(parseColor(el.background, new Color(245, 245, 247)));
+                        g.fillRoundRect(left, top, w, h, 8, 8);
+                    }
                     if (id.endsWith("-timer")) {
                         if (Boolean.TRUE.equals(el.visible)) {
                             Path timerPath = ThemeManager.timerBackground(id);
@@ -587,6 +638,8 @@ public final class ThemeEditorPanel extends JPanel {
                         }
                         continue;
                     }
+                    g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN,
+                            Math.max(10, (int)Math.round((el.fontSize > 0 ? el.fontSize : 16) * scale))));
                     if ("result-live-photo-loading".equals(id)) {
                         if (el.visible) {
                             Path gif = ThemeManager.livePhotoLoadingImage();

@@ -117,6 +117,10 @@ public final class ThemeManager {
         element.image = factory.image;
         element.timerBackground = factory.timerBackground;
         element.defaultTimerBackground = factory.timerBackground;
+        element.background = factory.background;
+        element.defaultBackground = factory.background;
+        element.fontSize = factory.fontSize;
+        element.defaultFontSize = factory.fontSize;
         element.defaultImage = factory.image;
         element.defaultText = factory.text;
         element.defaultForeground = factory.foreground;

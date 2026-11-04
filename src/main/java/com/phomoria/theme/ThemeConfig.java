@@ -16,6 +16,9 @@ public final class ThemeConfig {
         screens.put("main", new Screen("main.png"));
         screens.put("effect", new Screen("effect.png"));
         screens.put("result", new Screen("result.png"));
+        // Dialog canvases use their own real content dimensions, not the 1920x1080 screen.
+        screens.put("payment-dialog", new Screen(null, 500, 560, "#F5F5F7"));
+        screens.put("voucher-dialog", new Screen(null, 430, 190, "#F5F5F7"));
 
         // Factory buttons are rendered by Swing/code. PNGs are user overrides only.
         elements.put("start-payment", new Element(null, 810, 650, 300, 70,
@@ -58,6 +61,22 @@ public final class ThemeConfig {
         elements.put("result-new-session", new Element(null, 1070, 1000, 300, 62, "NEW SESSION", "#FFFFFF", true));
         elements.put("effect-timer", new Element(null, 1740, 24, 130, 130, "30", "#555555", true));
         elements.put("result-timer", new Element(null, 1740, 24, 130, 130, "60", "#555555", true));
+
+        // Payment QRIS dialog (500x560 content area).
+        elements.put("payment-dialog-title", new Element(null, 20, 12, 460, 36, "SCAN QR UNTUK PEMBAYARAN", "#222222", true));
+        elements.put("payment-dialog-qr", new Element(null, 70, 60, 360, 360, "QRIS PREVIEW", "#222222", true));
+        elements.put("payment-dialog-countdown", new Element(null, 360, 60, 110, 28, "10:00", "#464646", true));
+        elements.put("payment-dialog-voucher", new Element(null, 350, 385, 120, 34, "VOUCHER", "#FFFFFF", true));
+        elements.put("payment-dialog-note", new Element(null, 20, 450, 460, 48, "Menunggu pembayaran", "#222222", true));
+        elements.put("payment-dialog-cancel", new Element(null, 180, 510, 140, 36, "BATAL", "#FFFFFF", true));
+
+        // Voucher dialog (430x190 content area).
+        elements.put("voucher-dialog-title", new Element(null, 15, 12, 400, 32, "GUNAKAN VOUCHER", "#222222", true));
+        elements.put("voucher-dialog-code-label", new Element(null, 25, 62, 95, 30, "Kode voucher", "#222222", true));
+        elements.put("voucher-dialog-code-field", new Element(null, 125, 62, 280, 30, "", "#222222", true));
+        elements.put("voucher-dialog-status", new Element(null, 15, 102, 400, 34, "Masukkan kode voucher untuk memulai sesi foto.", "#222222", true));
+        elements.put("voucher-dialog-submit", new Element(null, 105, 148, 105, 32, "SELESAI", "#FFFFFF", true));
+        elements.put("voucher-dialog-cancel", new Element(null, 220, 148, 105, 32, "BATAL", "#FFFFFF", true));
     }
 
     ThemeConfig withDefaults() {
@@ -80,11 +99,22 @@ public final class ThemeConfig {
         }
         if (designWidth <= 0) designWidth = 1920;
         if (designHeight <= 0) designHeight = 1080;
+        screens.forEach((id, screen) -> {
+            if (screen == null) return;
+            Screen factory = defaults.screens.get(id);
+            if (screen.designWidth <= 0) screen.designWidth = factory == null ? designWidth : factory.designWidth;
+            if (screen.designHeight <= 0) screen.designHeight = factory == null ? designHeight : factory.designHeight;
+            if (screen.backgroundColor == null || screen.backgroundColor.isBlank()) {
+                screen.backgroundColor = factory == null ? "#121216" : factory.backgroundColor;
+            }
+        });
         elements.forEach((id, e) -> {
             if (e == null) return;
             Element factory = defaults.elements.get(id);
             if (e.defaultImage == null || e.defaultImage.isBlank()) e.defaultImage = e.image;
             if (e.defaultTimerBackground == null) e.defaultTimerBackground = e.timerBackground;
+            if (e.defaultBackground == null) e.defaultBackground = e.background;
+            if (e.defaultFontSize == null) e.defaultFontSize = e.fontSize;
             if (e.defaultTransparent == null) e.defaultTransparent = e.transparent;
             if (e.text == null && factory != null) e.text = factory.text;
             if (e.foreground == null && factory != null) e.foreground = factory.foreground;
@@ -102,12 +132,25 @@ public final class ThemeConfig {
 
     public static final class Screen {
         public String background;
+        public int designWidth = 1920;
+        public int designHeight = 1080;
+        public String backgroundColor = "#121216";
         public Screen() {}
-        public Screen(String background) { this.background = background; }
+        public Screen(String background) { this(background, 1920, 1080, "#121216"); }
+        public Screen(String background, int designWidth, int designHeight, String backgroundColor) {
+            this.background = background;
+            this.designWidth = designWidth;
+            this.designHeight = designHeight;
+            this.backgroundColor = backgroundColor;
+        }
     }
 
     public static final class Element {
         public String image;
+        public String background;
+        public String defaultBackground;
+        public int fontSize;
+        public Integer defaultFontSize;
         public String defaultImage;
         public String timerBackground;
         public String defaultTimerBackground;
@@ -129,6 +172,8 @@ public final class ThemeConfig {
         public Element(String image, int x, int y, int width, int height,
                        String text, String foreground, boolean visible) {
             this.image = image; this.defaultImage = image; this.defaultTransparent = false;
+            this.background = null; this.defaultBackground = null;
+            this.fontSize = 0; this.defaultFontSize = 0;
             this.text = text; this.defaultText = text;
             this.foreground = foreground; this.defaultForeground = foreground;
             this.visible = visible; this.defaultVisible = visible;

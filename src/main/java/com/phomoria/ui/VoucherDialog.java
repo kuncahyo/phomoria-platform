@@ -2,6 +2,7 @@ package com.phomoria.ui;
 
 import com.phomoria.app.AppContext;
 import com.phomoria.cloud.VoucherService;
+import com.phomoria.theme.ThemeDialogSupport;
 import javax.swing.*;
 import java.awt.*;
 import java.util.concurrent.ExecutionException;
@@ -15,28 +16,23 @@ public final class VoucherDialog extends JDialog {
     public VoucherDialog(JFrame owner, Runnable authorized) {
         super(owner, "Gunakan Voucher", true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        JPanel content = ThemeDialogSupport.createPanel("voucher-dialog");
+        ThemeDialogSupport.add(content, "voucher-dialog-title", new JLabel("", SwingConstants.CENTER),
+                "GUNAKAN VOUCHER", 15, 12, 400, 32, true);
+        ThemeDialogSupport.add(content, "voucher-dialog-code-label", new JLabel("Kode voucher", SwingConstants.LEFT),
+                "Kode voucher", 25, 62, 95, 30, true);
+        ThemeDialogSupport.add(content, "voucher-dialog-code-field", codeField,
+                "", 125, 62, 280, 30, false);
+        ThemeDialogSupport.add(content, "voucher-dialog-status", status,
+                "Masukkan kode voucher untuk memulai sesi foto.", 15, 102, 400, 34, false);
+        ThemeDialogSupport.add(content, "voucher-dialog-submit", submit,
+                "SELESAI", 105, 148, 105, 32, true);
+        ThemeDialogSupport.add(content, "voucher-dialog-cancel", cancel,
+                "BATAL", 220, 148, 105, 32, true);
+        setContentPane(content);
         setSize(430, 220);
         setResizable(false);
         setLocationRelativeTo(owner);
-
-        JPanel content = new JPanel(new BorderLayout(12, 12));
-        content.setBorder(BorderFactory.createEmptyBorder(18, 20, 16, 20));
-        JLabel title = new JLabel("GUNAKAN VOUCHER", SwingConstants.CENTER);
-        title.setFont(new Font("SansSerif", Font.BOLD, 19));
-        status.setFont(new Font("SansSerif", Font.PLAIN, 13));
-
-        JPanel center = new JPanel(new BorderLayout(6, 6));
-        center.add(new JLabel("Kode voucher"), BorderLayout.NORTH);
-        center.add(codeField, BorderLayout.CENTER);
-        center.add(status, BorderLayout.SOUTH);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        buttons.add(submit);
-        buttons.add(cancel);
-        content.add(title, BorderLayout.NORTH);
-        content.add(center, BorderLayout.CENTER);
-        content.add(buttons, BorderLayout.SOUTH);
-        setContentPane(content);
 
         submit.addActionListener(e -> authorize(authorized));
         cancel.addActionListener(e -> dispose());

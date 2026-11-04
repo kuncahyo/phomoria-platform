@@ -1,6 +1,7 @@
 package com.phomoria.ui;
 
 import com.phomoria.payment.LegacyPaymentService;
+import com.phomoria.theme.ThemeDialogSupport;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -31,35 +32,23 @@ public final class PaymentDialog extends JDialog {
         super(owner, "Pembayaran QRIS", true);
         this.paymentSuccess = paymentSuccess;
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-        setSize(500, 600); setLocationRelativeTo(owner);
-        setLayout(new BorderLayout(12, 12));
-        JLabel title = new JLabel("SCAN QR UNTUK PEMBAYARAN", SwingConstants.CENTER);
-        title.setFont(new Font("SansSerif", Font.BOLD, 22));
-        qr.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        note.setFont(new Font("SansSerif", Font.BOLD, 16));
-        JPanel south = new JPanel(new BorderLayout(8, 8));
-        south.add(note, BorderLayout.CENTER);
-        JPanel buttons = new JPanel(new FlowLayout()); buttons.add(cancel);
-        south.add(buttons, BorderLayout.SOUTH);
-        JPanel qrPanel = new JPanel(null);
-        qrPanel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
-        qrisCountdown.setFont(new Font("SansSerif", Font.BOLD, 18));
-        qrisCountdown.setForeground(new Color(70, 70, 70));
-        qrPanel.add(qr);
-        qrPanel.add(qrisCountdown);
-        voucher.setFont(new Font("SansSerif", Font.BOLD, 12));
-        voucher.setMargin(new Insets(5, 10, 5, 10));
+        JPanel content = ThemeDialogSupport.createPanel("payment-dialog");
+        ThemeDialogSupport.add(content, "payment-dialog-title", new JLabel("", SwingConstants.CENTER),
+                "SCAN QR UNTUK PEMBAYARAN", 20, 12, 460, 36, true);
+        ThemeDialogSupport.add(content, "payment-dialog-qr", qr,
+                "QRIS", 70, 60, 360, 360, false);
+        ThemeDialogSupport.add(content, "payment-dialog-countdown", qrisCountdown,
+                "10:00", 360, 60, 110, 28, false);
+        ThemeDialogSupport.add(content, "payment-dialog-voucher", voucher,
+                "VOUCHER", 350, 385, 120, 34, true);
+        ThemeDialogSupport.add(content, "payment-dialog-note", note,
+                "Menunggu pembayaran", 20, 450, 460, 48, false);
+        ThemeDialogSupport.add(content, "payment-dialog-cancel", cancel,
+                "BATAL", 180, 510, 140, 36, true);
         voucher.setFocusable(false);
-        qrPanel.add(voucher);
-        qrPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override public void componentResized(java.awt.event.ComponentEvent e) {
-                qr.setBounds(0, 0, qrPanel.getWidth(), qrPanel.getHeight());
-                qrisCountdown.setBounds(Math.max(0, qrPanel.getWidth() - 92), 2, 82, 28);
-                voucher.setBounds(Math.max(8, qrPanel.getWidth() - 112),
-                        Math.max(8, qrPanel.getHeight() - 42), 104, 32);
-            }
-        });
-        add(title, BorderLayout.NORTH); add(qrPanel, BorderLayout.CENTER); add(south, BorderLayout.SOUTH);
+        setContentPane(content);
+        setSize(500, 600);
+        setLocationRelativeTo(owner);
         cancel.addActionListener(e -> closeAndCancel());
         voucher.addActionListener(e -> openVoucherDialog(owner));
         addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosing(java.awt.event.WindowEvent e) { closeAndCancel(); } });
