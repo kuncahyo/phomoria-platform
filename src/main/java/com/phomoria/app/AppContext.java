@@ -12,6 +12,7 @@ public final class AppContext {
     private static AppSettings settings;
     private static PhotoSession session;
     private static PhotoEffectSession effectSession;
+    private static String voucherAuthorizationToken = "";
 
     private AppContext() {}
 
@@ -48,6 +49,18 @@ public final class AppContext {
         session = new PhotoSession(photoCount);
         effectSession = new PhotoEffectSession(photoCount);
         return session;
+    }
+
+    public static synchronized void setVoucherAuthorizationToken(String token) {
+        voucherAuthorizationToken = token == null ? "" : token;
+    }
+
+    public static synchronized String voucherAuthorizationToken() {
+        return voucherAuthorizationToken;
+    }
+
+    public static synchronized void clearVoucherAuthorization() {
+        voucherAuthorizationToken = "";
     }
 
     public static PhotoSession session() {
