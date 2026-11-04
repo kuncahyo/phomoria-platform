@@ -408,9 +408,11 @@ public final class ThemeEditorPanel extends JPanel {
                 || selectedElement.equals("payment-dialog-cancel")
                 || selectedElement.equals("voucher-dialog-submit")
                 || selectedElement.equals("voucher-dialog-cancel");
-        boolean dialogImage = (selectedElement.startsWith("payment-dialog-")
-                || selectedElement.startsWith("voucher-dialog-"))
-                && !selectedElement.endsWith("-code-field");
+        // Static dialog labels and buttons can use PNG assets. Keep runtime-generated
+        // QR, countdown, status and input controls data-driven.
+        boolean dialogImage = selectedElement.equals("payment-dialog-title")
+                || selectedElement.equals("voucher-dialog-title")
+                || selectedElement.equals("voucher-dialog-code-label");
         if (!imageButton && !dialogImage) {
             JOptionPane.showMessageDialog(this, "Elemen ini berupa area atau teks. Gunakan pengaturan background halaman atau pilih elemen tombol untuk mengganti PNG.");
             return;
