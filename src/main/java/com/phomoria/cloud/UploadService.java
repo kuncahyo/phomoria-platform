@@ -31,6 +31,10 @@ public final class UploadService {
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addTextBody("device_uuid", device.getUuid(), ContentType.TEXT_PLAIN);
         builder.addTextBody("frame_name", frameName, ContentType.TEXT_PLAIN);
+        String voucherToken = com.phomoria.app.AppContext.voucherAuthorizationToken();
+        if (voucherToken != null && !voucherToken.isBlank()) {
+            builder.addTextBody("voucher_token", voucherToken, ContentType.TEXT_PLAIN);
+        }
         builder.addBinaryBody("result", result, ContentType.create("image/png"), result.getName());
 
         // GIF and Live Photo are independent assets, not original-photo slots.
@@ -86,9 +90,13 @@ public final class UploadService {
                 throw new IllegalStateException("Response upload tidak memiliki session.gallery_url: " + body);
             }
 
-            return json.getAsJsonObject("session")
+            String galleryUrl = json.getAsJsonObject("session")
                     .get("gallery_url")
                     .getAsString();
+            if (voucherToken != null && !voucherToken.isBlank()) {
+                com.phomoria.app.AppContext.clearVoucherAuthorization();
+            }
+            return galleryUrl;
         }
     }
 }
