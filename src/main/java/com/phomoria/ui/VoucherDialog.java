@@ -34,7 +34,7 @@ public final class VoucherDialog extends JDialog {
         ThemeDialogSupport.add(content, "voucher-dialog-cancel", cancel,
                 "BATAL", 220, 148, 105, 32, true);
         setContentPane(content);
-        setSize(430, 220);
+        pack();
         setResizable(false);
         setLocationRelativeTo(owner);
 

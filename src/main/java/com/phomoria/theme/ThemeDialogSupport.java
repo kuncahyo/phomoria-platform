@@ -2,7 +2,6 @@ package com.phomoria.theme;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -46,6 +45,21 @@ public final class ThemeDialogSupport {
         panel.setPreferredSize(new Dimension(width, height));
         panel.setBackground(parseColor(screen == null ? null : screen.backgroundColor, new Color(245, 245, 247)));
         panel.setOpaque(true);
+        panel.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent event) {
+                double sx = panel.getWidth() / (double) width;
+                double sy = panel.getHeight() / (double) height;
+                for (Component child : panel.getComponents()) {
+                    if (!(child instanceof JComponent jc)) continue;
+                    Object value = jc.getClientProperty("phomoria.theme.baseBounds");
+                    if (value instanceof Rectangle bounds) {
+                        jc.setBounds((int)Math.round(bounds.x * sx), (int)Math.round(bounds.y * sy),
+                                Math.max(1, (int)Math.round(bounds.width * sx)),
+                                Math.max(1, (int)Math.round(bounds.height * sy)));
+                    }
+                }
+            }
+        });
         return panel;
     }
 
@@ -53,7 +67,10 @@ public final class ThemeDialogSupport {
                            int x, int y, int width, int height, boolean editableText) {
         ThemeConfig.Element element = ThemeManager.config().elements.computeIfAbsent(id,
                 key -> new ThemeConfig.Element(null, x, y, width, height, fallbackText, "#222222", true));
-        component.setBounds(element.x, element.y, Math.max(1, element.width), Math.max(1, element.height));
+        Rectangle baseBounds = new Rectangle(element.x, element.y,
+                Math.max(1, element.width), Math.max(1, element.height));
+        component.putClientProperty("phomoria.theme.baseBounds", baseBounds);
+        component.setBounds(baseBounds);
         component.setVisible(Boolean.TRUE.equals(element.visible));
 
         if (element.foreground != null) component.setForeground(parseColor(element.foreground, component.getForeground()));
@@ -61,7 +78,13 @@ public final class ThemeDialogSupport {
             component.setBackground(parseColor(element.background, component.getBackground()));
             component.setOpaque(true);
         }
-        if (element.transparent) component.setOpaque(false);
+        if (element.transparent) {
+            component.setOpaque(false);
+            if (component instanceof AbstractButton button) {
+                button.setContentAreaFilled(false);
+                button.setBorderPainted(false);
+            }
+        }
         if (element.fontSize > 0) {
             Font current = component.getFont();
             component.setFont(current.deriveFont((float) element.fontSize));

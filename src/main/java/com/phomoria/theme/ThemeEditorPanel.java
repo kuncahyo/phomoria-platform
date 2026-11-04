@@ -164,6 +164,11 @@ public final class ThemeEditorPanel extends JPanel {
                         || selectedElement.equals("main-status")
                         || selectedElement.equals("main-counter")
                         || selectedElement.equals("main-countdown")
+                        || selectedElement.equals("payment-dialog-qr")
+                        || selectedElement.equals("payment-dialog-countdown")
+                        || selectedElement.equals("payment-dialog-note")
+                        || selectedElement.equals("voucher-dialog-code-field")
+                        || selectedElement.equals("voucher-dialog-status")
                         || selectedElement.endsWith("-timer");
                 elementText.setEditable(!dynamicText);
                 elementText.setToolTipText(pageTimer

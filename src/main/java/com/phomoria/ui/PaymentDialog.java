@@ -53,7 +53,7 @@ public final class PaymentDialog extends JDialog {
                 "BATAL", 180, 510, 140, 36, true);
         voucher.setFocusable(false);
         setContentPane(content);
-        setSize(500, 600);
+        pack();
         setLocationRelativeTo(owner);
         cancel.addActionListener(e -> closeAndCancel());
         voucher.addActionListener(e -> openVoucherDialog(owner));
