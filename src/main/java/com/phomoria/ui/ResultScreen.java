@@ -510,7 +510,9 @@ public final class ResultScreen extends JPanel {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                UploadQueueManager.enqueue(sessionId, frameName, queuedFolder, previewStartedAt);
+                UploadQueueManager.enqueue(sessionId, frameName, queuedFolder, previewStartedAt,
+                        AppContext.voucherAuthorizationToken());
+                AppContext.clearVoucherAuthorization();
                 return null;
             }
 

@@ -56,6 +56,11 @@ public final class UploadQueueManager {
 
     public static synchronized void enqueue(String sessionId, String frameName, File source,
                                              long previewStartedAt) throws Exception {
+        enqueue(sessionId, frameName, source, previewStartedAt, "");
+    }
+
+    public static synchronized void enqueue(String sessionId, String frameName, File source,
+                                             long previewStartedAt, String voucherToken) throws Exception {
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("Session ID kosong.");
         }
@@ -90,6 +95,7 @@ public final class UploadQueueManager {
         UploadQueueEntry entry = new UploadQueueEntry();
         entry.sessionId = sessionId;
         entry.frameName = frameName == null ? "" : frameName;
+        entry.voucherToken = voucherToken == null ? "" : voucherToken;
         entry.createdAt = previewStartedAt > 0 ? previewStartedAt : System.currentTimeMillis();
         entry.updatedAt = System.currentTimeMillis();
         try (java.io.FileWriter writer = new java.io.FileWriter(new File(staging, "manifest.json"))) {
@@ -129,10 +135,11 @@ public final class UploadQueueManager {
         try {
             STORE.save(entry);
             UploadService.UploadResult response = new UploadService().reserveSession(
-                    entry.frameName, STORE.folder(entry.sessionId), entry.sessionId);
+                    entry.frameName, STORE.folder(entry.sessionId), entry.sessionId, entry.voucherToken);
             if (response.getGalleryUrl().isBlank()) {
                 throw new IllegalStateException("URL galeri kosong dari server.");
             }
+            entry.voucherToken = "";
             entry.galleryUrl = response.getGalleryUrl();
             entry.sessionCode = response.getSessionCode();
             entry.serverId = response.getServerId();
