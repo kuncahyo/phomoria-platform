@@ -42,6 +42,11 @@ public final class UploadService {
     }
 
     public UploadResult reserveSession(String frameName, File sessionFolder, String clientSessionId) throws Exception {
+        return reserveSession(frameName, sessionFolder, clientSessionId, "");
+    }
+
+    public UploadResult reserveSession(String frameName, File sessionFolder, String clientSessionId,
+                                       String voucherToken) throws Exception {
         CloudConfig config = CloudConfigManager.getConfig();
         DeviceInfo device = DeviceManager.getDevice();
         if (config.getToken().isBlank()) throw new IllegalStateException("Belum login ke API.");
@@ -58,6 +63,9 @@ public final class UploadService {
         payload.addProperty("device_uuid", device.getUuid());
         payload.addProperty("client_session_id", clientSessionId);
         payload.addProperty("frame_name", frameName == null ? "" : frameName);
+        if (voucherToken != null && !voucherToken.isBlank()) {
+            payload.addProperty("voucher_token", voucherToken);
+        }
         JsonArray manifest = new JsonArray();
         for (AssetFile asset : assets) {
             JsonObject item = new JsonObject();
