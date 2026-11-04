@@ -17,6 +17,7 @@ public final class PaymentDialog extends JDialog {
     private final JLabel note = new JLabel("", SwingConstants.CENTER);
     private final JLabel qrisCountdown = new JLabel("10:00", SwingConstants.RIGHT);
     private final JButton cancel = new JButton("BATAL");
+    private final JButton voucher = new JButton("VOUCHER");
     private final Timer pollTimer;
     private final Timer countdownTimer;
     private Timer expiryGraceTimer;
@@ -46,14 +47,21 @@ public final class PaymentDialog extends JDialog {
         qrisCountdown.setForeground(new Color(70, 70, 70));
         qrPanel.add(qr);
         qrPanel.add(qrisCountdown);
+        voucher.setFont(new Font("SansSerif", Font.BOLD, 12));
+        voucher.setMargin(new Insets(5, 10, 5, 10));
+        voucher.setFocusable(false);
+        qrPanel.add(voucher);
         qrPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
                 qr.setBounds(0, 0, qrPanel.getWidth(), qrPanel.getHeight());
                 qrisCountdown.setBounds(Math.max(0, qrPanel.getWidth() - 92), 2, 82, 28);
+                voucher.setBounds(Math.max(8, qrPanel.getWidth() - 112),
+                        Math.max(8, qrPanel.getHeight() - 42), 104, 32);
             }
         });
         add(title, BorderLayout.NORTH); add(qrPanel, BorderLayout.CENTER); add(south, BorderLayout.SOUTH);
         cancel.addActionListener(e -> closeAndCancel());
+        voucher.addActionListener(e -> openVoucherDialog(owner));
         addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosing(java.awt.event.WindowEvent e) { closeAndCancel(); } });
         pollTimer = new Timer(2500, e -> pollStatus());
         countdownTimer = new Timer(1000, e -> handleCountdownTick());
@@ -85,6 +93,31 @@ public final class PaymentDialog extends JDialog {
                 } catch (Exception ex) { showError(root(ex)); }
             }
         }.execute();
+    }
+
+    private void openVoucherDialog(JFrame owner) {
+        if (closing || paid) return;
+        voucher.setEnabled(false);
+        VoucherDialog dialog = new VoucherDialog(owner, this::completeWithVoucher);
+        dialog.setVisible(true);
+        if (!closing && !paid) voucher.setEnabled(true);
+    }
+
+    private void completeWithVoucher() {
+        if (closing || paid) return;
+        closing = true;
+        stopPaymentTimers();
+        dispose();
+
+        // Voucher authorization replaces this QRIS transaction.
+        if (payment != null && service != null) new SwingWorker<Void, Void>() {
+            @Override protected Void doInBackground() throws Exception {
+                service.cancel(payment.orderId());
+                return null;
+            }
+        }.execute();
+
+        paymentSuccess.run();
     }
 
     private void pollStatus() {
