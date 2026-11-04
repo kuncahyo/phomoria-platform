@@ -6,6 +6,7 @@ import java.util.List;
 public final class UploadQueueEntry {
     public String sessionId;
     public String frameName = "";
+    public String voucherToken = "";
     public String status = "PENDING";
     public String serverStatus = "";
     public String galleryUrl = "";
