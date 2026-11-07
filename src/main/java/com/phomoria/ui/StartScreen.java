@@ -6,6 +6,7 @@ import com.phomoria.theme.ThemeBackgroundPanel;
 import com.phomoria.theme.ThemeButton;
 import com.phomoria.theme.ThemeConfig;
 import com.phomoria.theme.ThemeManager;
+import com.phomoria.print.PrintWarningManager;
 import javax.swing.*;
 import java.awt.*;
 
@@ -35,6 +36,18 @@ public final class StartScreen extends JPanel {
             @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutThemeElements(); }
         });
         layoutThemeElements();
+        SwingUtilities.invokeLater(() -> {
+            PrintWarningManager.PendingWarning warning = PrintWarningManager.consumeUnprinted();
+            if (warning != null && isShowing()) {
+                String message = "Sepertinya sesi foto ini belum berhasil dicetak.\n\n"
+                        + "Tidak perlu khawatir, hasil foto Anda tetap tersimpan. "
+                        + "Jika Anda merasa ini sebuah masalah, segera laporkan kepada admin "
+                        + "dengan menyertakan waktu sesi foto dan kontak yang bisa dihubungi.\n\n"
+                        + "Waktu sesi foto: " + warning.getFormattedTime();
+                JOptionPane.showMessageDialog(this, message, "Informasi Sesi Foto",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
     }
 
     private void layoutThemeElements() {
