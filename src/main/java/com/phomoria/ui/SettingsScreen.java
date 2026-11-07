@@ -108,6 +108,8 @@ public final class SettingsScreen extends JPanel {
                 new JTextField(
                         settings.getFrameName()
                 );
+        server.setPreferredSize(new Dimension(520, 32));
+        frameName.setPreferredSize(new Dimension(420, 32));
 
 
         price =
@@ -1167,22 +1169,30 @@ public final class SettingsScreen extends JPanel {
             String label,
             Component component
     ) {
+        JPanel field = new JPanel();
+        field.setLayout(new BoxLayout(field, BoxLayout.Y_AXIS));
+        JLabel fieldLabel = new JLabel(label);
+        fieldLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        component.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Dimension preferred = component.getPreferredSize();
+        int height = Math.max(28, preferred.height);
+        int width = component instanceof JTextField ? 520
+                : component instanceof JSpinner ? Math.max(150, preferred.width)
+                : 650;
+        component.setPreferredSize(new Dimension(width, height));
+        component.setMaximumSize(new Dimension(width, height));
+        field.add(fieldLabel);
+        field.add(Box.createVerticalStrut(5));
+        field.add(component);
+        field.setMaximumSize(new Dimension(680, height + 28));
+        field.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         g.gridx = 0;
         g.gridy = row;
-        g.weightx = 0;
-
-        panel.add(
-                new JLabel(label),
-                g
-        );
-
-        g.gridx = 1;
+        g.gridwidth = 2;
         g.weightx = 1;
-
-        panel.add(
-                component,
-                g
-        );
+        g.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(field, g);
+        g.gridwidth = 1;
     }
 }
