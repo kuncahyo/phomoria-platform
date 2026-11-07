@@ -5,6 +5,9 @@ import com.phomoria.app.ApplicationFrame;
 import com.phomoria.camera.CameraDevice;
 import com.phomoria.camera.CameraManager;
 import com.phomoria.config.AppSettings;
+import com.phomoria.cloud.CloudConfig;
+import com.phomoria.cloud.CloudConfigManager;
+import com.phomoria.cloud.RememberedCredentialsStore;
 import com.phomoria.debug.DebugLog;
 import com.phomoria.print.PrinterService;
 import com.phomoria.theme.ThemeEditorPanel;
@@ -38,8 +41,6 @@ public final class SettingsScreen extends JPanel {
             );
 
     private final JTextField server;
-    private final JTextField frameName;
-    private final JSpinner price;
     private final JSpinner captureCountdown;
     private final JSpinner photoPreview;
     private final JSpinner finalReview;
@@ -104,23 +105,7 @@ public final class SettingsScreen extends JPanel {
                         settings.getApiServer()
                 );
 
-        frameName =
-                new JTextField(
-                        settings.getFrameName()
-                );
         server.setPreferredSize(new Dimension(520, 32));
-        frameName.setPreferredSize(new Dimension(420, 32));
-
-
-        price =
-                new JSpinner(
-                        new SpinnerNumberModel(
-                                settings.getPrice(),
-                                0,
-                                10000000,
-                                5000
-                        )
-                );
 
         captureCountdown = new JSpinner(
                 new SpinnerNumberModel(
@@ -188,28 +173,12 @@ public final class SettingsScreen extends JPanel {
         JPanel basicForm =
                 createBasicForm();
 
-        JPanel settingsPanels =
-                new JPanel(
-                        new GridLayout(
-                                4,
-                                1,
-                                10,
-                                10
-                        )
-                );
-
-        settingsPanels.add(
-                mirrorPhotoSettingsPanel
-        );
-
-        settingsPanels.add(
-                effectSettingsPanel
-        );
-
-        settingsPanels.add(
-                printPaperSettingsPanel
-        );
-        settingsPanels.add(printerSettingsPanel);
+        JPanel settingsPanels = new JPanel();
+        settingsPanels.setLayout(new BoxLayout(settingsPanels, BoxLayout.Y_AXIS));
+        addCompactPanel(settingsPanels, mirrorPhotoSettingsPanel);
+        addCompactPanel(settingsPanels, effectSettingsPanel);
+        addCompactPanel(settingsPanels, printPaperSettingsPanel);
+        addCompactPanel(settingsPanels, printerSettingsPanel);
 
         JPanel content =
                 new JPanel(
@@ -238,8 +207,8 @@ public final class SettingsScreen extends JPanel {
                 BorderFactory.createEmptyBorder()
         );
 
-        scroll.getVerticalScrollBar()
-                .setUnitIncrement(16);
+        scroll.getVerticalScrollBar().setUnitIncrement(24);
+        installTouchDragScrolling(content, scroll);
 
         settingsView.add(
                 scroll,
@@ -369,113 +338,123 @@ public final class SettingsScreen extends JPanel {
     }
 
     private JPanel createBasicForm() {
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBorder(BorderFactory.createTitledBorder("Pengaturan Dasar"));
 
-        JPanel form =
-                new JPanel(
-                        new GridBagLayout()
-                );
-
-        form.setBorder(
-                BorderFactory.createTitledBorder(
-                        "Pengaturan Dasar"
-                )
-        );
-
-        GridBagConstraints g =
-                new GridBagConstraints();
-
-        g.insets =
-                new Insets(
-                        7,
-                        7,
-                        7,
-                        7
-                );
-
-        g.fill =
-                GridBagConstraints.HORIZONTAL;
-
+        JPanel connection = new JPanel(new GridBagLayout());
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = new Insets(6, 6, 6, 6);
+        g.fill = GridBagConstraints.HORIZONTAL;
         g.weightx = 1;
 
-        int row = 0;
+        addRow(connection, g, 0, "API Server", server);
+        addRow(connection, g, 1, "Camera", createCameraChooser());
+        connection.setAlignmentX(Component.LEFT_ALIGNMENT);
+        form.add(connection);
 
-        addRow(
-                form,
-                g,
-                row++,
-                "API Server",
-                server
-        );
+        JPanel primaryTimers = new JPanel(new GridLayout(0, 3, 12, 8));
+        primaryTimers.setBorder(BorderFactory.createTitledBorder("Timer Alur Foto"));
+        primaryTimers.add(timerField("Countdown sebelum foto (detik)", captureCountdown));
+        primaryTimers.add(timerField("Preview setiap foto (detik)", photoPreview));
+        primaryTimers.add(timerField("Review akhir / retake (detik)", finalReview));
+        primaryTimers.add(timerField("Pilih frame (detik)", frameSelectionTimer));
+        primaryTimers.add(timerField("Efek foto (detik)", effectTimer));
+        primaryTimers.add(timerField("Preview final (detik)", resultTimer));
+        primaryTimers.setAlignmentX(Component.LEFT_ALIGNMENT);
+        form.add(Box.createVerticalStrut(8));
+        form.add(primaryTimers);
 
-        addRow(
-                form,
-                g,
-                row++,
-                "Camera",
-                createCameraChooser()
-        );
+        JPanel additional = new JPanel(new GridLayout(0, 3, 12, 8));
+        additional.setBorder(BorderFactory.createTitledBorder("Timer Pembayaran & Sesi"));
+        additional.add(timerField("QRIS (detik)", qrisTimer));
+        additional.add(timerField("Sesi foto utama (detik)", mainSessionTimer));
+        additional.add(timerField("Tambahan sesi foto (detik)", mainExtensionTimer));
+        additional.setAlignmentX(Component.LEFT_ALIGNMENT);
+        form.add(Box.createVerticalStrut(8));
+        form.add(additional);
 
-        addRow(
-                form,
-                g,
-                row++,
-                "Frame Name",
-                frameName
-        );
+        JPanel options = new JPanel();
+        options.setLayout(new BoxLayout(options, BoxLayout.Y_AXIS));
+        options.setBorder(BorderFactory.createTitledBorder("Fitur Aplikasi"));
+        remember.setText("Remember Login (simpan email dan password secara aman)");
+        remember.setAlignmentX(Component.LEFT_ALIGNMENT);
+        showCancelSession.setAlignmentX(Component.LEFT_ALIGNMENT);
+        livePhotoEnabled.setAlignmentX(Component.LEFT_ALIGNMENT);
+        options.add(remember);
+        options.add(Box.createVerticalStrut(5));
+        options.add(showCancelSession);
+        options.add(Box.createVerticalStrut(5));
+        options.add(livePhotoEnabled);
 
-
-        addRow(
-                form,
-                g,
-                row++,
-                "Harga Sesi",
-                price
-        );
-
-        addRow(
-                form, g, row++,
-                "Countdown sebelum foto (detik)", captureCountdown
-        );
-
-        addRow(
-                form, g, row++,
-                "Durasi preview setiap foto (detik)", photoPreview
-        );
-
-        addRow(
-                form, g, row++,
-                "Waktu review akhir / retake (detik)", finalReview
-        );
-
-        addRow(form, g, row++, "Timer QRIS (detik)", qrisTimer);
-        addRow(form, g, row++, "Timer pilih frame (detik)", frameSelectionTimer);
-        addRow(form, g, row++, "Timer sesi foto utama (detik)", mainSessionTimer);
-        addRow(form, g, row++, "Waktu tambahan sesi foto (detik)", mainExtensionTimer);
-        addRow(form, g, row++, "Timer efek foto (detik)", effectTimer);
-        addRow(form, g, row++, "Timer preview final (detik)", resultTimer);
-
-        g.gridx = 1;
-        g.gridy = row++;
-        g.weightx = 1;
-
-        form.add(
-                remember,
-                g
-        );
-
-        g.gridy = row++;
-
-        form.add(
-                showCancelSession,
-                g
-        );
-
-        g.gridy = row++;
-        form.add(livePhotoEnabled, g);
-
-        addRow(form, g, row, "Durasi Live Photo sebelum shutter (detik)", livePhotoDuration);
+        JPanel livePhotoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        livePhotoRow.add(new JLabel("Durasi Live Photo sebelum shutter (detik):"));
+        livePhotoRow.add(livePhotoDuration);
+        livePhotoRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        options.add(livePhotoRow);
+        options.setAlignmentX(Component.LEFT_ALIGNMENT);
+        form.add(Box.createVerticalStrut(8));
+        form.add(options);
 
         return form;
+    }
+
+    private JPanel timerField(String label, JSpinner spinner) {
+        JPanel field = new JPanel();
+        field.setLayout(new BoxLayout(field, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel(label);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        spinner.setPreferredSize(new Dimension(150, 32));
+        spinner.setMaximumSize(new Dimension(150, 32));
+        spinner.setAlignmentX(Component.LEFT_ALIGNMENT);
+        field.add(title);
+        field.add(Box.createVerticalStrut(4));
+        field.add(spinner);
+        field.setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
+        return field;
+    }
+
+    private void addCompactPanel(JPanel parent, JComponent panel) {
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Dimension preferred = panel.getPreferredSize();
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferred.height));
+        parent.add(Box.createVerticalStrut(8));
+        parent.add(panel);
+    }
+
+    private void installTouchDragScrolling(Component component, JScrollPane scroll) {
+        if (component instanceof JPanel || component instanceof JLabel) {
+            final int[] startY = {-1};
+            final int[] startValue = {0};
+            java.awt.event.MouseAdapter drag = new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    startY[0] = e.getYOnScreen();
+                    startValue[0] = scroll.getVerticalScrollBar().getValue();
+                }
+
+                @Override
+                public void mouseDragged(java.awt.event.MouseEvent e) {
+                    if (startY[0] >= 0) {
+                        int delta = startY[0] - e.getYOnScreen();
+                        scroll.getVerticalScrollBar().setValue(startValue[0] + delta);
+                    }
+                }
+
+                @Override
+                public void mouseReleased(java.awt.event.MouseEvent e) {
+                    startY[0] = -1;
+                }
+            };
+            component.addMouseListener(drag);
+            component.addMouseMotionListener(drag);
+        }
+
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                installTouchDragScrolling(child, scroll);
+            }
+        }
     }
 
     private JPanel createCameraChooser() {
@@ -1019,12 +998,7 @@ public final class SettingsScreen extends JPanel {
                                 .getSelectedItem()
         );
 
-        settings.setFrameName(
-                frameName.getText()
-        );
-
-
-        settings.setPrice(
+settings.setPrice(
                 (Integer)
                         price.getValue()
         );
@@ -1048,9 +1022,24 @@ public final class SettingsScreen extends JPanel {
         settings.setEffectTimerSeconds((Integer) effectTimer.getValue());
         settings.setResultTimerSeconds((Integer) resultTimer.getValue());
 
-        settings.setRememberLogin(
-                remember.isSelected()
-        );
+        settings.setRememberLogin(remember.isSelected());
+        CloudConfig cloudConfig = CloudConfigManager.getConfig();
+        cloudConfig.setRememberLogin(remember.isSelected());
+        CloudConfigManager.save();
+        if (!remember.isSelected()) {
+            try {
+                RememberedCredentialsStore.clear();
+            } catch (java.io.IOException ex) {
+                DebugLog.error("Could not clear remembered login credentials.", ex);
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Remember Login berhasil dinonaktifkan, tetapi kredensial tersimpan gagal dihapus.\n"
+                                + ex.getMessage(),
+                        "Remember Login",
+                        JOptionPane.WARNING_MESSAGE
+                );
+            }
+        }
 
         settings.setShowCancelSession(
                 showCancelSession.isSelected()
@@ -1104,12 +1093,7 @@ public final class SettingsScreen extends JPanel {
                                 .getSelectedItem()
         );
 
-        settings.setFrameName(
-                frameName.getText()
-        );
-
-
-        settings.setPrice(
+settings.setPrice(
                 (Integer)
                         price.getValue()
         );
