@@ -110,7 +110,9 @@ public final class ApplicationFrame extends JFrame {
                 BorderLayout.NORTH);
         panel.add(passwordField, BorderLayout.CENTER);
 
-        Object[] options = {"CLOSE", "MINIMIZE", "BATAL"};
+        boolean maximized = (getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
+        String sizeActionLabel = maximized ? "MINIMIZE" : "ORIGINAL SIZE";
+        Object[] options = {"CLOSE", sizeActionLabel, "BATAL"};
         int result = JOptionPane.showOptionDialog(
                 this, panel, "Phomoria", JOptionPane.DEFAULT_OPTION,
                 JOptionPane.QUESTION_MESSAGE, null, options, options[2]);
@@ -129,9 +131,12 @@ public final class ApplicationFrame extends JFrame {
             DebugLog.info("Application exit authorized.");
             dispose();
             System.exit(0);
-        } else {
+        } else if (maximized) {
             DebugLog.info("Application minimized by operator.");
             setExtendedState(JFrame.ICONIFIED);
+        } else {
+            DebugLog.info("Application restored to original size by operator.");
+            setExtendedState(JFrame.MAXIMIZED_BOTH);
         }
     }
 
