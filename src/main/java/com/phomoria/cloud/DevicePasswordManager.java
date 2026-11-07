@@ -29,6 +29,8 @@ public final class DevicePasswordManager {
             DebugLog.warn("Device password sync returned an unsupported hash; keeping the previous local password.");
             return;
         }
+        loadIfNeeded();
+        String previousHash = passwordHash;
         try {
             Files.createDirectories(ROOT);
             // An empty file explicitly represents a device with no configured password.
@@ -39,8 +41,14 @@ public final class DevicePasswordManager {
                     ? "Device password cleared by cloud configuration."
                     : "Device password configuration synchronized.");
         } catch (IOException ex) {
-            // Keep the previous in-memory and on-disk state if persistence fails.
-            DebugLog.error("Failed to persist device password configuration; previous local state retained.", ex);
+            // A first-time cloud password still protects this running process,
+            // even if the local disk cannot persist it. Existing valid state wins
+            // when an update cannot be saved.
+            if (previousHash == null || previousHash.isBlank()) {
+                passwordHash = normalized;
+                loaded = true;
+            }
+            DebugLog.error("Failed to persist device password configuration; previous local state retained where available.", ex);
         }
     }
 
