@@ -28,7 +28,7 @@ public final class PrintWarningManager {
         if (sessionId == null || sessionId.isBlank()) return;
         try {
             Files.createDirectories(ROOT);
-            Files.writeString(FILE, sessionId + "\\n" + timestamp, StandardCharsets.UTF_8);
+            Files.writeString(FILE, sessionId + "\n" + timestamp, StandardCharsets.UTF_8);
             DebugLog.info("Pending print warning registered for session=" + sessionId);
         } catch (IOException ex) {
             DebugLog.error("Unable to save pending print warning.", ex);
