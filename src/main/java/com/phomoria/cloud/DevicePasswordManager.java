@@ -17,6 +17,7 @@ public final class DevicePasswordManager {
             System.getenv().getOrDefault("APPDATA", System.getProperty("user.home")),
             "Phomoria");
     private static final Path FILE = ROOT.resolve("device-password.hash");
+    private static final String LOCKED_INVALID_STATE = "!LOCKED_INVALID_STATE!";
     private static String passwordHash;
     private static boolean loaded;
 
@@ -28,20 +29,18 @@ public final class DevicePasswordManager {
             DebugLog.warn("Device password sync returned an unsupported hash; keeping the previous local password.");
             return;
         }
-        passwordHash = normalized;
-        loaded = true;
         try {
             Files.createDirectories(ROOT);
-            if (normalized.isEmpty()) {
-                Files.deleteIfExists(FILE);
-            } else {
-                Files.writeString(FILE, normalized, StandardCharsets.UTF_8);
-            }
+            // An empty file explicitly represents a device with no configured password.
+            Files.writeString(FILE, normalized, StandardCharsets.UTF_8);
+            passwordHash = normalized;
+            loaded = true;
             DebugLog.info(normalized.isEmpty()
                     ? "Device password cleared by cloud configuration."
                     : "Device password configuration synchronized.");
         } catch (IOException ex) {
-            DebugLog.error("Failed to persist device password configuration.", ex);
+            // Keep the previous in-memory and on-disk state if persistence fails.
+            DebugLog.error("Failed to persist device password configuration; previous local state retained.", ex);
         }
     }
 
@@ -60,7 +59,7 @@ public final class DevicePasswordManager {
         if (passwordHash == null || passwordHash.isBlank()) {
             return value.length == 0;
         }
-        if (value.length == 0) return false;
+        if (value.length == 0 || !isBcryptHash(passwordHash)) return false;
         String hash = passwordHash.startsWith("$2y$")
                 ? "$2a$" + passwordHash.substring(4)
                 : passwordHash;
@@ -76,21 +75,26 @@ public final class DevicePasswordManager {
         if (loaded) return;
         loaded = true;
         try {
-            if (Files.isRegularFile(FILE)) {
-                String stored = Files.readString(FILE, StandardCharsets.UTF_8).trim();
-                if (stored.isEmpty() || isBcryptHash(stored)) {
-                    passwordHash = stored;
-                } else {
-                    passwordHash = "";
-                    DebugLog.warn("Ignoring malformed local device password hash.");
-                }
-            } else {
+            if (!Files.exists(FILE)) {
                 passwordHash = "";
+                return;
+            }
+            if (!Files.isRegularFile(FILE) || !Files.isReadable(FILE)) {
+                passwordHash = LOCKED_INVALID_STATE;
+                DebugLog.warn("Local device password file exists but cannot be read; access remains locked.");
+                return;
+            }
+
+            String stored = Files.readString(FILE, StandardCharsets.UTF_8).trim();
+            if (stored.isEmpty() || isBcryptHash(stored)) {
+                passwordHash = stored;
+            } else {
+                passwordHash = LOCKED_INVALID_STATE;
+                DebugLog.warn("Ignoring malformed local device password hash; access remains locked.");
             }
         } catch (IOException ex) {
-            // Do not invent a password state if the local config cannot be read.
-            passwordHash = "";
-            DebugLog.error("Failed to read local device password configuration.", ex);
+            passwordHash = LOCKED_INVALID_STATE;
+            DebugLog.error("Failed to read local device password configuration; access remains locked.", ex);
         }
     }
 
