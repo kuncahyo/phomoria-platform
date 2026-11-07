@@ -27,7 +27,7 @@ public final class PrintWarningManager {
 
     public static synchronized void beginSession(String sessionId, long timestamp) {
         if (sessionId == null || sessionId.isBlank()) return;
-        write(sessionId, timestamp, "PENDING");
+        write(sessionId, timestamp, "PENDING", System.currentTimeMillis());
         DebugLog.info("Pending print warning registered for session=" + sessionId);
     }
 
@@ -61,7 +61,7 @@ public final class PrintWarningManager {
         PendingWarning pending = read();
         if (pending == null) return true;
         return !"PRINTING".equals(pending.status)
-                || System.currentTimeMillis() - pending.timestamp >= STALE_PRINTING_MILLIS;
+                || System.currentTimeMillis() - pending.statusChangedAt >= STALE_PRINTING_MILLIS;
     }
 
     public static synchronized PendingWarning consumeUnprinted() {
@@ -80,14 +80,14 @@ public final class PrintWarningManager {
         if (sessionId == null || sessionId.isBlank()) return;
         PendingWarning pending = read();
         if (pending != null && pending.sessionId.equals(sessionId)) {
-            write(pending.sessionId, pending.timestamp, status);
+            write(pending.sessionId, pending.timestamp, status, System.currentTimeMillis());
         }
     }
 
-    private static void write(String sessionId, long timestamp, String status) {
+    private static void write(String sessionId, long timestamp, String status, long statusChangedAt) {
         try {
             Files.createDirectories(ROOT);
-            Files.writeString(FILE, sessionId + "\n" + timestamp + "\n" + status,
+            Files.writeString(FILE, sessionId + "\n" + timestamp + "\n" + status + "\n" + statusChangedAt,
                     StandardCharsets.UTF_8);
         } catch (IOException ex) {
             DebugLog.error("Unable to save pending print warning.", ex);
@@ -101,7 +101,8 @@ public final class PrintWarningManager {
             if (lines.length < 2 || lines[0].isBlank()) return null;
             long timestamp = Long.parseLong(lines[1].trim());
             String status = lines.length >= 3 ? lines[2].trim() : "PENDING";
-            return new PendingWarning(lines[0].trim(), timestamp, status);
+            long statusChangedAt = lines.length >= 4 ? Long.parseLong(lines[3].trim()) : timestamp;
+            return new PendingWarning(lines[0].trim(), timestamp, status, statusChangedAt);
         } catch (Exception ex) {
             DebugLog.error("Unable to read pending print warning.", ex);
             return null;
@@ -112,11 +113,13 @@ public final class PrintWarningManager {
         private final String sessionId;
         private final long timestamp;
         private final String status;
+        private final long statusChangedAt;
 
-        private PendingWarning(String sessionId, long timestamp, String status) {
+        private PendingWarning(String sessionId, long timestamp, String status, long statusChangedAt) {
             this.sessionId = sessionId;
             this.timestamp = timestamp;
             this.status = status;
+            this.statusChangedAt = statusChangedAt;
         }
 
         public String getFormattedTime() {
