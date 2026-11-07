@@ -794,15 +794,15 @@ public final class ResultScreen extends JPanel {
                     BorderLayout.CENTER
             );
 
-            panel.add(
-                    new JLabel(
-                            "<html><center>"
-                                    + downloadUrl
-                                    + "</center></html>",
-                            SwingConstants.CENTER
-                    ),
-                    BorderLayout.SOUTH
-            );
+            JLabel urlLabel = new JLabel(
+                    "<html><center>" + downloadUrl + "</center></html>",
+                    SwingConstants.CENTER);
+            JButton closeButton = new JButton("TUTUP");
+            closeButton.addActionListener(e -> closeQrDialog());
+            JPanel footer = new JPanel(new BorderLayout(8, 8));
+            footer.add(urlLabel, BorderLayout.CENTER);
+            footer.add(closeButton, BorderLayout.SOUTH);
+            panel.add(footer, BorderLayout.SOUTH);
 
             closeQrDialog();
             Window owner = SwingUtilities.getWindowAncestor(this);
