@@ -118,7 +118,7 @@ public final class ApplicationFrame extends JFrame {
         if (result != 0 && result != 1) return;
         char[] entered = passwordField.getPassword();
         boolean valid = DevicePasswordManager.verify(entered);
-        java.util.Arrays.fill(entered, '\\0');
+        java.util.Arrays.fill(entered, (char) 0);
         passwordField.setText("");
         if (!valid) {
             DebugLog.warn("Close/minimize action cancelled: device password validation failed.");
@@ -148,7 +148,7 @@ public final class ApplicationFrame extends JFrame {
 
         char[] entered = passwordField.getPassword();
         boolean valid = DevicePasswordManager.verify(entered);
-        java.util.Arrays.fill(entered, '\\0');
+        java.util.Arrays.fill(entered, (char) 0);
         passwordField.setText("");
         if (!valid) {
             DebugLog.warn("Settings access cancelled: device password validation failed.");
