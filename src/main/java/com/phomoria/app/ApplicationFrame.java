@@ -106,7 +106,7 @@ public final class ApplicationFrame extends JFrame {
     private void showExitDialog() {
         JPasswordField passwordField = new JPasswordField(20);
         JPanel panel = new JPanel(new BorderLayout(8, 8));
-        panel.add(new JLabel("Masukkan password perangkat (kosongkan jika tidak diatur):"),
+        panel.add(new JLabel("Masukkan password perangkat. Jika belum diatur, biarkan kosong lalu pilih tindakan."),
                 BorderLayout.NORTH);
         panel.add(passwordField, BorderLayout.CENTER);
 
@@ -141,10 +141,11 @@ public final class ApplicationFrame extends JFrame {
         panel.add(new JLabel("Masukkan password perangkat (kosongkan jika tidak diatur):"),
                 BorderLayout.NORTH);
         panel.add(passwordField, BorderLayout.CENTER);
-        int result = JOptionPane.showConfirmDialog(
-                this, panel, "Buka Settings", JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
-        if (result != JOptionPane.OK_OPTION) return false;
+        Object[] options = {"LANJUTKAN", "BATAL"};
+        int result = JOptionPane.showOptionDialog(
+                this, panel, "Buka Settings", JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        if (result != 0) return false;
 
         char[] entered = passwordField.getPassword();
         boolean valid = DevicePasswordManager.verify(entered);
