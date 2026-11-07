@@ -8,6 +8,7 @@ import com.phomoria.ui.SettingsScreen;
 import com.phomoria.ui.StartScreen;
 import com.phomoria.debug.DebugConsoleDialog;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.cloud.DevicePasswordManager;
 import com.phomoria.ui.FrameSelectionScreen;
 import com.phomoria.ui.UpdateScreen;
 import com.phomoria.update.UpdateCheckResult;
@@ -22,14 +23,6 @@ import java.awt.event.MouseEvent;
 
 public final class ApplicationFrame extends JFrame {
     private static final int EXIT_HOT_ZONE_HEIGHT = 35;
-
-    /*
-     * hardcode sementara, wajib ubah
-     */
-    private static final String EXIT_PASSWORD = "pmr123";
-    /*
-     * hardcode sementara, wajib ubah
-     */
 
     private final CardLayout cards = new CardLayout();
     private final JPanel root = new JPanel(cards);
@@ -111,45 +104,57 @@ public final class ApplicationFrame extends JFrame {
     }
 
     private void showExitDialog() {
-        JPasswordField passwordField = new JPasswordField(18);
-
+        JPasswordField passwordField = new JPasswordField(20);
         JPanel panel = new JPanel(new BorderLayout(8, 8));
-        panel.add(
-                new JLabel("Apakah anda ingin menutup aplikasi?"),
-                BorderLayout.NORTH
-        );
+        panel.add(new JLabel("Masukkan password perangkat (kosongkan jika tidak diatur):"),
+                BorderLayout.NORTH);
         panel.add(passwordField, BorderLayout.CENTER);
 
-        Object[] options = {"OK", "Cancel"};
-
+        Object[] options = {"CLOSE", "MINIMIZE", "BATAL"};
         int result = JOptionPane.showOptionDialog(
-                this,
-                panel,
-                "Tutup Aplikasi",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                options,
-                options[0]
-        );
+                this, panel, "Phomoria", JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE, null, options, options[2]);
 
-        if (result == JOptionPane.OK_OPTION) {
-            String password = new String(passwordField.getPassword());
-
-            /*
-             * hardcode sementara, wajib ubah
-             */
-            boolean valid = EXIT_PASSWORD.equals(password);
-            /*
-             * hardcode sementara, wajib ubah
-             */
-
-            if (valid) {
-                DebugLog.info("Application exit authorized.");
-                dispose();
-                System.exit(0);
-            }
+        if (result != 0 && result != 1) return;
+        char[] entered = passwordField.getPassword();
+        boolean valid = DevicePasswordManager.verify(entered);
+        java.util.Arrays.fill(entered, '\\0');
+        passwordField.setText("");
+        if (!valid) {
+            DebugLog.warn("Close/minimize action cancelled: device password validation failed.");
+            return;
         }
+
+        if (result == 0) {
+            DebugLog.info("Application exit authorized.");
+            dispose();
+            System.exit(0);
+        } else {
+            DebugLog.info("Application minimized by operator.");
+            setExtendedState(JFrame.ICONIFIED);
+        }
+    }
+
+    private boolean requestSettingsAccess() {
+        JPasswordField passwordField = new JPasswordField(20);
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.add(new JLabel("Masukkan password perangkat (kosongkan jika tidak diatur):"),
+                BorderLayout.NORTH);
+        panel.add(passwordField, BorderLayout.CENTER);
+        int result = JOptionPane.showConfirmDialog(
+                this, panel, "Buka Settings", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) return false;
+
+        char[] entered = passwordField.getPassword();
+        boolean valid = DevicePasswordManager.verify(entered);
+        java.util.Arrays.fill(entered, '\\0');
+        passwordField.setText("");
+        if (!valid) {
+            DebugLog.warn("Settings access cancelled: device password validation failed.");
+            return false;
+        }
+        return true;
     }
 
     public void startupUpdateCheck() {
@@ -293,6 +298,7 @@ public final class ApplicationFrame extends JFrame {
     }
 
     public void showSettings() {
+        if (!requestSettingsAccess()) return;
         DebugLog.info("Navigation -> SETTINGS");
         replace("SETTINGS", new SettingsScreen(this, this::showStart));
         cards.show(root, "SETTINGS");
