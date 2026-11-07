@@ -36,10 +36,10 @@ public final class StartScreen extends JPanel {
             @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutThemeElements(); }
         });
         layoutThemeElements();
-        SwingUtilities.invokeLater(() -> {
-            // The initial StartScreen is constructed before the login flow and
-            // is not visible yet. Do not consume a pending warning until shown.
+        Timer printWarningTimer = new Timer(1000, e -> {
             if (!isShowing()) return;
+            if (!PrintWarningManager.isReadyToShow()) return;
+            ((Timer) e.getSource()).stop();
             PrintWarningManager.PendingWarning warning = PrintWarningManager.consumeUnprinted();
             if (warning != null) {
                 String message = "Sepertinya sesi foto ini belum berhasil dicetak.\n\n"
@@ -51,6 +51,8 @@ public final class StartScreen extends JPanel {
                         JOptionPane.INFORMATION_MESSAGE);
             }
         });
+        printWarningTimer.setRepeats(true);
+        printWarningTimer.start();
     }
 
     private void layoutThemeElements() {
