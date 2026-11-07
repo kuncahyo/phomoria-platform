@@ -15,6 +15,7 @@ public final class StartScreen extends JPanel {
     private final ThemeBackgroundPanel background;
     private final ThemeButton pay;
     private final ThemeButton settings;
+    private final Timer printWarningTimer;
 
     public StartScreen(ApplicationFrame frame) {
         setLayout(new BorderLayout());
@@ -36,7 +37,7 @@ public final class StartScreen extends JPanel {
             @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutThemeElements(); }
         });
         layoutThemeElements();
-        Timer printWarningTimer = new Timer(1000, e -> {
+        printWarningTimer = new Timer(1000, e -> {
             if (!isShowing()) return;
             if (!PrintWarningManager.isReadyToShow()) return;
             ((Timer) e.getSource()).stop();
@@ -53,6 +54,12 @@ public final class StartScreen extends JPanel {
         });
         printWarningTimer.setRepeats(true);
         printWarningTimer.start();
+    }
+
+    @Override
+    public void removeNotify() {
+        if (printWarningTimer != null) printWarningTimer.stop();
+        super.removeNotify();
     }
 
     private void layoutThemeElements() {
