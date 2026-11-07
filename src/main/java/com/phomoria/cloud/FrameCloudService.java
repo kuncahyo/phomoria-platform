@@ -35,7 +35,7 @@ public final class FrameCloudService {
     public String getDeviceUuid() { return deviceUuid; }
 
     public List<CloudFrame> fetchAssignedFrames() throws Exception {
-        String url = buildUrl("/api/device/frames?device_uuid=" +
+        String url = buildUrl("/api/device/config?device_uuid=" +
                 URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
         HttpGet get = createAuthenticatedGet(url);
         try (CloseableHttpClient client = HttpClients.createDefault();
@@ -47,6 +47,13 @@ public final class FrameCloudService {
             JsonObject root = parseObject(body);
             JsonObject data = getObject(root, "data");
             if (data == null) return Collections.emptyList();
+            JsonObject device = getObject(data, "device");
+            if (device != null && device.has("password_hash")) {
+                JsonElement passwordHash = device.get("password_hash");
+                DevicePasswordManager.syncFromCloudHash(
+                        passwordHash == null || passwordHash.isJsonNull()
+                                ? "" : passwordHash.getAsString());
+            }
             JsonArray frames = getArray(data, "frames");
             if (frames == null || frames.isEmpty()) return Collections.emptyList();
             List<CloudFrame> result = new ArrayList<>();
