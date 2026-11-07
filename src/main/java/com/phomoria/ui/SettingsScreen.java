@@ -1173,7 +1173,7 @@ public final class SettingsScreen extends JPanel {
         field.setLayout(new BoxLayout(field, BoxLayout.Y_AXIS));
         JLabel fieldLabel = new JLabel(label);
         fieldLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        component.setAlignmentX(Component.LEFT_ALIGNMENT);
+        if (component instanceof JComponent jc) jc.setAlignmentX(Component.LEFT_ALIGNMENT);
         Dimension preferred = component.getPreferredSize();
         int height = Math.max(28, preferred.height);
         int width = component instanceof JTextField ? 520
