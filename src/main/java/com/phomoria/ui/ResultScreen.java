@@ -69,6 +69,8 @@ public final class ResultScreen extends JPanel {
     private String activeUploadSessionId = "";
     private long resultPreparedAt;
     private int uploadDots;
+    private JDialog qrDialog;
+    private Timer qrDialogTimer;
 
     public ResultScreen(ApplicationFrame frame) {
         this.frame = frame;
@@ -135,6 +137,7 @@ public final class ResultScreen extends JPanel {
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
             pageTimer.stop();
+            closeQrDialog();
             if (uploadStatusPollTimer != null) {
                 uploadStatusPollTimer.stop();
                 uploadStatusPollTimer = null;
@@ -157,6 +160,7 @@ public final class ResultScreen extends JPanel {
                     && !isShowing()) {
                 stopPlayback();
                 pageTimer.stop();
+                closeQrDialog();
             }
         });
         applyResultTheme();
@@ -209,6 +213,11 @@ public final class ResultScreen extends JPanel {
     public void prepareResult() {
         pageTimer.applyTheme("result-timer");
         pageTimer.start(AppContext.settings().getResultTimerSeconds(), newSessionButton::doClick);
+        PhotoSession currentSessionForPrint = AppContext.session();
+        if (currentSessionForPrint != null) {
+            com.phomoria.print.PrintWarningManager.beginSession(
+                    currentSessionForPrint.getSessionId(), System.currentTimeMillis());
+        }
         if (uploadStatusPollTimer != null) {
             uploadStatusPollTimer.stop();
             uploadStatusPollTimer = null;
@@ -795,18 +804,35 @@ public final class ResultScreen extends JPanel {
                     BorderLayout.SOUTH
             );
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    panel,
-                    "QR DOWNLOAD",
-                    JOptionPane.PLAIN_MESSAGE
-            );
+            closeQrDialog();
+            Window owner = SwingUtilities.getWindowAncestor(this);
+            qrDialog = new JDialog(owner, "QR DOWNLOAD", Dialog.ModalityType.MODELESS);
+            qrDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+            qrDialog.setContentPane(panel);
+            qrDialog.setSize(520, 560);
+            qrDialog.setLocationRelativeTo(owner);
+            qrDialogTimer = new Timer(30_000, e -> closeQrDialog());
+            qrDialogTimer.setRepeats(false);
+            qrDialogTimer.start();
+            qrDialog.setVisible(true);
 
         } catch (Exception ex) {
             DebugLog.error(
                     "QR generation failed.",
                     ex
             );
+        }
+    }
+
+    private void closeQrDialog() {
+        if (qrDialogTimer != null) {
+            qrDialogTimer.stop();
+            qrDialogTimer = null;
+        }
+        if (qrDialog != null) {
+            qrDialog.setVisible(false);
+            qrDialog.dispose();
+            qrDialog = null;
         }
     }
 
@@ -830,6 +856,7 @@ public final class ResultScreen extends JPanel {
 
         if (!automatic && AppContext.settings().isViewPrintButton()) printButton.setEnabled(false);
         uploadStatus.setText(automatic ? "AUTO PRINT..." : "MENCETAK...");
+        final String printSessionId = activeUploadSessionId;
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -853,6 +880,7 @@ public final class ResultScreen extends JPanel {
                     get();
 
                     uploadStatus.setText(automatic ? "AUTO PRINT SELESAI" : "PRINT SELESAI");
+                    com.phomoria.print.PrintWarningManager.markPrinted(printSessionId);
 
                     DebugLog.info(
                             "Silent print completed."
