@@ -19,6 +19,7 @@ public final class PrintWarningManager {
             System.getenv().getOrDefault("APPDATA", System.getProperty("user.home")),
             "Phomoria");
     private static final Path FILE = ROOT.resolve("pending-print-warning.txt");
+    private static final long STALE_PRINTING_MILLIS = 120_000L;
     private static final DateTimeFormatter FORMAT =
             DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
 
@@ -26,13 +27,16 @@ public final class PrintWarningManager {
 
     public static synchronized void beginSession(String sessionId, long timestamp) {
         if (sessionId == null || sessionId.isBlank()) return;
-        try {
-            Files.createDirectories(ROOT);
-            Files.writeString(FILE, sessionId + "\n" + timestamp, StandardCharsets.UTF_8);
-            DebugLog.info("Pending print warning registered for session=" + sessionId);
-        } catch (IOException ex) {
-            DebugLog.error("Unable to save pending print warning.", ex);
-        }
+        write(sessionId, timestamp, "PENDING");
+        DebugLog.info("Pending print warning registered for session=" + sessionId);
+    }
+
+    public static synchronized void markPrinting(String sessionId) {
+        updateStatus(sessionId, "PRINTING");
+    }
+
+    public static synchronized void markPrintFailed(String sessionId) {
+        updateStatus(sessionId, "PENDING");
     }
 
     public static synchronized void markPrinted(String sessionId) {
@@ -48,7 +52,20 @@ public final class PrintWarningManager {
         }
     }
 
+    /**
+     * While a print job is still running, let the Start screen wait instead of
+     * displaying a premature warning. A stale PRINTING state is treated as a
+     * failed/abandoned attempt after two minutes (for example after a crash).
+     */
+    public static synchronized boolean isReadyToShow() {
+        PendingWarning pending = read();
+        if (pending == null) return true;
+        return !"PRINTING".equals(pending.status)
+                || System.currentTimeMillis() - pending.timestamp >= STALE_PRINTING_MILLIS;
+    }
+
     public static synchronized PendingWarning consumeUnprinted() {
+        if (!isReadyToShow()) return null;
         PendingWarning pending = read();
         if (pending == null) return null;
         try {
@@ -59,13 +76,32 @@ public final class PrintWarningManager {
         return pending;
     }
 
+    private static void updateStatus(String sessionId, String status) {
+        if (sessionId == null || sessionId.isBlank()) return;
+        PendingWarning pending = read();
+        if (pending != null && pending.sessionId.equals(sessionId)) {
+            write(pending.sessionId, pending.timestamp, status);
+        }
+    }
+
+    private static void write(String sessionId, long timestamp, String status) {
+        try {
+            Files.createDirectories(ROOT);
+            Files.writeString(FILE, sessionId + "\n" + timestamp + "\n" + status,
+                    StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            DebugLog.error("Unable to save pending print warning.", ex);
+        }
+    }
+
     private static PendingWarning read() {
         try {
             if (!Files.isRegularFile(FILE)) return null;
             String[] lines = Files.readString(FILE, StandardCharsets.UTF_8).split("\\R");
             if (lines.length < 2 || lines[0].isBlank()) return null;
             long timestamp = Long.parseLong(lines[1].trim());
-            return new PendingWarning(lines[0].trim(), timestamp);
+            String status = lines.length >= 3 ? lines[2].trim() : "PENDING";
+            return new PendingWarning(lines[0].trim(), timestamp, status);
         } catch (Exception ex) {
             DebugLog.error("Unable to read pending print warning.", ex);
             return null;
@@ -75,10 +111,12 @@ public final class PrintWarningManager {
     public static final class PendingWarning {
         private final String sessionId;
         private final long timestamp;
+        private final String status;
 
-        private PendingWarning(String sessionId, long timestamp) {
+        private PendingWarning(String sessionId, long timestamp, String status) {
             this.sessionId = sessionId;
             this.timestamp = timestamp;
+            this.status = status;
         }
 
         public String getFormattedTime() {
