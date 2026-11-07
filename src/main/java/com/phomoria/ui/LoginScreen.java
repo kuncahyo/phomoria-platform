@@ -188,7 +188,12 @@ public final class LoginScreen extends JPanel {
 
     private void loadRememberedCredentials() {
         CloudConfig config = CloudConfigManager.getConfig();
-        if (!config.isRememberLogin()) {
+        boolean rememberEnabled = AppContext.settings().isRememberLogin();
+        if (config.isRememberLogin() != rememberEnabled) {
+            config.setRememberLogin(rememberEnabled);
+            CloudConfigManager.save();
+        }
+        if (!rememberEnabled) {
             return;
         }
         try {
@@ -206,7 +211,7 @@ public final class LoginScreen extends JPanel {
 
     private void handleRememberedCredentialsAfterLogin(String loggedInEmail, String loggedInPassword) {
         CloudConfig config = CloudConfigManager.getConfig();
-        if (!config.isRememberLogin()) {
+        if (!AppContext.settings().isRememberLogin()) {
             try {
                 RememberedCredentialsStore.clear();
             } catch (Exception ex) {
