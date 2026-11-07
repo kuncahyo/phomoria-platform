@@ -138,7 +138,7 @@ public final class ApplicationFrame extends JFrame {
     private boolean requestSettingsAccess() {
         JPasswordField passwordField = new JPasswordField(20);
         JPanel panel = new JPanel(new BorderLayout(8, 8));
-        panel.add(new JLabel("Masukkan password perangkat (kosongkan jika tidak diatur):"),
+        panel.add(new JLabel("Masukkan password perangkat. Jika belum diatur, biarkan kosong lalu tekan LANJUTKAN:"),
                 BorderLayout.NORTH);
         panel.add(passwordField, BorderLayout.CENTER);
         Object[] options = {"LANJUTKAN", "BATAL"};
