@@ -2,6 +2,9 @@ package com.phomoria.ui;
 
 import com.phomoria.app.AppContext;
 import com.phomoria.cloud.AuthService;
+import com.phomoria.cloud.CloudConfig;
+import com.phomoria.cloud.CloudConfigManager;
+import com.phomoria.cloud.RememberedCredentialsStore;
 import com.phomoria.cloud.FrameSyncService;
 import com.phomoria.debug.DebugLog;
 
@@ -20,6 +23,7 @@ public final class LoginScreen extends JPanel {
     public LoginScreen(JFrame owner, Runnable success) {
         this.owner = owner;
         this.success = success;
+        loadRememberedCredentials();
         setLayout(new GridBagLayout());
         setBackground(new Color(20, 20, 24));
 
@@ -161,6 +165,7 @@ public final class LoginScreen extends JPanel {
 
                 try {
                     if (get()) {
+                        handleRememberedCredentialsAfterLogin(e, p);
                         status.setText("Login berhasil. Frame cloud sudah diperbarui.");
                         success.run();
                     } else if (failure != null) {
@@ -179,6 +184,79 @@ public final class LoginScreen extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    private void loadRememberedCredentials() {
+        CloudConfig config = CloudConfigManager.getConfig();
+        if (!config.isRememberLogin()) {
+            return;
+        }
+        try {
+            RememberedCredentialsStore.Credentials saved =
+                    RememberedCredentialsStore.load();
+            if (saved != null) {
+                email.setText(saved.email());
+                password.setText(saved.password());
+                DebugLog.info("Remembered login credentials loaded securely.");
+            }
+        } catch (Exception ex) {
+            DebugLog.error("Could not load remembered login credentials.", ex);
+        }
+    }
+
+    private void handleRememberedCredentialsAfterLogin(String loggedInEmail, String loggedInPassword) {
+        CloudConfig config = CloudConfigManager.getConfig();
+        if (!config.isRememberLogin()) {
+            try {
+                RememberedCredentialsStore.clear();
+            } catch (Exception ex) {
+                DebugLog.error("Could not clear remembered login credentials while Remember Login is disabled.", ex);
+            }
+            return;
+        }
+
+        try {
+            RememberedCredentialsStore.Credentials saved =
+                    RememberedCredentialsStore.load();
+
+            if (saved == null || saved.email().equalsIgnoreCase(loggedInEmail.trim())) {
+                RememberedCredentialsStore.save(loggedInEmail, loggedInPassword);
+                DebugLog.info("Remembered login credentials updated for the current account.");
+                return;
+            }
+
+            Object[] options = {"SIMPAN AKUN BARU", "JANGAN GANTI"};
+            int choice = JOptionPane.showOptionDialog(
+                    this,
+                    "Anda berhasil login menggunakan akun berbeda.\n"
+                            + "Saat ini terdapat akun lain yang tersimpan di perangkat.\n\n"
+                            + "Apakah Anda ingin mengganti akun yang tersimpan dengan akun baru ini?\n\n"
+                            + "Jika memilih JANGAN GANTI, sesi saat ini tetap menggunakan akun baru, "
+                            + "tetapi kredensial akun lama tetap digunakan untuk pengisian login berikutnya.",
+                    "Ganti Akun Tersimpan",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[1]
+            );
+
+            if (choice == 0) {
+                RememberedCredentialsStore.save(loggedInEmail, loggedInPassword);
+                DebugLog.info("Remembered login account replaced by user confirmation.");
+            } else {
+                DebugLog.info("Previous remembered login account retained by user choice.");
+            }
+        } catch (Exception ex) {
+            DebugLog.error("Could not update remembered login credentials.", ex);
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Login berhasil, tetapi kredensial Remember Login tidak dapat diperbarui secara aman.\n"
+                            + ex.getMessage(),
+                    "Remember Login",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        }
     }
 
     private void setButtonsEnabled(boolean enabled) {
