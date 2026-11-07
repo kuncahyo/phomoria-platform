@@ -857,6 +857,7 @@ public final class ResultScreen extends JPanel {
         if (!automatic && AppContext.settings().isViewPrintButton()) printButton.setEnabled(false);
         uploadStatus.setText(automatic ? "AUTO PRINT..." : "MENCETAK...");
         final String printSessionId = activeUploadSessionId;
+        com.phomoria.print.PrintWarningManager.markPrinting(printSessionId);
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -891,6 +892,7 @@ public final class ResultScreen extends JPanel {
                             "Silent print failed.",
                             ex
                     );
+                    com.phomoria.print.PrintWarningManager.markPrintFailed(printSessionId);
 
                     uploadStatus.setText(
                             "PRINT GAGAL"
