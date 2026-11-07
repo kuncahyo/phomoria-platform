@@ -998,12 +998,7 @@ public final class SettingsScreen extends JPanel {
                                 .getSelectedItem()
         );
 
-settings.setPrice(
-                (Integer)
-                        price.getValue()
-        );
-
-        settings.setCaptureCountdownSeconds(
+settings.setCaptureCountdownSeconds(
                 (Integer) captureCountdown.getValue()
         );
 
@@ -1093,12 +1088,7 @@ settings.setPrice(
                                 .getSelectedItem()
         );
 
-settings.setPrice(
-                (Integer)
-                        price.getValue()
-        );
-
-        settings.setRememberLogin(
+settings.setRememberLogin(
                 remember.isSelected()
         );
 
