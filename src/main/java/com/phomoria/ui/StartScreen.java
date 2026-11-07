@@ -37,8 +37,11 @@ public final class StartScreen extends JPanel {
         });
         layoutThemeElements();
         SwingUtilities.invokeLater(() -> {
+            // The initial StartScreen is constructed before the login flow and
+            // is not visible yet. Do not consume a pending warning until shown.
+            if (!isShowing()) return;
             PrintWarningManager.PendingWarning warning = PrintWarningManager.consumeUnprinted();
-            if (warning != null && isShowing()) {
+            if (warning != null) {
                 String message = "Sepertinya sesi foto ini belum berhasil dicetak.\n\n"
                         + "Tidak perlu khawatir, hasil foto Anda tetap tersimpan. "
                         + "Jika Anda merasa ini sebuah masalah, segera laporkan kepada admin "
