@@ -1017,7 +1017,6 @@ settings.setCaptureCountdownSeconds(
         settings.setEffectTimerSeconds((Integer) effectTimer.getValue());
         settings.setResultTimerSeconds((Integer) resultTimer.getValue());
 
-        settings.setRememberLogin(remember.isSelected());
         CloudConfig cloudConfig = CloudConfigManager.getConfig();
         cloudConfig.setRememberLogin(remember.isSelected());
         CloudConfigManager.save();
@@ -1088,11 +1087,7 @@ settings.setCaptureCountdownSeconds(
                                 .getSelectedItem()
         );
 
-settings.setRememberLogin(
-                remember.isSelected()
-        );
-
-        settings.setPhotoEffectSettings(
+settings.setPhotoEffectSettings(
                 effectSettingsPanel.getSettings()
         );
 
