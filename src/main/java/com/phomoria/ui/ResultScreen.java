@@ -516,7 +516,8 @@ public final class ResultScreen extends JPanel {
 
     private File createSessionFolder(
             List<BufferedImage> originals,
-            List<BufferedImage> processed
+            List<BufferedImage> processed,
+            String sessionId
     ) throws Exception {
 
         File root = new File(
@@ -543,6 +544,8 @@ public final class ResultScreen extends JPanel {
                     "Tidak dapat membuat folder hasil."
             );
         }
+        Files.writeString(new File(folder, "session-id.txt").toPath(), sessionId,
+                java.nio.charset.StandardCharsets.UTF_8);
 
         for (int i = 0; i < originals.size(); i++) {
             ImageIO.write(
