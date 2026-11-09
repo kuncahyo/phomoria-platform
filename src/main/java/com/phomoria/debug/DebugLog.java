@@ -60,6 +60,46 @@ public final class DebugLog {
 
     private DebugLog() {}
 
+    /** Starts a measured operation. Always close the returned scope in a finally/try-with-resources block. */
+    public static Operation operation(String name, String context) {
+        return new Operation(name, context);
+    }
+
+    public static final class Operation implements AutoCloseable {
+        private final String name;
+        private final long startedNanos = System.nanoTime();
+        private final String context;
+        private boolean failed;
+        private boolean closed;
+
+        private Operation(String name, String context) {
+            this.name = name == null ? "unknown" : name;
+            this.context = context == null || context.isBlank() ? "" : ", " + context;
+            info("OPERATION START name=" + this.name + this.context
+                    + ", thread=" + Thread.currentThread().getName());
+        }
+
+        public void fail(Throwable error) {
+            failed = true;
+            DebugLog.error("OPERATION FAILED name=" + name + this.context
+                    + ", elapsedMs=" + elapsedMs()
+                    + ", thread=" + Thread.currentThread().getName(), error);
+        }
+
+        public long elapsedMs() {
+            return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
+        }
+
+        @Override public void close() {
+            if (closed) return;
+            closed = true;
+            info("OPERATION " + (failed ? "FINISHED_WITH_ERROR" : "COMPLETE")
+                    + " name=" + name + this.context
+                    + ", elapsedMs=" + elapsedMs()
+                    + ", thread=" + Thread.currentThread().getName());
+        }
+    }
+
     public static void info(String message) {
         write("INFO", message);
     }
