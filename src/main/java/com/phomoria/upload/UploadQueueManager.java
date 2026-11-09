@@ -92,7 +92,8 @@ public final class UploadQueueManager {
         Files.createDirectories(staging.toPath());
         copy(source, staging, "result.png");
         copy(source, staging, "animation.gif");
-        copy(source, staging, "live_photo.mp4");
+        // A deferred session must never snapshot an MP4 while FFmpeg is still writing it.
+        if (!deferProcessing) copy(source, staging, "live_photo.mp4");
         File[] files = source.listFiles();
         if (files != null) {
             java.util.Arrays.sort(files, Comparator.comparing(File::getName));
