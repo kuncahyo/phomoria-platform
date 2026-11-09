@@ -65,6 +65,8 @@ public final class ResultScreen extends JPanel {
     private File renderedFile;
     private String downloadUrl = "";
     private Timer uploadAnimationTimer;
+    private Timer qrLoadingTimer;
+    private int qrLoadingDots;
     private Timer uploadStatusPollTimer;
     private String activeUploadSessionId = "";
     private long resultPreparedAt;
@@ -132,7 +134,7 @@ public final class ResultScreen extends JPanel {
         uploadStatus.setForeground(new Color(200, 200, 210));
         add(uploadStatus, "result-upload-status");
 
-        qrButton.setEnabled(false);
+        setQrLoading(true);
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
@@ -144,7 +146,9 @@ public final class ResultScreen extends JPanel {
             }
             activeUploadSessionId = "";
             downloadUrl = "";
+            stopQrLoadingAnimation();
             qrButton.setEnabled(false);
+            qrButton.setText("Tampilkan QR Download");
             AppContext.newSession();
             frame.showStart();
         });
@@ -160,6 +164,7 @@ public final class ResultScreen extends JPanel {
                     && !isShowing()) {
                 stopPlayback();
                 pageTimer.stop();
+                stopQrLoadingAnimation();
                 closeQrDialog();
             }
         });
@@ -228,7 +233,7 @@ public final class ResultScreen extends JPanel {
         activeUploadSessionId = session.getSessionId();
         resultPreparedAt = System.currentTimeMillis();
         downloadUrl = "";
-        qrButton.setEnabled(false);
+        setQrLoading(true);
         printButton.setVisible(AppContext.settings().isViewPrintButton());
         uploadStatus.setText("MENYIAPKAN HASIL FOTO...");
         final long startedAt = resultPreparedAt;
@@ -613,7 +618,7 @@ public final class ResultScreen extends JPanel {
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (isActiveSession) {
-            qrButton.setEnabled(false);
+            setQrLoading(true);
             startUploadAnimation();
         }
         if (session == null || folder == null) {
@@ -655,7 +660,7 @@ public final class ResultScreen extends JPanel {
 
                         if (entry.galleryUrl != null && !entry.galleryUrl.isBlank()) {
                             downloadUrl = entry.galleryUrl;
-                            qrButton.setEnabled(true);
+                            setQrReady();
                         }
 
                         if ("COMPLETED".equals(entry.status)) {
@@ -839,6 +844,43 @@ public final class ResultScreen extends JPanel {
             int y = (getHeight() - drawH) / 2;
             g2.drawImage(currentImage, x, y, drawW, drawH, this);
             g2.dispose();
+        }
+    }
+
+    private void setQrLoading(boolean loading) {
+        if (!loading) {
+            stopQrLoadingAnimation();
+            return;
+        }
+        qrButton.setEnabled(false);
+        qrButton.setIcon(null);
+        qrButton.setText("QR LOADING");
+        qrButton.setForeground(Color.WHITE);
+        qrButton.setFont(new Font("SansSerif", Font.BOLD, 16));
+        qrButton.setContentAreaFilled(true);
+        qrButton.setOpaque(true);
+        qrButton.setBackground(new Color(35, 35, 42, 220));
+        qrButton.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255, 110)));
+        stopQrLoadingAnimation();
+        qrLoadingDots = 0;
+        qrLoadingTimer = new Timer(400, e -> {
+            qrLoadingDots = (qrLoadingDots + 1) % 4;
+            qrButton.setText("QR LOADING" + ".".repeat(qrLoadingDots));
+        });
+        qrLoadingTimer.start();
+    }
+
+    private void setQrReady() {
+        stopQrLoadingAnimation();
+        qrButton.setIcon(null);
+        qrButton.setText("Tampilkan QR Download");
+        qrButton.setEnabled(true);
+    }
+
+    private void stopQrLoadingAnimation() {
+        if (qrLoadingTimer != null) {
+            qrLoadingTimer.stop();
+            qrLoadingTimer = null;
         }
     }
 
