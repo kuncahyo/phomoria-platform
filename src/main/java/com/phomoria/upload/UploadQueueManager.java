@@ -42,13 +42,16 @@ public final class UploadQueueManager {
 
     public static void start() {
         if (STARTED.compareAndSet(false, true)) {
-            recoverInterruptedPreparations();
-            recoverOrphanedSessionFolders();
-            RESERVATION_WORKER.scheduleWithFixedDelay(
-                    UploadQueueManager::processNextReservation, 0, 3, TimeUnit.SECONDS);
-            ASSET_WORKER.scheduleWithFixedDelay(
-                    UploadQueueManager::processNextAsset, 0, 3, TimeUnit.SECONDS);
-            DebugLog.info("Persistent upload queue started: " + ROOT.getAbsolutePath());
+            // Recovery can copy large session folders. Keep it off Swing's EDT.
+            RESERVATION_WORKER.execute(() -> {
+                recoverInterruptedPreparations();
+                recoverOrphanedSessionFolders();
+                RESERVATION_WORKER.scheduleWithFixedDelay(
+                        UploadQueueManager::processNextReservation, 0, 3, TimeUnit.SECONDS);
+                ASSET_WORKER.scheduleWithFixedDelay(
+                        UploadQueueManager::processNextAsset, 0, 3, TimeUnit.SECONDS);
+                DebugLog.info("Persistent upload queue started: " + ROOT.getAbsolutePath());
+            });
         }
     }
 
