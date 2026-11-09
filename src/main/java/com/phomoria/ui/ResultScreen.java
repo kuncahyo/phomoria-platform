@@ -749,6 +749,13 @@ public final class ResultScreen extends JPanel {
             return new GifAnimationData(List.copyOf(decoded), delayMillis);
         }
 
+        /** Compatibility helper for legacy callers; new Final Preview code decodes off the EDT. */
+        private int loadAnimatedGif(File file) throws Exception {
+            GifAnimationData data = decodeAnimatedGif(file);
+            setAnimation(data);
+            return data.frames().size();
+        }
+
         private void setAnimation(GifAnimationData data) {
             clearAnimation();
             if (data == null || data.frames().isEmpty()) return;
