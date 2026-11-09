@@ -42,9 +42,28 @@ public final class ResultRenderer {
     public static File render(List<BufferedImage> photos, File output,
                               int targetWidth, int targetHeight) throws Exception {
         List<BufferedImage> processed = AppContext.effectSession().process(photos);
-        Composition composition = resolveComposition(photos.size(), targetWidth, targetHeight);
+        return renderProcessed(processed, output, targetWidth, targetHeight);
+    }
+
+    /** Renders images whose effects have already been applied, avoiding a second full-resolution pass. */
+    public static File renderProcessed(List<BufferedImage> processed, File output,
+                                       int targetWidth, int targetHeight) throws Exception {
+        Composition composition = resolveComposition(processed == null ? 0 : processed.size(),
+                targetWidth, targetHeight);
         return FrameRenderer.render(composition.definition, composition.frameAsset,
                 processed, output, composition.width, composition.height);
+    }
+
+    public static File renderProcessed(List<BufferedImage> processed, File output) throws Exception {
+        int[] canvas = selectedPaperCanvas();
+        PhotoSession session = AppContext.session();
+        int slotCount = session == null
+                ? (processed == null ? 0 : processed.size())
+                : session.getSlotCount();
+        List<BufferedImage> complete = new ArrayList<>(processed == null ? List.of() : processed);
+        while (complete.size() < slotCount) complete.add(null);
+        if (complete.isEmpty()) complete.add(null);
+        return renderProcessed(complete, output, canvas[0], canvas[1]);
     }
 
     /**
