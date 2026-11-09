@@ -53,7 +53,7 @@ if exist target\phomoria-app rmdir /s /q target\phomoria-app
 jpackage ^
     --type app-image ^
     --name Phomoria ^
-    --app-version 0.3.6 ^
+    --app-version 0.1.0 ^
     --vendor "Phomoria" ^
     --description "Phomoria Photobooth Platform" ^
     --input target\app-input ^
