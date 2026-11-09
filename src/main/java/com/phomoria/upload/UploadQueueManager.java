@@ -109,6 +109,7 @@ public final class UploadQueueManager {
         entry.sessionId = sessionId;
         entry.frameName = frameName == null ? "" : frameName;
         entry.voucherToken = voucherToken == null ? "" : voucherToken;
+        entry.status = deferProcessing ? "PREPARING" : "PENDING";
         entry.createdAt = previewStartedAt > 0 ? previewStartedAt : System.currentTimeMillis();
         entry.updatedAt = System.currentTimeMillis();
         try (java.io.FileWriter writer = new java.io.FileWriter(new File(staging, "manifest.json"))) {
