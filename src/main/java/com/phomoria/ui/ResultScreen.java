@@ -213,69 +213,138 @@ public final class ResultScreen extends JPanel {
     public void prepareResult() {
         pageTimer.applyTheme("result-timer");
         pageTimer.start(AppContext.settings().getResultTimerSeconds(), newSessionButton::doClick);
-        PhotoSession currentSessionForPrint = AppContext.session();
-        if (currentSessionForPrint != null) {
-            com.phomoria.print.PrintWarningManager.beginSession(
-                    currentSessionForPrint.getSessionId(), System.currentTimeMillis());
+        PhotoSession session = AppContext.session();
+        if (session == null || session.getPhotos().isEmpty()) {
+            uploadStatus.setText("HASIL FOTO TIDAK TERSEDIA");
+            DebugLog.error("Final Preview requested without a captured PhotoSession.");
+            return;
         }
+        com.phomoria.print.PrintWarningManager.beginSession(
+                session.getSessionId(), System.currentTimeMillis());
         if (uploadStatusPollTimer != null) {
             uploadStatusPollTimer.stop();
             uploadStatusPollTimer = null;
         }
-        PhotoSession session = AppContext.session();
-        activeUploadSessionId = session == null ? "" : session.getSessionId();
+        activeUploadSessionId = session.getSessionId();
         resultPreparedAt = System.currentTimeMillis();
         downloadUrl = "";
         qrButton.setEnabled(false);
-        List<BufferedImage> originals = session.getPhotos();
-        PhotoEffectSession effects = AppContext.effectSession();
-        List<BufferedImage> processed = effects.process(originals);
-
-        DebugLog.info(
-                "Preparing final result. photos="
-                        + originals.size()
-                        + ", effects="
-                        + effects.getEffects()
-        );
-
         printButton.setVisible(AppContext.settings().isViewPrintButton());
-        applyResultTheme();
-        printButton.setVisible(AppContext.settings().isViewPrintButton());
-        showPhotoStrip(processed);
+        uploadStatus.setText("MENYIAPKAN HASIL FOTO...");
+        final long startedAt = resultPreparedAt;
+        final List<BufferedImage> originals = new ArrayList<>(session.getPhotos());
+        final PhotoEffectSession effects = AppContext.effectSession();
+        final String sessionId = session.getSessionId();
+        DebugLog.info("Final Preview preparation requested. session=" + sessionId
+                + ", photos=" + originals.size() + ", effects=" + effects.getEffects()
+                + ", heapUsedMb=" + ((Runtime.getRuntime().totalMemory()
+                - Runtime.getRuntime().freeMemory()) / (1024 * 1024)));
 
-        try {
-            sessionFolder = createSessionFolder(originals, processed);
-            createAnimatedGifSafely(processed);
-            renderedFile = new File(sessionFolder, "result.png");
-            ResultRenderer.render(originals, renderedFile);
-            if (!renderedFile.isFile() || renderedFile.length() <= 0) {
-                throw new IllegalStateException("File hasil render tidak ditemukan atau kosong.");
-            }
-            BufferedImage renderedImage = ImageIO.read(renderedFile);
-            if (renderedImage == null) {
-                throw new IllegalStateException("File hasil render tidak dapat dibaca sebagai gambar.");
-            }
-            framePanel.setImage(renderedImage);
-            prepareLivePhotoAndUpload(session, resultPreparedAt);
-            SwingUtilities.invokeLater(() -> {
-                PhotoSession current = AppContext.session();
-                if (current == null || !AppContext.settings().isAutoPrint()) return;
-                String id = current.getSessionId();
-                if (AUTO_PRINT_ATTEMPTED.add(id)) {
-                    DebugLog.info("Auto print triggered for session=" + id);
-                    printResult(true);
-                } else {
-                    DebugLog.info("Auto print skipped; already attempted for session=" + id);
+        new SwingWorker<PreparedResult, Void>() {
+            @Override protected PreparedResult doInBackground() throws Exception {
+                try (DebugLog.Operation operation = DebugLog.operation(
+                        "final-preview.core-preparation", "session=" + sessionId)) {
+                    long stage = System.nanoTime();
+                    List<BufferedImage> processed = effects.process(originals);
+                    logStage("photo-effects", sessionId, stage, processed.size());
+                    stage = System.nanoTime();
+                    File folder = createSessionFolder(originals, processed, sessionId);
+                    logStage("session-files", sessionId, stage, folder.listFiles() == null ? 0 : folder.listFiles().length);
+                    stage = System.nanoTime();
+                    File animation = new File(folder, "animation.gif");
+                    GifGenerator.write(processed, animation, 800);
+                    logStage("gif-generation", sessionId, stage, animation.length());
+                    stage = System.nanoTime();
+                    File output = new File(folder, "result.png");
+                    ResultRenderer.renderProcessed(processed, output);
+                    if (!output.isFile() || output.length() <= 0)
+                        throw new IllegalStateException("Hasil render tidak ditemukan atau kosong.");
+                    BufferedImage rendered = ImageIO.read(output);
+                    if (rendered == null)
+                        throw new IllegalStateException("Hasil render tidak dapat dibaca sebagai gambar.");
+                    logStage("result-render-and-decode", sessionId, stage,
+                            rendered.getWidth() + "x" + rendered.getHeight());
+                    operation.close();
+                    return new PreparedResult(processed, folder, output, rendered, animation);
+                } catch (Exception ex) {
+                    DebugLog.error("Final Preview background preparation failed. session=" + sessionId, ex);
+                    throw ex;
                 }
-            });
-        } catch (Exception ex) {
-            DebugLog.error("Failed to prepare final result.", ex);
-            uploadStatus.setText(
-                    "GAGAL MENYIAPKAN HASIL: "
-                            + ex.getMessage()
-            );
-        }
+            }
+
+            @Override protected void done() {
+                try {
+                    PreparedResult prepared = get();
+                    if (!sessionId.equals(activeUploadSessionId)) {
+                        DebugLog.warn("Final Preview completed for an inactive session. session=" + sessionId);
+                    }
+                    sessionFolder = prepared.folder();
+                    renderedFile = prepared.renderedFile();
+                    gifFile = prepared.gifFile();
+                    showPhotoStrip(prepared.processed());
+                    framePanel.setImage(prepared.renderedImage());
+                    uploadStatus.setText("MENYIAPKAN UPLOAD...");
+                    DebugLog.info("Final Preview core assets ready. session=" + sessionId
+                            + ", resultBytes=" + renderedFile.length()
+                            + ", gifBytes=" + (gifFile.isFile() ? gifFile.length() : 0));
+                    prepareGifPreviewAsync(gifFile, sessionId);
+                    prepareLivePhotoAndUpload(session, startedAt);
+                    SwingUtilities.invokeLater(() -> {
+                        PhotoSession current = AppContext.session();
+                        if (current == null || !current.getSessionId().equals(sessionId)
+                                || !AppContext.settings().isAutoPrint()) return;
+                        if (AUTO_PRINT_ATTEMPTED.add(sessionId)) {
+                            DebugLog.info("Auto print triggered for session=" + sessionId);
+                            printResult(true);
+                        } else {
+                            DebugLog.info("Auto print skipped; already attempted for session=" + sessionId);
+                        }
+                    });
+                } catch (Exception ex) {
+                    DebugLog.error("Failed to prepare Final Preview. session=" + sessionId, ex);
+                    uploadStatus.setText("GAGAL MENYIAPKAN HASIL: " + rootCauseMessage(ex));
+                }
+            }
+        }.execute();
     }
+
+    private void logStage(String stageName, String sessionId, long startedNanos, Object result) {
+        long elapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - startedNanos);
+        Runtime runtime = Runtime.getRuntime();
+        long usedMb = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+        DebugLog.info("FINAL_PREVIEW_STAGE stage=" + stageName + ", session=" + sessionId
+                + ", elapsedMs=" + elapsedMs + ", result=" + result
+                + ", heapUsedMb=" + usedMb + ", thread=" + Thread.currentThread().getName());
+    }
+
+    private void prepareGifPreviewAsync(File file, String sessionId) {
+        new SwingWorker<Integer, Void>() {
+            @Override protected Integer doInBackground() throws Exception {
+                try (DebugLog.Operation operation = DebugLog.operation(
+                        "gif-preview-decode", "session=" + sessionId)) {
+                    return gifPreviewLabel.loadAnimatedGif(file);
+                }
+            }
+            @Override protected void done() {
+                try {
+                    int count = get();
+                    gifPreviewLabel.setPreferredSize(new Dimension(360, 260));
+                    gifPreviewPanel.setPreferredSize(new Dimension(380, 300));
+                    gifPreviewLabel.repaint();
+                    DebugLog.info("GIF preview decoded. session=" + sessionId + ", frames=" + count);
+                    if (count == 0) throw new IllegalStateException("GIF tidak memiliki frame.");
+                } catch (Exception ex) {
+                    gifPreviewLabel.clearAnimation();
+                    gifPreviewLabel.setText("GIF TIDAK DAPAT DITAMPILKAN");
+                    DebugLog.error("GIF desktop preview failed. session=" + sessionId, ex);
+                }
+            }
+        }.execute();
+    }
+
+    private record PreparedResult(List<BufferedImage> processed, File folder,
+                                  File renderedFile, BufferedImage renderedImage, File gifFile) {}
 
     /** Stop playback and release decoded frames when Final Preview is left. */
     public void stopPlayback() {
