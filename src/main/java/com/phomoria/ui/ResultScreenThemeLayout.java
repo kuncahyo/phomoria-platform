@@ -38,6 +38,21 @@ public final class ResultScreenThemeLayout implements LayoutManager2 {
         for (Map.Entry<String, Component> entry : components.entrySet()) {
             String id = entry.getKey();
             Component component = entry.getValue();
+            if ("result-qr-loading".equals(id)) {
+                Component button = components.get("result-qr");
+                if (button != null) {
+                    Rectangle bounds = button.getBounds();
+                    int h = Math.max(22, (int)Math.round(26 * sy));
+                    int gap = Math.max(4, (int)Math.round(5 * sy));
+                    int y = bounds.y + bounds.height + gap;
+                    if (y + h > parent.getHeight()) y = Math.max(0, bounds.y - h - gap);
+                    component.setBounds(bounds.x, y, bounds.width, h);
+                    component.setVisible(button.isVisible() && component.isVisible());
+                } else {
+                    component.setVisible(false);
+                }
+                continue;
+            }
             if ("result-background".equals(id)) {
                 component.setBounds(0, 0, parent.getWidth(), parent.getHeight());
                 component.setVisible(true);
