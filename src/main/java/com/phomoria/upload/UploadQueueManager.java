@@ -84,6 +84,9 @@ public final class UploadQueueManager {
             return;
         }
 
+        long enqueueStarted = System.nanoTime();
+        DebugLog.info("UPLOAD_QUEUE_STAGE START stage=copy-session-assets, session=" + sessionId
+                + ", source=" + source.getAbsolutePath() + ", thread=" + Thread.currentThread().getName());
         File staging = new File(ROOT, sessionId + ".staging");
         deleteTree(staging);
         Files.createDirectories(staging.toPath());
@@ -115,6 +118,9 @@ public final class UploadQueueManager {
         } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
             Files.move(staging.toPath(), target.toPath());
         }
+        DebugLog.info("UPLOAD_QUEUE_STAGE COMPLETE stage=copy-session-assets, session=" + sessionId
+                + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - enqueueStarted)
+                + ", queuedBytes=" + folderSize(target) + ", status=" + entry.status);
         DebugLog.info("Upload queued durably. session=" + sessionId);
         start();
     }
@@ -203,6 +209,9 @@ public final class UploadQueueManager {
     }
 
     private static void reserve(UploadQueueEntry entry) {
+        long operationStarted = System.nanoTime();
+        DebugLog.info("UPLOAD_STAGE START stage=session-reservation, session=" + entry.sessionId
+                + ", thread=" + Thread.currentThread().getName());
         entry.status = "RESERVING";
         entry.updatedAt = System.currentTimeMillis();
         try {
@@ -222,8 +231,11 @@ public final class UploadQueueManager {
             entry.attemptCount = 0;
             entry.nextAttemptAt = 0;
             DebugLog.info("Session reserved; QR is available. session=" + entry.sessionId
-                    + ", gallery=" + entry.galleryUrl);
+                    + ", gallery=" + entry.galleryUrl
+                    + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted));
         } catch (Exception ex) {
+            DebugLog.error("UPLOAD_STAGE FAILED stage=session-reservation, session=" + entry.sessionId
+                    + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted), ex);
             scheduleRetry(entry, ex, "Session reservation failed");
         }
         entry.updatedAt = System.currentTimeMillis();
@@ -255,6 +267,7 @@ public final class UploadQueueManager {
     }
 
     private static void uploadNextAsset(UploadQueueEntry entry) {
+        long operationStarted = System.nanoTime();
         UploadService service = new UploadService();
         File folder = STORE.folder(entry.sessionId);
         try {
@@ -270,7 +283,14 @@ public final class UploadQueueManager {
                 entry.status = "UPLOADING";
                 entry.updatedAt = System.currentTimeMillis();
                 STORE.save(entry);
+                DebugLog.info("UPLOAD_STAGE START stage=asset-upload, session=" + entry.sessionId
+                        + ", asset=" + next.getKey() + ", bytes=" + next.getFile().length()
+                        + ", thread=" + Thread.currentThread().getName());
+                long assetStarted = System.nanoTime();
                 service.uploadAsset(entry.sessionId, next.getKey(), next.getFile());
+                DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-upload, session=" + entry.sessionId
+                        + ", asset=" + next.getKey() + ", elapsedMs="
+                        + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - assetStarted));
                 entry.uploadedAssetKeys.add(next.getKey());
                 entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
                 if ("COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
@@ -296,6 +316,8 @@ public final class UploadQueueManager {
                 }
             }
         } catch (Exception ex) {
+            DebugLog.error("UPLOAD_STAGE FAILED stage=asset-upload, session=" + entry.sessionId
+                    + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted), ex);
             scheduleRetry(entry, ex, "Asset upload failed");
         }
         entry.updatedAt = System.currentTimeMillis();
@@ -343,6 +365,15 @@ public final class UploadQueueManager {
         if (file.isFile() && file.length() > 0) {
             Files.copy(file.toPath(), new File(target, name).toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private static long folderSize(File folder) {
+        if (folder == null || !folder.exists()) return 0L;
+        try (var paths = Files.walk(folder.toPath())) {
+            return paths.filter(Files::isRegularFile).mapToLong(path -> {
+                try { return Files.size(path); } catch (Exception ignored) { return 0L; }
+            }).sum();
+        } catch (Exception ignored) { return 0L; }
     }
 
     private static void deleteTree(File dir) throws Exception {
