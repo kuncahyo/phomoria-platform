@@ -134,7 +134,9 @@ public final class ResultScreen extends JPanel {
         uploadStatus.setForeground(new Color(200, 200, 210));
         add(uploadStatus, "result-upload-status");
 
-        setQrLoading(true);
+        qrButton.setEnabled(false);
+        qrButton.setIcon(null);
+        qrButton.setText("Tampilkan QR Download");
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
