@@ -384,14 +384,27 @@ public final class ResultScreen extends JPanel {
 
             @Override
             protected List<BufferedImage> doInBackground() throws Exception {
-                Path movie = currentSessionFolder.toPath().resolve("live_photo.mp4");
-                Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
-                if (frames == null || !Files.isRegularFile(movie)
-                        || Files.size(movie) <= 0) {
-                    throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
+                try (DebugLog.Operation operation = DebugLog.operation(
+                        "live-photo-render-encode-decode", "session=" + session.getSessionId())) {
+                    long stage = System.nanoTime();
+                    Path movie = currentSessionFolder.toPath().resolve("live_photo.mp4");
+                    Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
+                    logStage("live-photo-render-and-encode", session.getSessionId(), stage,
+                            Files.isRegularFile(movie) ? Files.size(movie) : 0);
+                    if (frames == null || !Files.isRegularFile(movie)
+                            || Files.size(movie) <= 0) {
+                        throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
+                    }
+                    stage = System.nanoTime();
+                    previewWorkDirectory = currentSessionFolder.toPath().resolve("live-photo-preview-frames");
+                    List<BufferedImage> decoded = LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
+                    logStage("live-photo-preview-decode", session.getSessionId(), stage,
+                            "frames=" + decoded.size());
+                    return decoded;
+                } catch (Exception ex) {
+                    DebugLog.error("Live Photo worker failed. session=" + session.getSessionId(), ex);
+                    throw ex;
                 }
-                previewWorkDirectory = currentSessionFolder.toPath().resolve("live-photo-preview-frames");
-                return LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
             }
 
             @Override
