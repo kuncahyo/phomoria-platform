@@ -4,7 +4,7 @@ setlocal EnableExtensions
 cd /d "%~dp0..\..\"
 
 echo ============================================
-echo PHOMORIA v20 - WINDOWS APP IMAGE BUILD
+echo PHOMORIA 0.3.6 - WINDOWS APP IMAGE BUILD
 echo ============================================
 
 where java >nul 2>nul
@@ -53,7 +53,7 @@ if exist target\phomoria-app rmdir /s /q target\phomoria-app
 jpackage ^
     --type app-image ^
     --name Phomoria ^
-    --app-version 0.1.0 ^
+    --app-version 0.3.6 ^
     --vendor "Phomoria" ^
     --description "Phomoria Photobooth Platform" ^
     --input target\app-input ^
