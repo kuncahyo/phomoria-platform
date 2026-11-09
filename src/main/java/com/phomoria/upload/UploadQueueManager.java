@@ -42,6 +42,8 @@ public final class UploadQueueManager {
 
     public static void start() {
         if (STARTED.compareAndSet(false, true)) {
+            recoverInterruptedPreparations();
+            recoverOrphanedSessionFolders();
             RESERVATION_WORKER.scheduleWithFixedDelay(
                     UploadQueueManager::processNextReservation, 0, 3, TimeUnit.SECONDS);
             ASSET_WORKER.scheduleWithFixedDelay(
@@ -61,6 +63,13 @@ public final class UploadQueueManager {
 
     public static synchronized void enqueue(String sessionId, String frameName, File source,
                                              long previewStartedAt, String voucherToken) throws Exception {
+        enqueue(sessionId, frameName, source, previewStartedAt, voucherToken, false);
+    }
+
+    /** Persists a session immediately but can hold network processing until optional assets finish. */
+    public static synchronized void enqueue(String sessionId, String frameName, File source,
+                                             long previewStartedAt, String voucherToken,
+                                             boolean deferProcessing) throws Exception {
         if (sessionId == null || sessionId.isBlank()) {
             throw new IllegalArgumentException("Session ID kosong.");
         }
@@ -107,6 +116,58 @@ public final class UploadQueueManager {
             Files.move(staging.toPath(), target.toPath());
         }
         DebugLog.info("Upload queued durably. session=" + sessionId);
+        start();
+    }
+
+    /** Releases queue entries left in PREPARING by an interrupted previous process. */
+    private static void recoverInterruptedPreparations() {
+        try {
+            for (UploadQueueEntry entry : STORE.loadAll()) {
+                if ("PREPARING".equals(entry.status)) {
+                    entry.status = "PENDING";
+                    entry.lastError = "Recovered after application restart; optional Live Photo may be absent.";
+                    entry.updatedAt = System.currentTimeMillis();
+                    STORE.save(entry);
+                    DebugLog.warn("Recovered interrupted upload preparation. session=" + entry.sessionId);
+                }
+            }
+        } catch (Exception ex) {
+            DebugLog.error("Could not recover interrupted upload preparations.", ex);
+        }
+    }
+
+    /** Finds session folders that were saved locally but never reached the upload queue. */
+    private static void recoverOrphanedSessionFolders() {
+        File sessionsRoot = new File(ROOT.getParentFile(), "sessions");
+        File[] folders = sessionsRoot.listFiles(File::isDirectory);
+        if (folders == null) return;
+        for (File folder : folders) {
+            File idFile = new File(folder, "session-id.txt");
+            File result = new File(folder, "result.png");
+            if (!idFile.isFile() || !result.isFile() || result.length() <= 0) continue;
+            try {
+                String sessionId = Files.readString(idFile.toPath()).trim();
+                if (sessionId.isBlank() || STORE.find(sessionId) != null) continue;
+                DebugLog.warn("Found orphaned local session; restoring upload queue. folder="
+                        + folder.getName() + ", session=" + sessionId);
+                enqueue(sessionId, "", folder, folder.lastModified(), "", false);
+            } catch (Exception ex) {
+                DebugLog.error("Failed to recover orphaned session folder=" + folder.getName(), ex);
+            }
+        }
+    }
+
+    /** Allows the Live Photo worker to release a durably queued session for upload. */
+    public static synchronized void markReady(String sessionId) throws Exception {
+        UploadQueueEntry entry = STORE.find(sessionId);
+        if (entry == null) throw new IllegalStateException("Queue entry not found: " + sessionId);
+        if ("PREPARING".equals(entry.status)) {
+            entry.status = "PENDING";
+            entry.updatedAt = System.currentTimeMillis();
+            entry.lastError = "";
+            STORE.save(entry);
+            DebugLog.info("Queued session is ready for network processing. session=" + sessionId);
+        }
         start();
     }
 
