@@ -68,6 +68,9 @@ public final class PrintWarningManager {
         if (!isReadyToShow()) return null;
         PendingWarning pending = read();
         if (pending == null) return null;
+        DebugLog.warn("SESSION NOT PRINTED | session=" + pending.sessionId
+                + " | sessionTime=" + pending.getFormattedTime()
+                + " | detectedAt=" + FORMAT.format(Instant.now().atZone(ZoneId.systemDefault())));
         try {
             Files.deleteIfExists(FILE);
         } catch (IOException ex) {
@@ -120,6 +123,10 @@ public final class PrintWarningManager {
             this.timestamp = timestamp;
             this.status = status;
             this.statusChangedAt = statusChangedAt;
+        }
+
+        public String getSessionId() {
+            return sessionId;
         }
 
         public String getFormattedTime() {
