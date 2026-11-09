@@ -372,6 +372,9 @@ public final class ResultScreen extends JPanel {
             return;
         }
 
+        // Persist core assets immediately. Network workers hold PREPARING entries
+        // until the optional Live Photo asset has either completed or failed.
+        uploadResult(session, currentSessionFolder, currentFrameName, currentPreviewStartedAt, true);
         if (isActiveSession) {
             startLivePhotoLoading();
             uploadStatus.setText("MENYIAPKAN LIVE PHOTO...");
@@ -418,9 +421,25 @@ public final class ResultScreen extends JPanel {
                             && session.getSessionId().equals(activeUploadSessionId)) {
                         stopLivePhotoLoading();
                     }
-                    // Always enqueue the captured session/folder, even if the
-                    // customer has already moved to a newer session.
-                    uploadResult(session, currentSessionFolder, currentFrameName, currentPreviewStartedAt);
+                    // Release the already durable queue entry only after the optional
+                    // asset has been copied, even if the customer moved to a newer session.
+                    new SwingWorker<Void, Void>() {
+                        @Override protected Void doInBackground() throws Exception {
+                            UploadQueueManager.refreshOptionalAssets(session.getSessionId(), currentSessionFolder);
+                            UploadQueueManager.markReady(session.getSessionId());
+                            return null;
+                        }
+                        @Override protected void done() {
+                            try {
+                                get();
+                                DebugLog.info("Session preparation released to upload workers. session="
+                                        + session.getSessionId());
+                            } catch (Exception ex) {
+                                DebugLog.error("Could not release prepared session to upload queue. session="
+                                        + session.getSessionId(), ex);
+                            }
+                        }
+                    }.execute();
                 }
             }
 
@@ -571,6 +590,11 @@ public final class ResultScreen extends JPanel {
     }
 
     private void uploadResult(PhotoSession session, File folder, String frameName, long previewStartedAt) {
+        uploadResult(session, folder, frameName, previewStartedAt, false);
+    }
+
+    private void uploadResult(PhotoSession session, File folder, String frameName,
+                              long previewStartedAt, boolean deferProcessing) {
         boolean isActiveSession = session != null
                 && session.getSessionId().equals(activeUploadSessionId);
         if (isActiveSession) {
@@ -592,7 +616,7 @@ public final class ResultScreen extends JPanel {
             @Override
             protected Void doInBackground() throws Exception {
                 UploadQueueManager.enqueue(sessionId, frameName, queuedFolder, previewStartedAt,
-                        AppContext.voucherAuthorizationToken());
+                        AppContext.voucherAuthorizationToken(), deferProcessing);
                 AppContext.clearVoucherAuthorization();
                 return null;
             }
