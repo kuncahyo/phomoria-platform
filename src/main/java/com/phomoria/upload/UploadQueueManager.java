@@ -157,6 +157,18 @@ public final class UploadQueueManager {
         }
     }
 
+    /** Copies optional assets produced after the initial durable enqueue. */
+    public static synchronized void refreshOptionalAssets(String sessionId, File source) throws Exception {
+        if (sessionId == null || sessionId.isBlank() || source == null)
+            throw new IllegalArgumentException("Session/source tidak valid untuk refresh aset.");
+        File target = STORE.folder(sessionId);
+        if (!new File(target, "manifest.json").isFile())
+            throw new IllegalStateException("Manifest antrean belum tersedia: " + sessionId);
+        copy(source, target, "live_photo.mp4");
+        DebugLog.info("Optional upload assets refreshed. session=" + sessionId
+                + ", livePhotoPresent=" + new File(target, "live_photo.mp4").isFile());
+    }
+
     /** Allows the Live Photo worker to release a durably queued session for upload. */
     public static synchronized void markReady(String sessionId) throws Exception {
         UploadQueueEntry entry = STORE.find(sessionId);
