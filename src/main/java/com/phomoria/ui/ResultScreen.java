@@ -319,21 +319,23 @@ public final class ResultScreen extends JPanel {
     }
 
     private void prepareGifPreviewAsync(File file, String sessionId) {
-        new SwingWorker<Integer, Void>() {
-            @Override protected Integer doInBackground() throws Exception {
+        new SwingWorker<ResponsiveImageLabel.GifAnimationData, Void>() {
+            @Override protected ResponsiveImageLabel.GifAnimationData doInBackground() throws Exception {
                 try (DebugLog.Operation operation = DebugLog.operation(
                         "gif-preview-decode", "session=" + sessionId)) {
-                    return gifPreviewLabel.loadAnimatedGif(file);
+                    return ResponsiveImageLabel.decodeAnimatedGif(file);
                 }
             }
             @Override protected void done() {
                 try {
-                    int count = get();
+                    ResponsiveImageLabel.GifAnimationData data = get();
+                    gifPreviewLabel.setAnimation(data);
                     gifPreviewLabel.setPreferredSize(new Dimension(360, 260));
                     gifPreviewPanel.setPreferredSize(new Dimension(380, 300));
                     gifPreviewLabel.repaint();
-                    DebugLog.info("GIF preview decoded. session=" + sessionId + ", frames=" + count);
-                    if (count == 0) throw new IllegalStateException("GIF tidak memiliki frame.");
+                    DebugLog.info("GIF preview decoded. session=" + sessionId
+                            + ", frames=" + data.frames().size());
+                    if (data.frames().isEmpty()) throw new IllegalStateException("GIF tidak memiliki frame.");
                 } catch (Exception ex) {
                     gifPreviewLabel.clearAnimation();
                     gifPreviewLabel.setText("GIF TIDAK DAPAT DITAMPILKAN");
@@ -724,13 +726,9 @@ public final class ResultScreen extends JPanel {
          * Decode every GIF frame explicitly. Relying on Toolkit/ImageIcon animation
          * is unreliable when the image is painted manually by a custom JLabel.
          */
-        private int loadAnimatedGif(File file) throws Exception {
-            clearAnimation();
+        private static GifAnimationData decodeAnimatedGif(File file) throws Exception {
             Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("gif");
-            if (!readers.hasNext()) {
-                throw new IllegalStateException("GIF ImageIO reader tidak tersedia.");
-            }
-
+            if (!readers.hasNext()) throw new IllegalStateException("GIF ImageIO reader tidak tersedia.");
             ImageReader reader = readers.next();
             List<BufferedImage> decoded = new ArrayList<>();
             int delayMillis = 800;
@@ -742,22 +740,24 @@ public final class ResultScreen extends JPanel {
                     BufferedImage frame = reader.read(i);
                     if (frame != null) {
                         decoded.add(frame);
-                        if (i == 0) {
-                            delayMillis = readGifDelayMillis(reader.getImageMetadata(i));
-                        }
+                        if (i == 0) delayMillis = readGifDelayMillis(reader.getImageMetadata(i));
                     }
                 }
             } finally {
                 reader.dispose();
             }
+            return new GifAnimationData(List.copyOf(decoded), delayMillis);
+        }
 
-            if (decoded.isEmpty()) return 0;
+        private void setAnimation(GifAnimationData data) {
+            clearAnimation();
+            if (data == null || data.frames().isEmpty()) return;
             this.image = null;
-            this.animationFrames = List.copyOf(decoded);
+            this.animationFrames = data.frames();
             this.animationIndex = 0;
             setText("");
             if (animationFrames.size() > 1) {
-                animationTimer = new Timer(Math.max(40, delayMillis), e -> {
+                animationTimer = new Timer(Math.max(40, data.delayMillis()), e -> {
                     animationIndex = (animationIndex + 1) % animationFrames.size();
                     repaint();
                 });
@@ -766,8 +766,10 @@ public final class ResultScreen extends JPanel {
             }
             revalidate();
             repaint();
-            return animationFrames.size();
         }
+
+        private record GifAnimationData(List<BufferedImage> frames, int delayMillis) {}
+
 
         private static int readGifDelayMillis(IIOMetadata metadata) {
             try {
