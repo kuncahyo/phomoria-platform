@@ -93,7 +93,7 @@ public final class DebugLog {
         @Override public void close() {
             if (closed) return;
             closed = true;
-            info("OPERATION " + (failed ? "FINISHED_WITH_ERROR" : "COMPLETE")
+            info("OPERATION " + (failed ? "FINISHED_WITH_ERROR" : "END")
                     + " name=" + name + this.context
                     + ", elapsedMs=" + elapsedMs()
                     + ", thread=" + Thread.currentThread().getName());
