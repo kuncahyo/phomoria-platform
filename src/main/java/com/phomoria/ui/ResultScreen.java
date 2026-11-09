@@ -53,6 +53,7 @@ public final class ResultScreen extends JPanel {
     private File gifFile;
     private final JLabel uploadStatus = new JLabel("Mempersiapkan hasil...", SwingConstants.CENTER);
     private final ThemeButton qrButton = new ThemeButton("result-qr", "TAMPILKAN QR DOWNLOAD");
+    private final JLabel qrLoadingLabel = new JLabel("MENYIAPKAN QR DOWNLOAD", SwingConstants.CENTER);
     private final ThemeButton printButton = new ThemeButton("result-print", "PRINT");
     private final ThemeButton newSessionButton = new ThemeButton("result-new-session", "NEW SESSION");
     private final JLabel screenTitle = new JLabel("HASIL FOTO", SwingConstants.CENTER);
@@ -135,8 +136,10 @@ public final class ResultScreen extends JPanel {
         add(uploadStatus, "result-upload-status");
 
         qrButton.setEnabled(false);
-        qrButton.setIcon(null);
-        qrButton.setText("Tampilkan QR Download");
+        qrLoadingLabel.setForeground(new Color(235, 238, 245));
+        qrLoadingLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        qrLoadingLabel.setVisible(false);
+        add(qrLoadingLabel, "result-qr-loading");
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
@@ -150,7 +153,6 @@ public final class ResultScreen extends JPanel {
             downloadUrl = "";
             stopQrLoadingAnimation();
             qrButton.setEnabled(false);
-            qrButton.setText("Tampilkan QR Download");
             AppContext.newSession();
             frame.showStart();
         });
@@ -855,27 +857,22 @@ public final class ResultScreen extends JPanel {
             return;
         }
         qrButton.setEnabled(false);
-        qrButton.setIcon(null);
-        qrButton.setText("QR LOADING");
-        qrButton.setForeground(Color.WHITE);
-        qrButton.setFont(new Font("SansSerif", Font.BOLD, 16));
-        qrButton.setContentAreaFilled(true);
-        qrButton.setOpaque(true);
-        qrButton.setBackground(new Color(35, 35, 42, 220));
-        qrButton.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255, 110)));
         stopQrLoadingAnimation();
         qrLoadingDots = 0;
+        qrLoadingLabel.setText("MENYIAPKAN QR DOWNLOAD");
+        qrLoadingLabel.setVisible(true);
         qrLoadingTimer = new Timer(400, e -> {
             qrLoadingDots = (qrLoadingDots + 1) % 4;
-            qrButton.setText("QR LOADING" + ".".repeat(qrLoadingDots));
+            qrLoadingLabel.setText("MENYIAPKAN QR DOWNLOAD" + ".".repeat(qrLoadingDots));
         });
+        qrLoadingTimer.setCoalesce(true);
         qrLoadingTimer.start();
+        revalidate();
+        repaint();
     }
 
     private void setQrReady() {
         stopQrLoadingAnimation();
-        qrButton.setIcon(null);
-        qrButton.setText("Tampilkan QR Download");
         qrButton.setEnabled(true);
     }
 
@@ -884,6 +881,9 @@ public final class ResultScreen extends JPanel {
             qrLoadingTimer.stop();
             qrLoadingTimer = null;
         }
+        qrLoadingLabel.setVisible(false);
+        revalidate();
+        repaint();
     }
 
     private void startUploadAnimation() {
