@@ -47,7 +47,8 @@ public final class StartScreen extends JPanel {
                         + "Tidak perlu khawatir, hasil foto Anda tetap tersimpan. "
                         + "Jika Anda merasa ini sebuah masalah, segera laporkan kepada admin "
                         + "dengan menyertakan waktu sesi foto dan kontak yang bisa dihubungi.\n\n"
-                        + "Waktu sesi foto: " + warning.getFormattedTime();
+                        + "Waktu sesi foto: " + warning.getFormattedTime() + "\n"
+                        + "ID sesi: " + warning.getSessionId();
                 JOptionPane.showMessageDialog(this, message, "Informasi Sesi Foto",
                         JOptionPane.INFORMATION_MESSAGE);
             }
