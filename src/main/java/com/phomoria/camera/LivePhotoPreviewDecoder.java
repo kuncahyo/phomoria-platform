@@ -25,7 +25,7 @@ public final class LivePhotoPreviewDecoder {
         List<String> command = List.of(
                 LivePhotoVideoEncoder.resolveFfmpeg().toString(),
                 "-hide_banner", "-loglevel", "error", "-y", "-i", mp4.toAbsolutePath().toString(),
-                "-vf", "fps=15,scale=720:720:force_original_aspect_ratio=decrease",
+                "-vf", "fps=15,scale=480:480:force_original_aspect_ratio=decrease",
                 "-q:v", "5", pattern.toString()
         );
         Process process = new ProcessBuilder(command).redirectErrorStream(true)
