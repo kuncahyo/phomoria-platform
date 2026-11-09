@@ -139,7 +139,6 @@ public final class ResultScreen extends JPanel {
         qrLoadingLabel.setForeground(new Color(235, 238, 245));
         qrLoadingLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
         qrLoadingLabel.setVisible(false);
-        add(qrLoadingLabel, "result-qr-loading");
         qrButton.addActionListener(e -> showQr());
         printButton.addActionListener(e -> printResult(false));
         newSessionButton.addActionListener(e -> {
@@ -157,6 +156,7 @@ public final class ResultScreen extends JPanel {
             frame.showStart();
         });
         add(qrButton, "result-qr");
+        add(qrLoadingLabel, "result-qr-loading");
         add(printButton, "result-print");
         add(newSessionButton, "result-new-session");
         add(pageTimer, "result-timer");
