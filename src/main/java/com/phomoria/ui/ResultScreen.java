@@ -166,10 +166,21 @@ public final class ResultScreen extends JPanel {
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
                     && !isShowing()) {
-                stopPlayback();
+                // A top-level window can become temporarily non-showing (for example,
+                // when minimized). Stop animation work, but retain the preview so it
+                // can be shown again when the window returns.
+                stopAnimations();
                 pageTimer.stop();
                 stopQrLoadingAnimation();
                 closeQrDialog();
+            }
+        });
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentHidden(java.awt.event.ComponentEvent event) {
+                // CardLayout hides the ResultScreen when the user leaves Final Preview.
+                // Release only display assets; session files and upload work remain intact.
+                stopPlayback();
             }
         });
         applyResultTheme();
@@ -290,13 +301,19 @@ public final class ResultScreen extends JPanel {
                     sessionFolder = prepared.folder();
                     renderedFile = prepared.renderedFile();
                     gifFile = prepared.gifFile();
-                    showPhotoStrip(prepared.processed());
-                    framePanel.setImage(prepared.renderedImage());
-                    uploadStatus.setText("MENYIAPKAN UPLOAD...");
+                    if (isVisible()) {
+                        showPhotoStrip(prepared.processed());
+                        framePanel.setImage(prepared.renderedImage());
+                        uploadStatus.setText("MENYIAPKAN UPLOAD...");
+                    }
                     DebugLog.info("Final Preview core assets ready. session=" + sessionId
                             + ", resultBytes=" + renderedFile.length()
                             + ", gifBytes=" + (gifFile.isFile() ? gifFile.length() : 0));
-                    prepareGifPreviewAsync(gifFile, sessionId);
+                    // Preparation/upload must continue for the session, but a worker
+                    // finishing after navigation must not repopulate hidden UI images.
+                    if (isVisible()) {
+                        prepareGifPreviewAsync(gifFile, sessionId);
+                    }
                     prepareLivePhotoAndUpload(session, startedAt);
                     SwingUtilities.invokeLater(() -> {
                         PhotoSession current = AppContext.session();
@@ -338,6 +355,10 @@ public final class ResultScreen extends JPanel {
             @Override protected void done() {
                 try {
                     ResponsiveImageLabel.GifAnimationData data = get();
+                    if (!isVisible()) {
+                        // The decoded frames are now local only and can be reclaimed.
+                        return;
+                    }
                     gifPreviewLabel.setAnimation(data);
                     gifPreviewLabel.setPreferredSize(new Dimension(360, 260));
                     gifPreviewPanel.setPreferredSize(new Dimension(380, 300));
@@ -346,8 +367,10 @@ public final class ResultScreen extends JPanel {
                             + ", frames=" + data.frames().size());
                     if (data.frames().isEmpty()) throw new IllegalStateException("GIF tidak memiliki frame.");
                 } catch (Exception ex) {
-                    gifPreviewLabel.clearAnimation();
-                    gifPreviewLabel.setText("GIF TIDAK DAPAT DITAMPILKAN");
+                    if (isVisible()) {
+                        gifPreviewLabel.clearAnimation();
+                        gifPreviewLabel.setText("GIF TIDAK DAPAT DITAMPILKAN");
+                    }
                     DebugLog.error("GIF desktop preview failed. session=" + sessionId, ex);
                 }
             }
@@ -357,10 +380,27 @@ public final class ResultScreen extends JPanel {
     private record PreparedResult(List<BufferedImage> processed, File folder,
                                   File renderedFile, BufferedImage renderedImage, File gifFile) {}
 
-    /** Stop playback and release decoded frames when Final Preview is left. */
-    public void stopPlayback() {
+    /** Stop active animation without discarding a preview that may be shown again. */
+    private void stopAnimations() {
         framePanel.stopAnimation();
+        gifPreviewLabel.stopAnimation();
         livePhotoLoadingPanel.setActive(false);
+    }
+
+    /**
+     * Release only UI-held image references when CardLayout leaves Final Preview.
+     * Original photos, rendered files, GIF files and upload-queue data are untouched.
+     */
+    public void stopPlayback() {
+        stopAnimations();
+        framePanel.clearImage();
+        gifPreviewLabel.clearAnimation();
+        gifPreviewLabel.setText("GIF BELUM TERSEDIA");
+        photoStrip.removeAll();
+        photoStrip.revalidate();
+        photoStrip.repaint();
+        photoContent.revalidate();
+        photoContent.repaint();
     }
 
     /**
@@ -701,7 +741,10 @@ public final class ResultScreen extends JPanel {
     }
 
     private void startLivePhotoLoading() {
-        livePhotoLoadingPanel.setActive(true);
+        // Do not start a GIF decoder for a ResultScreen that is already hidden.
+        if (isVisible()) {
+            livePhotoLoadingPanel.setActive(true);
+        }
     }
 
     private void stopLivePhotoLoading() {

@@ -50,6 +50,13 @@ public final class ResultFramePanel extends JPanel {
         repaint();
     }
 
+    /** Release the retained still image as well as any animation frames. */
+    public void clearImage() {
+        stopAnimation();
+        image = null;
+        repaint();
+    }
+
     private void advanceAnimation() {
         if (animationFrames.isEmpty()) return;
         long now = System.currentTimeMillis();
