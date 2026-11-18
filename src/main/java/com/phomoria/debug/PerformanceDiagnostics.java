@@ -96,7 +96,7 @@ public final class PerformanceDiagnostics {
         DebugLog.info("Jumlah thread Java      : " + ManagementFactory.getThreadMXBean().getThreadCount());
 
         if (AppContext.settings().isPerformanceDiagnosticsCpuEnabled()) {
-            recordCpuSnapshot(session.getSessionId());
+            recordCpuSnapshot();
         }
 
         if (AppContext.settings().isPerformanceDiagnosticsGcEnabled()) {
@@ -110,7 +110,7 @@ public final class PerformanceDiagnostics {
         DebugLog.info("========== AKHIR DIAGNOSTIK SESI ==========");
     }
 
-    private static void recordCpuSnapshot(String sessionId) {
+    private static void recordCpuSnapshot() {
         try {
             com.sun.management.OperatingSystemMXBean os =
                     (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
@@ -169,7 +169,7 @@ public final class PerformanceDiagnostics {
 
     private static String display(Object value) {
         if (value == null || value.toString().isBlank()) return "Tidak ada";
-        return value.toString().replace("\\r", " ").replace("\\n", " ");
+        return value.toString().replace("\r", " ").replace("\n", " ");
     }
 
     private interface PsapiMemory extends com.sun.jna.win32.StdCallLibrary {
