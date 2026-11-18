@@ -702,6 +702,13 @@ public final class MainScreen
                     + (slotIndex + 1), ex);
         }
 
+        DebugLog.info("LIVE_PHOTO_SLOT_PERSIST"
+                + " session=" + session.getSessionId()
+                + ", slot=" + (slotIndex + 1)
+                + ", snapshotFrames=" + (livePhotoFrames == null ? 0 : livePhotoFrames.size())
+                + ", persisted=" + (clipDirectory != null)
+                + ", directory=" + (clipDirectory == null ? "NONE" : clipDirectory));
+
         // Keep the existing still-photo capture and UI flow as the authority.
         onCaptured(image, retake, targetIndex);
         boolean stillPhotoAccepted = retake
