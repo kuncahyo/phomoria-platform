@@ -32,6 +32,11 @@ public final class AppSettings {
     private boolean viewPrintButton = true;
     private boolean livePhotoEnabled = false;
     private int livePhotoDurationSeconds = 3;
+    private boolean performanceDiagnosticsEnabled = false;
+    private int performanceDiagnosticsDurationDays = 7;
+    private long performanceDiagnosticsEnabledAt = 0L;
+    private boolean performanceDiagnosticsCpuEnabled = false;
+    private boolean performanceDiagnosticsGcEnabled = false;
     private PhotoEffectSettings photoEffectSettings = new PhotoEffectSettings();
 
     public String getApiServer() { return apiServer; }
@@ -90,6 +95,20 @@ public final class AppSettings {
     public void setLivePhotoEnabled(boolean value) { livePhotoEnabled = value; }
     public int getLivePhotoDurationSeconds() { return Math.max(1, Math.min(10, livePhotoDurationSeconds)); }
     public void setLivePhotoDurationSeconds(int value) { livePhotoDurationSeconds = Math.max(1, Math.min(10, value)); }
+    public boolean isPerformanceDiagnosticsEnabled() { return performanceDiagnosticsEnabled; }
+    public void setPerformanceDiagnosticsEnabled(boolean value) {
+        performanceDiagnosticsEnabled = value;
+        if (value && performanceDiagnosticsEnabledAt <= 0L) performanceDiagnosticsEnabledAt = System.currentTimeMillis();
+        if (!value) performanceDiagnosticsEnabledAt = 0L;
+    }
+    public int getPerformanceDiagnosticsDurationDays() { return Math.max(0, Math.min(30, performanceDiagnosticsDurationDays)); }
+    public void setPerformanceDiagnosticsDurationDays(int value) { performanceDiagnosticsDurationDays = Math.max(0, Math.min(30, value)); }
+    public long getPerformanceDiagnosticsEnabledAt() { return performanceDiagnosticsEnabledAt; }
+    public void setPerformanceDiagnosticsEnabledAt(long value) { performanceDiagnosticsEnabledAt = Math.max(0L, value); }
+    public boolean isPerformanceDiagnosticsCpuEnabled() { return performanceDiagnosticsCpuEnabled; }
+    public void setPerformanceDiagnosticsCpuEnabled(boolean value) { performanceDiagnosticsCpuEnabled = value; }
+    public boolean isPerformanceDiagnosticsGcEnabled() { return performanceDiagnosticsGcEnabled; }
+    public void setPerformanceDiagnosticsGcEnabled(boolean value) { performanceDiagnosticsGcEnabled = value; }
     public PhotoEffectSettings getPhotoEffectSettings() { if (photoEffectSettings == null) photoEffectSettings = new PhotoEffectSettings(); return photoEffectSettings; }
     public void setPhotoEffectSettings(PhotoEffectSettings value) { photoEffectSettings = value == null ? new PhotoEffectSettings() : value; }
 }
