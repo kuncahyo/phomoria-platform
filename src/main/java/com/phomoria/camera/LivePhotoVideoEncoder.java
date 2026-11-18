@@ -39,12 +39,21 @@ public final class LivePhotoVideoEncoder {
         Path logFile = outputMp4.toAbsolutePath().resolveSibling("live-photo-ffmpeg.log");
         Process process = new ProcessBuilder(command).redirectErrorStream(true)
                 .redirectOutput(logFile.toFile()).start();
-        boolean finished = process.waitFor(Duration.ofMinutes(3).toMillis(), TimeUnit.MILLISECONDS);
+        boolean finished;
+        try {
+            finished = process.waitFor(Duration.ofMinutes(10).toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ex) {
+            process.destroyForcibly();
+            process.waitFor(5, TimeUnit.SECONDS);
+            Files.deleteIfExists(logFile);
+            Thread.currentThread().interrupt();
+            throw ex;
+        }
         if (!finished) {
             process.destroyForcibly();
             process.waitFor(5, TimeUnit.SECONDS);
             Files.deleteIfExists(logFile);
-            throw new IOException("FFmpeg timeout saat membuat Live Photo.");
+            throw new IOException("FFmpeg dihentikan karena melewati batas 10 menit.");
         }
         String output = Files.exists(logFile)
                 ? Files.readString(logFile, java.nio.charset.StandardCharsets.UTF_8) : "";
