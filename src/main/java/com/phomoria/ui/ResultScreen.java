@@ -416,12 +416,9 @@ public final class ResultScreen extends JPanel {
                 && !session.getLivePhotoClips().isEmpty();
         final boolean gifRequested = prepared.processed() != null && !prepared.processed().isEmpty();
 
-        try {
-            UploadQueueManager.markOptionalAssetsPending(sessionId);
-        } catch (Exception ex) {
-            DebugLog.error("Could not mark optional media as pending. session=" + sessionId, ex);
-        }
-        uploadResult(session, folder, AppContext.settings().getFrameName(), previewStartedAt, false);
+        // This PREPARING flag now tracks optional media only; it never blocks
+        // session reservation or upload of the core result.
+        uploadResult(session, folder, AppContext.settings().getFrameName(), previewStartedAt, true);
 
         final java.util.concurrent.atomic.AtomicInteger remaining =
                 new java.util.concurrent.atomic.AtomicInteger((gifRequested ? 1 : 0)
