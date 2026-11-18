@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ResultScreen extends JPanel {
     private static final Set<String> AUTO_PRINT_ATTEMPTED = ConcurrentHashMap.newKeySet();
+    private static final Set<String> UPLOAD_ALERT_SHOWN = ConcurrentHashMap.newKeySet();
     private final ApplicationFrame frame;
     private final ResultFramePanel framePanel = new ResultFramePanel();
     private final LivePhotoLoadingPanel livePhotoLoadingPanel = new LivePhotoLoadingPanel();
@@ -736,6 +737,15 @@ public final class ResultScreen extends JPanel {
                                     ? "UPLOAD TERTUNDA — AKAN DICOBA LAGI"
                                     : "UPLOAD TERTUNDA — QR SUDAH SIAP");
                             stopUploadAnimation();
+                            if (UPLOAD_ALERT_SHOWN.add(sessionId)) {
+                                JOptionPane.showMessageDialog(ResultScreen.this,
+                                        "Upload sedang mengalami kendala. Foto yang sudah tersimpan di komputer tetap aman. "
+                                                + "Aplikasi akan mencoba mengirim ulang secara otomatis. "
+                                                + (entry.galleryUrl.isBlank()
+                                                ? "QR akan tersedia setelah sesi berhasil didaftarkan."
+                                                : "QR download sudah tersedia dan dapat digunakan."),
+                                        "Upload Tertunda", JOptionPane.WARNING_MESSAGE);
+                            }
                         } else if ("RESERVING".equals(entry.status)) {
                             uploadStatus.setText("MENDAFTARKAN SESI...");
                         } else if ("UPLOADING".equals(entry.status)
