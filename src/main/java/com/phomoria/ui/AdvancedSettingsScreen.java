@@ -27,6 +27,7 @@ public final class AdvancedSettingsScreen extends JPanel {
     public AdvancedSettingsScreen(ApplicationFrame frame, Runnable back) {
         this.frame = frame;
         this.back = back;
+        PerformanceDiagnostics.isEnabled(); // Also applies any elapsed automatic expiry.
         AppSettings settings = AppContext.settings();
         setLayout(new BorderLayout(12, 12));
         setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
