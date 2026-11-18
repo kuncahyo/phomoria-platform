@@ -194,7 +194,18 @@ public final class UploadQueueManager {
         if (!manifest.isFile())
             throw new IllegalStateException("Manifest antrean belum tersedia setelah menunggu: " + sessionId);
         synchronized (UploadQueueManager.class) {
-            copy(source, target, filename);
+            File original = new File(source, filename);
+            if (!original.isFile() || original.length() <= 0)
+                throw new IllegalStateException("Aset opsional belum siap: " + filename);
+            File temporary = new File(target, filename + ".publishing");
+            File published = new File(target, filename);
+            Files.copy(original.toPath(), temporary.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.move(temporary.toPath(), published.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+                Files.move(temporary.toPath(), published.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         }
         DebugLog.info("Optional upload asset published. session=" + sessionId
                 + ", asset=" + filename + ", bytes=" + new File(target, filename).length());
