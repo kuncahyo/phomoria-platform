@@ -449,6 +449,7 @@ public final class ResultScreen extends JPanel {
         if (livePhotoRequested) {
             SwingWorker<List<BufferedImage>, Void> livePhotoWorker = new SwingWorker<>() {
                 private Path previewWorkDirectory;
+                private volatile boolean assetPublished;
                 @Override protected List<BufferedImage> doInBackground() throws Exception {
                     try (DebugLog.Operation operation = DebugLog.operation(
                             "live-photo-render-encode-decode", "session=" + sessionId)) {
@@ -460,6 +461,9 @@ public final class ResultScreen extends JPanel {
                         if (frames == null || !Files.isRegularFile(movie) || Files.size(movie) <= 0)
                             throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
                         UploadQueueManager.publishOptionalAsset(sessionId, folder, "live_photo.mp4");
+                        assetPublished = true;
+                        if (remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
+                        // Desktop preview decoding is not part of upload readiness.
                         stage = System.nanoTime();
                         previewWorkDirectory = folder.toPath().resolve("live-photo-preview-frames");
                         List<BufferedImage> decoded = LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
@@ -480,7 +484,7 @@ public final class ResultScreen extends JPanel {
                         stopLivePhotoLoading();
                         DebugLog.error("Live Photo generation failed; main photo upload continues. session=" + sessionId, ex);
                     } finally {
-                        if (remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
+                        if (!assetPublished && remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
                     }
                 }
                 private void cleanupPreviewFrames() {
