@@ -188,6 +188,17 @@ public final class ResultScreen extends JPanel {
         printButton.setVisible(AppContext.settings().isViewPrintButton());
     }
 
+    private void handleResultTimerExpired() {
+        if (downloadUrl == null || downloadUrl.isBlank()) {
+            // Never send the customer away before the download address is available.
+            uploadStatus.setText("MENUNGGU ALAMAT DOWNLOAD...");
+            DebugLog.warn("Final Preview timer expired before QR became available; keeping result visible.");
+            pageTimer.start(5, this::handleResultTimerExpired);
+            return;
+        }
+        newSessionButton.doClick();
+    }
+
     private void applyResultTheme() {
         revalidate();
         repaint();
@@ -233,7 +244,7 @@ public final class ResultScreen extends JPanel {
 
     public void prepareResult() {
         pageTimer.applyTheme("result-timer");
-        pageTimer.start(AppContext.settings().getResultTimerSeconds(), newSessionButton::doClick);
+        pageTimer.start(AppContext.settings().getResultTimerSeconds(), this::handleResultTimerExpired);
         PhotoSession session = AppContext.session();
         if (session == null || session.getPhotos().isEmpty()) {
             uploadStatus.setText("HASIL FOTO TIDAK TERSEDIA");
