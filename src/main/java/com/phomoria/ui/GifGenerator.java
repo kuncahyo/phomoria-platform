@@ -41,6 +41,9 @@ public final class GifGenerator {
             writer.prepareWriteSequence(null);
 
             for (int index = 0; index < frames.size(); index++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("Render GIF dibatalkan oleh watchdog.");
+                }
                 BufferedImage frame = frames.get(index);
                 if (frame == null) continue;
 
