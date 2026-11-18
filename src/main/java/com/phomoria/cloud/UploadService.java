@@ -9,6 +9,8 @@ import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
@@ -82,7 +84,7 @@ public final class UploadService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
-        try (CloseableHttpClient client = HttpClients.createDefault();
+        try (CloseableHttpClient client = createHttpClient();
              CloseableHttpResponse response = client.execute(post)) {
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
@@ -184,6 +186,15 @@ public final class UploadService {
         if (file.isFile() && file.length() > 0) {
             assets.add(new AssetFile(key, type, order, file));
         }
+    }
+
+    private CloseableHttpClient createHttpClient() {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(Timeout.ofSeconds(15))
+                .setConnectTimeout(Timeout.ofSeconds(15))
+                .setResponseTimeout(Timeout.ofSeconds(120))
+                .build();
+        return HttpClients.custom().setDefaultRequestConfig(requestConfig).build();
     }
 
     private String apiUrl(CloudConfig config, String path) {
