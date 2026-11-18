@@ -270,10 +270,8 @@ public final class ResultScreen extends JPanel {
                     stage = System.nanoTime();
                     File folder = createSessionFolder(originals, processed, sessionId);
                     logStage("session-files", sessionId, stage, folder.listFiles() == null ? 0 : folder.listFiles().length);
-                    stage = System.nanoTime();
-                    File animation = new File(folder, "animation.gif");
-                    GifGenerator.write(processed, animation, 800);
-                    logStage("gif-generation", sessionId, stage, animation.length());
+                    // The customer-facing result is the first deliverable.
+                    // Optional media is rendered independently after result.png is safe.
                     stage = System.nanoTime();
                     File output = new File(folder, "result.png");
                     ResultRenderer.renderProcessed(processed, output);
@@ -285,7 +283,7 @@ public final class ResultScreen extends JPanel {
                     logStage("result-render-and-decode", sessionId, stage,
                             rendered.getWidth() + "x" + rendered.getHeight());
                     operation.close();
-                    return new PreparedResult(processed, folder, output, rendered, animation);
+                    return new PreparedResult(processed, folder, output, rendered);
                 } catch (Exception ex) {
                     DebugLog.error("Final Preview background preparation failed. session=" + sessionId, ex);
                     throw ex;
@@ -300,7 +298,7 @@ public final class ResultScreen extends JPanel {
                     }
                     sessionFolder = prepared.folder();
                     renderedFile = prepared.renderedFile();
-                    gifFile = prepared.gifFile();
+                    gifFile = new File(prepared.folder(), "animation.gif");
                     if (isVisible()) {
                         showPhotoStrip(prepared.processed());
                         framePanel.setImage(prepared.renderedImage());
@@ -309,12 +307,9 @@ public final class ResultScreen extends JPanel {
                     DebugLog.info("Final Preview core assets ready. session=" + sessionId
                             + ", resultBytes=" + renderedFile.length()
                             + ", gifBytes=" + (gifFile.isFile() ? gifFile.length() : 0));
-                    // Preparation/upload must continue for the session, but a worker
-                    // finishing after navigation must not repopulate hidden UI images.
-                    if (isVisible()) {
-                        prepareGifPreviewAsync(gifFile, sessionId);
-                    }
-                    prepareLivePhotoAndUpload(session, startedAt);
+                    // Queue the core result immediately; optional media runs independently.
+                    prepareCoreUploadAndOptionalMedia(session, prepared, startedAt);
+                    if (isVisible()) prepareGifPreviewAsync(gifFile, sessionId);
                     SwingUtilities.invokeLater(() -> {
                         PhotoSession current = AppContext.session();
                         if (current == null || !current.getSessionId().equals(sessionId)
@@ -378,7 +373,7 @@ public final class ResultScreen extends JPanel {
     }
 
     private record PreparedResult(List<BufferedImage> processed, File folder,
-                                  File renderedFile, BufferedImage renderedImage, File gifFile) {}
+                                  File renderedFile, BufferedImage renderedImage) {}
 
     /** Stop active animation without discarding a preview that may be shown again. */
     private void stopAnimations() {
@@ -408,114 +403,117 @@ public final class ResultScreen extends JPanel {
      * desktop uploader can include it. A Live Photo failure must never block
      * the ordinary result, GIF, or original-photo upload.
      */
-    private void prepareLivePhotoAndUpload(PhotoSession session, long previewStartedAt) {
-        final File currentSessionFolder = sessionFolder;
-        final String currentFrameName = AppContext.settings().getFrameName();
-        final long currentPreviewStartedAt = previewStartedAt;
-        boolean isActiveSession = session != null
-                && session.getSessionId().equals(activeUploadSessionId);
-        if (!AppContext.settings().isLivePhotoEnabled()
-                || session == null
-                || session.getLivePhotoClips().isEmpty()
-                || currentSessionFolder == null) {
-            if (isActiveSession) stopLivePhotoLoading();
-            uploadResult(session, currentSessionFolder, currentFrameName, currentPreviewStartedAt);
-            return;
+    /**
+     * Queue result.png immediately. GIF and Live Photo are independent optional
+     * jobs: each is published as soon as it is ready and never gates the QR.
+     */
+    private void prepareCoreUploadAndOptionalMedia(PhotoSession session,
+                                                    PreparedResult prepared,
+                                                    long previewStartedAt) {
+        final String sessionId = session.getSessionId();
+        final File folder = prepared.folder();
+        final boolean livePhotoRequested = AppContext.settings().isLivePhotoEnabled()
+                && !session.getLivePhotoClips().isEmpty();
+        final boolean gifRequested = prepared.processed() != null && !prepared.processed().isEmpty();
+
+        try {
+            UploadQueueManager.markOptionalAssetsPending(sessionId);
+        } catch (Exception ex) {
+            DebugLog.error("Could not mark optional media as pending. session=" + sessionId, ex);
         }
+        uploadResult(session, folder, AppContext.settings().getFrameName(), previewStartedAt, false);
 
-        // Persist core assets immediately. Network workers hold PREPARING entries
-        // until the optional Live Photo asset has either completed or failed.
-        uploadResult(session, currentSessionFolder, currentFrameName, currentPreviewStartedAt, true);
-        if (isActiveSession) {
-            startLivePhotoLoading();
-            uploadStatus.setText("MENYIAPKAN LIVE PHOTO...");
-        }
-        new SwingWorker<List<BufferedImage>, Void>() {
-            private Path previewWorkDirectory;
+        final java.util.concurrent.atomic.AtomicInteger remaining =
+                new java.util.concurrent.atomic.AtomicInteger((gifRequested ? 1 : 0)
+                        + (livePhotoRequested ? 1 : 0));
+        if (remaining.get() == 0) { finishOptionalMedia(sessionId); return; }
 
-            @Override
-            protected List<BufferedImage> doInBackground() throws Exception {
-                try (DebugLog.Operation operation = DebugLog.operation(
-                        "live-photo-render-encode-decode", "session=" + session.getSessionId())) {
-                    long stage = System.nanoTime();
-                    Path movie = currentSessionFolder.toPath().resolve("live_photo.mp4");
-                    Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
-                    logStage("live-photo-render-and-encode", session.getSessionId(), stage,
-                            Files.isRegularFile(movie) ? Files.size(movie) : 0);
-                    if (frames == null || !Files.isRegularFile(movie)
-                            || Files.size(movie) <= 0) {
-                        throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
-                    }
-                    stage = System.nanoTime();
-                    previewWorkDirectory = currentSessionFolder.toPath().resolve("live-photo-preview-frames");
-                    List<BufferedImage> decoded = LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
-                    logStage("live-photo-preview-decode", session.getSessionId(), stage,
-                            "frames=" + decoded.size());
-                    return decoded;
+        if (gifRequested) {
+            CompletableMediaExecutor.execute(() -> {
+                try (DebugLog.Operation operation = DebugLog.operation("gif-generation", "session=" + sessionId)) {
+                    long started = System.nanoTime();
+                    File gif = new File(folder, "animation.gif");
+                    GifGenerator.write(prepared.processed(), gif, 800);
+                    if (!gif.isFile() || gif.length() <= 0) throw new IllegalStateException("GIF kosong.");
+                    logStage("gif-generation", sessionId, started, gif.length());
+                    UploadQueueManager.publishOptionalAsset(sessionId, folder, "animation.gif");
+                    DebugLog.info("GIF ready and published to upload queue. session=" + sessionId);
+                    if (sessionId.equals(activeUploadSessionId) && isVisible()) prepareGifPreviewAsync(gif, sessionId);
                 } catch (Exception ex) {
-                    DebugLog.error("Live Photo worker failed. session=" + session.getSessionId(), ex);
-                    throw ex;
-                }
-            }
-
-            @Override
-            protected void done() {
-                cleanupPreviewFrames();
-                try {
-                    List<BufferedImage> frames = get();
-                    if (session.getSessionId().equals(activeUploadSessionId)
-                            && isShowing() && !frames.isEmpty()) {
-                        framePanel.setAnimationFrames(frames);
-                        // The preview is now decoded and its playback timer is running.
-                        // Hide only the Live Photo preparation indicator; upload continues independently.
-                        stopLivePhotoLoading();
-                        DebugLog.info("Live Photo Final Preview playback started.");
-                    }
-                } catch (Exception ex) {
-                    DebugLog.error("Live Photo preparation failed; continuing standard upload.", ex);
+                    DebugLog.error("GIF generation failed; main photo upload continues. session=" + sessionId, ex);
                 } finally {
-                    Path livePhotoFile = currentSessionFolder.toPath().resolve("live_photo.mp4");
-                    boolean livePhotoReady = Files.isRegularFile(livePhotoFile);
-                    try {
-                        livePhotoReady = livePhotoReady && Files.size(livePhotoFile) > 0;
-                    } catch (Exception ignored) {
-                        livePhotoReady = false;
-                    }
-                    if (!livePhotoReady
-                            && session.getSessionId().equals(activeUploadSessionId)) {
-                        stopLivePhotoLoading();
-                    }
-                    // Release the already durable queue entry only after the optional
-                    // asset has been copied, even if the customer moved to a newer session.
-                    new SwingWorker<Void, Void>() {
-                        @Override protected Void doInBackground() throws Exception {
-                            UploadQueueManager.refreshOptionalAssets(session.getSessionId(), currentSessionFolder);
-                            UploadQueueManager.markReady(session.getSessionId());
-                            return null;
-                        }
-                        @Override protected void done() {
-                            try {
-                                get();
-                                DebugLog.info("Session preparation released to upload workers. session="
-                                        + session.getSessionId());
-                            } catch (Exception ex) {
-                                DebugLog.error("Could not release prepared session to upload queue. session="
-                                        + session.getSessionId(), ex);
-                            }
-                        }
-                    }.execute();
+                    if (remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
                 }
-            }
+            });
+        }
 
-            private void cleanupPreviewFrames() {
-                if (previewWorkDirectory == null || !Files.exists(previewWorkDirectory)) return;
-                try (var stream = Files.walk(previewWorkDirectory)) {
-                    stream.sorted(Comparator.reverseOrder()).forEach(path -> {
-                        try { Files.deleteIfExists(path); } catch (Exception ignored) {}
-                    });
-                } catch (Exception ignored) {}
-            }
-        }.execute();
+        if (livePhotoRequested) {
+            new SwingWorker<List<BufferedImage>, Void>() {
+                private Path previewWorkDirectory;
+                @Override protected List<BufferedImage> doInBackground() throws Exception {
+                    try (DebugLog.Operation operation = DebugLog.operation(
+                            "live-photo-render-encode-decode", "session=" + sessionId)) {
+                        long stage = System.nanoTime();
+                        Path movie = folder.toPath().resolve("live_photo.mp4");
+                        Path frames = ResultRenderer.renderLivePhotoVideo(session, movie);
+                        logStage("live-photo-render-and-encode", sessionId, stage,
+                                Files.isRegularFile(movie) ? Files.size(movie) : 0);
+                        if (frames == null || !Files.isRegularFile(movie) || Files.size(movie) <= 0)
+                            throw new IllegalStateException("MP4 Live Photo tidak berhasil dibuat.");
+                        UploadQueueManager.publishOptionalAsset(sessionId, folder, "live_photo.mp4");
+                        stage = System.nanoTime();
+                        previewWorkDirectory = folder.toPath().resolve("live-photo-preview-frames");
+                        List<BufferedImage> decoded = LivePhotoPreviewDecoder.decode(frames, previewWorkDirectory);
+                        logStage("live-photo-preview-decode", sessionId, stage, "frames=" + decoded.size());
+                        return decoded;
+                    }
+                }
+                @Override protected void done() {
+                    cleanupPreviewFrames();
+                    try {
+                        List<BufferedImage> frames = get();
+                        if (sessionId.equals(activeUploadSessionId) && isShowing() && !frames.isEmpty()) {
+                            framePanel.setAnimationFrames(frames);
+                            stopLivePhotoLoading();
+                        }
+                        DebugLog.info("Live Photo ready and published to upload queue. session=" + sessionId);
+                    } catch (Exception ex) {
+                        stopLivePhotoLoading();
+                        DebugLog.error("Live Photo generation failed; main photo upload continues. session=" + sessionId, ex);
+                    } finally {
+                        if (remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
+                    }
+                }
+                private void cleanupPreviewFrames() {
+                    if (previewWorkDirectory == null || !Files.exists(previewWorkDirectory)) return;
+                    try (var stream = Files.walk(previewWorkDirectory)) {
+                        stream.sorted(Comparator.reverseOrder()).forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (Exception ignored) {}
+                        });
+                    } catch (Exception ignored) {}
+                }
+            }.execute();
+            if (sessionId.equals(activeUploadSessionId)) startLivePhotoLoading();
+        }
+    }
+
+    private void finishOptionalMedia(String sessionId) {
+        try {
+            UploadQueueManager.markOptionalAssetsComplete(sessionId);
+            DebugLog.info("All optional media jobs reached a final state. session=" + sessionId);
+        } catch (Exception ex) {
+            DebugLog.error("Could not finalize optional media state. session=" + sessionId, ex);
+        }
+    }
+
+    private static final class CompletableMediaExecutor {
+        private static final java.util.concurrent.ExecutorService EXECUTOR =
+                java.util.concurrent.Executors.newFixedThreadPool(2, task -> {
+                    Thread thread = new Thread(task, "Phomoria-Optional-Media");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+        static void execute(Runnable task) { EXECUTOR.execute(task); }
     }
 
     private void showPhotoStrip(List<BufferedImage> photos) {
