@@ -16,10 +16,13 @@ public final class PhotoSession {
     private final Map<Integer, Path> livePhotoClips = new HashMap<>();
     private final int slotCount;
     private final String sessionId = UUID.randomUUID().toString();
+    private final long startedAt = System.currentTimeMillis();
 
     public PhotoSession(int slotCount) { this.slotCount = Math.max(1, slotCount); }
     public int getSlotCount() { return slotCount; }
     public String getSessionId() { return sessionId; }
+    public long getStartedAt() { return startedAt; }
+    public long getDurationMs() { return Math.max(0L, System.currentTimeMillis() - startedAt); }
     public List<BufferedImage> getPhotos() { return Collections.unmodifiableList(photos); }
     public int getCapturedCount() { return photos.size(); }
     public boolean isComplete() { return photos.size() >= slotCount; }
