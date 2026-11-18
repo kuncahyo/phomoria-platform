@@ -227,6 +227,7 @@ public final class SettingsScreen extends JPanel {
                         "SAVE SETTINGS"
                 );
         JButton themeEditorButton = new JButton("THEME EDITOR");
+        JButton advancedButton = new JButton("ADVANCED");
 
         JButton testPrint =
                 new JButton(
@@ -239,6 +240,7 @@ public final class SettingsScreen extends JPanel {
                 );
 
         bottom.add(cancel);
+        bottom.add(advancedButton);
         bottom.add(themeEditorButton);
         bottom.add(testPrint);
         bottom.add(save);
@@ -251,6 +253,10 @@ public final class SettingsScreen extends JPanel {
         });
         add(themeEditorPanel, "THEME_EDITOR");
         ((CardLayout) getLayout()).show(this, "SETTINGS");
+        advancedButton.addActionListener(e -> {
+            cameraStatusTimer.stop();
+            frame.showAdvancedSettings();
+        });
         themeEditorButton.addActionListener(e -> {
             cameraStatusTimer.stop();
             ((CardLayout) getLayout()).show(this, "THEME_EDITOR");
