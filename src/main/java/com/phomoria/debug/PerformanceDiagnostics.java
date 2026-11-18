@@ -37,7 +37,6 @@ public final class PerformanceDiagnostics {
     public static synchronized void recordSessionEnd(PhotoSession session, String reason) {
         if (session == null || !isEnabled()) return;
 
-        Runtime runtime = Runtime.getRuntime();
         MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
         MemoryUsage heap = memory.getHeapMemoryUsage();
         MemoryUsage nonHeap = memory.getNonHeapMemoryUsage();
@@ -54,6 +53,8 @@ public final class PerformanceDiagnostics {
 
         UploadQueueEntry upload = UploadQueueManager.find(session.getSessionId());
         int livePhotoClips = session.getLivePhotoClips().size();
+        String livePhotoState = !AppContext.settings().isLivePhotoEnabled()
+                ? "DISABLED" : livePhotoClips > 0 ? "CLIPS_SAVED_AWAITING_RENDER" : "ENABLED_NO_CLIPS_SAVED";
 
         DebugLog.info("PERF_SESSION_END"
                 + " session=" + session.getSessionId()
@@ -63,7 +64,7 @@ public final class PerformanceDiagnostics {
                 + ", photos=" + session.getCapturedCount()
                 + ", slots=" + session.getSlotCount()
                 + ", livePhotoClipsSaved=" + livePhotoClips
-                + ", livePhotoEnabled=" + AppContext.settings().isLivePhotoEnabled()
+                + ", livePhotoStateAtSessionEnd=" + livePhotoState
                 + ", uploadQueueStatus=" + (upload == null ? "NOT_QUEUED_YET" : safe(upload.status))
                 + ", uploadServerStatus=" + (upload == null ? "" : safe(upload.serverStatus))
                 + ", uploadError=" + (upload == null ? "" : safe(upload.lastError))
@@ -75,7 +76,7 @@ public final class PerformanceDiagnostics {
                 + ", processPrivateBytes=" + processMemory("private")
                 + ", systemRamTotalBytes=" + totalRam
                 + ", systemRamAvailableBytes=" + availableRam
-                + ", threadCount=" + Thread.activeCount());
+                + ", threadCount=" + ManagementFactory.getThreadMXBean().getThreadCount());
 
         if (AppContext.settings().isPerformanceDiagnosticsCpuEnabled()) {
             try {
