@@ -309,7 +309,7 @@ public final class ResultScreen extends JPanel {
                             + ", gifBytes=" + (gifFile.isFile() ? gifFile.length() : 0));
                     // Queue the core result immediately; optional media runs independently.
                     prepareCoreUploadAndOptionalMedia(session, prepared, startedAt);
-                    if (isVisible()) prepareGifPreviewAsync(gifFile, sessionId);
+
                     SwingUtilities.invokeLater(() -> {
                         PhotoSession current = AppContext.session();
                         if (current == null || !current.getSessionId().equals(sessionId)
