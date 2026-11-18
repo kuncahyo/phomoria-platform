@@ -227,6 +227,8 @@ public final class DebugLog {
     /**
      * Returns a copy of the current in-memory history.
      */
+    public static Path getLogDirectory() { return LOG_DIRECTORY; }
+
     public static synchronized List<String> getHistory() {
         return new ArrayList<>(HISTORY);
     }
