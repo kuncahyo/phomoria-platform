@@ -112,6 +112,19 @@ public final class CaptureController {
                 livePhotoFrames = CameraManager.snapshotLivePhoto(
                         AppContext.settings().getLivePhotoDurationSeconds());
             }
+
+            var session = AppContext.session();
+            int slotIndex = retake ? targetIndex : session.getCapturedCount();
+            String cameraSource = CameraManager.current() != null ? "WEBCAM"
+                    : CameraManager.currentBackend() != null ? "GPHOTO2" : "NONE";
+            DebugLog.info("LIVE_PHOTO_CAPTURE_SNAPSHOT"
+                    + " session=" + session.getSessionId()
+                    + ", slot=" + (slotIndex + 1)
+                    + ", mode=" + (retake ? "RETAKE" : "NEW")
+                    + ", source=" + cameraSource
+                    + ", frames=" + livePhotoFrames.size()
+                    + ", result=" + (livePhotoFrames.isEmpty() ? "EMPTY" : "READY"));
+
             captureAsync(livePhotoFrames);
 
             return;
