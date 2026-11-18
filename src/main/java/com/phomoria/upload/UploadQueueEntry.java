@@ -18,5 +18,7 @@ public final class UploadQueueEntry {
     public long updatedAt;
     public long nextAttemptAt;
     public int attemptCount;
+    /** True while GIF/Live Photo generation may still publish additional assets. */
+    public boolean optionalAssetsPending;
     public UploadQueueEntry() {}
 }
