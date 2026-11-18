@@ -426,7 +426,7 @@ public final class ResultScreen extends JPanel {
         if (remaining.get() == 0) { finishOptionalMedia(sessionId); return; }
 
         if (gifRequested) {
-            CompletableMediaExecutor.execute(() -> {
+            java.util.concurrent.Future<?> gifTask = CompletableMediaExecutor.submit(() -> {
                 try (DebugLog.Operation operation = DebugLog.operation("gif-generation", "session=" + sessionId)) {
                     long started = System.nanoTime();
                     File gif = new File(folder, "animation.gif");
@@ -442,10 +442,12 @@ public final class ResultScreen extends JPanel {
                     if (remaining.decrementAndGet() == 0) finishOptionalMedia(sessionId);
                 }
             });
+            MediaTaskWatchdog.watch("Render GIF", sessionId, gifTask,
+                    () -> showMediaAlert("GIF", false), () -> showMediaAlert("GIF", true));
         }
 
         if (livePhotoRequested) {
-            new SwingWorker<List<BufferedImage>, Void>() {
+            SwingWorker<List<BufferedImage>, Void> livePhotoWorker = new SwingWorker<>() {
                 private Path previewWorkDirectory;
                 @Override protected List<BufferedImage> doInBackground() throws Exception {
                     try (DebugLog.Operation operation = DebugLog.operation(
@@ -489,9 +491,23 @@ public final class ResultScreen extends JPanel {
                         });
                     } catch (Exception ignored) {}
                 }
-            }.execute();
+            };
+            livePhotoWorker.execute();
+            MediaTaskWatchdog.watch("Render Live Photo", sessionId, livePhotoWorker,
+                    () -> showMediaAlert("Live Photo", false), () -> showMediaAlert("Live Photo", true));
             if (sessionId.equals(activeUploadSessionId)) startLivePhotoLoading();
         }
+    }
+
+    private void showMediaAlert(String mediaName, boolean timedOut) {
+        SwingUtilities.invokeLater(() -> {
+            String message = timedOut
+                    ? mediaName + " tidak berhasil diselesaikan dalam 10 menit dan dihentikan agar tidak mengganggu sesi berikutnya. Foto utama tetap aman dan proses upload tetap berjalan."
+                    : mediaName + " masih diproses lebih dari 5 menit. Foto utama tetap aman dan upload tetap berjalan. Sistem akan menghentikan proses tambahan ini jika melewati 10 menit.";
+            JOptionPane.showMessageDialog(this, message,
+                    timedOut ? "Proses Media Dihentikan" : "Proses Media Lambat",
+                    timedOut ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
+        });
     }
 
     private void finishOptionalMedia(String sessionId) {
@@ -510,7 +526,7 @@ public final class ResultScreen extends JPanel {
                     thread.setDaemon(true);
                     return thread;
                 });
-        static void execute(Runnable task) { EXECUTOR.execute(task); }
+        static java.util.concurrent.Future<?> submit(Runnable task) { return EXECUTOR.submit(task); }
     }
 
     private void showPhotoStrip(List<BufferedImage> photos) {
