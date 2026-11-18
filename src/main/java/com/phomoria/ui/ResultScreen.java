@@ -737,7 +737,7 @@ public final class ResultScreen extends JPanel {
                             if (!qrTimerResetForReady) {
                                 qrTimerResetForReady = true;
                                 pageTimer.start(AppContext.settings().getResultTimerSeconds(),
-                                        this::handleResultTimerExpired);
+                                        ResultScreen.this::handleResultTimerExpired);
                             }
                         }
 
