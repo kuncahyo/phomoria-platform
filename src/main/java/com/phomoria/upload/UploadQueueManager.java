@@ -37,6 +37,7 @@ public final class UploadQueueManager {
     private static final AtomicBoolean STARTED = new AtomicBoolean();
     private static final AtomicBoolean RESERVATION_BUSY = new AtomicBoolean();
     private static final AtomicBoolean ASSET_BUSY = new AtomicBoolean();
+    private static final AtomicBoolean TOKEN_WARNING_SHOWN = new AtomicBoolean();
 
     private UploadQueueManager() {}
 
@@ -180,13 +181,21 @@ public final class UploadQueueManager {
     }
 
     /** Publishes one completed optional asset to the durable queue. */
-    public static synchronized void publishOptionalAsset(String sessionId, File source, String filename) throws Exception {
+    public static void publishOptionalAsset(String sessionId, File source, String filename) throws Exception {
         if (sessionId == null || sessionId.isBlank() || source == null)
             throw new IllegalArgumentException("Session/source tidak valid untuk refresh aset.");
         File target = STORE.folder(sessionId);
-        if (!new File(target, "manifest.json").isFile())
-            throw new IllegalStateException("Manifest antrean belum tersedia: " + sessionId);
-        copy(source, target, filename);
+        // Optional rendering can finish before the enqueue worker has copied
+        // result.png. Wait briefly for that durable manifest instead of losing
+        // an already-rendered GIF/MP4 to a harmless scheduling race.
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(60);
+        File manifest = new File(target, "manifest.json");
+        while (!manifest.isFile() && System.currentTimeMillis() < deadline) Thread.sleep(250);
+        if (!manifest.isFile())
+            throw new IllegalStateException("Manifest antrean belum tersedia setelah menunggu: " + sessionId);
+        synchronized (UploadQueueManager.class) {
+            copy(source, target, filename);
+        }
         DebugLog.info("Optional upload asset published. session=" + sessionId
                 + ", asset=" + filename + ", bytes=" + new File(target, filename).length());
         start();
@@ -220,7 +229,11 @@ public final class UploadQueueManager {
     private static void processNextReservation() {
         if (!RESERVATION_BUSY.compareAndSet(false, true)) return;
         try {
-            if (CloudConfigManager.getConfig().getToken().isBlank()) return;
+            if (CloudConfigManager.getConfig().getToken().isBlank()) {
+                if (TOKEN_WARNING_SHOWN.compareAndSet(false, true))
+                    DebugLog.warn("Upload queue menunggu login/token cloud. File lokal tetap tersimpan.");
+                return;
+            }
             long now = System.currentTimeMillis();
             for (UploadQueueEntry entry : newestFirst(STORE.loadAll())) {
                 if (!entry.galleryUrl.isBlank() || entry.nextAttemptAt > now) continue;
@@ -321,8 +334,11 @@ public final class UploadQueueManager {
                         + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - assetStarted));
                 entry.uploadedAssetKeys.add(next.getKey());
                 entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
-                if ("COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
+                if ("COMPLETED".equalsIgnoreCase(entry.serverStatus) && !entry.optionalAssetsPending) {
                     entry.status = "COMPLETED";
+                } else if (entry.optionalAssetsPending) {
+                    entry.status = "PARTIAL";
+                    entry.nextAttemptAt = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8);
                 }
                 entry.lastError = "";
                 entry.attemptCount = 0;
