@@ -70,7 +70,7 @@ public final class UploadQueueManager {
         enqueue(sessionId, frameName, source, previewStartedAt, voucherToken, false);
     }
 
-    /** Persists a session immediately but can hold network processing until optional assets finish. */
+    /** Persists the core session immediately and records whether optional media may arrive later. */
     public static synchronized void enqueue(String sessionId, String frameName, File source,
                                              long previewStartedAt, String voucherToken,
                                              boolean deferProcessing) throws Exception {
@@ -139,12 +139,24 @@ public final class UploadQueueManager {
     private static void recoverInterruptedPreparations() {
         try {
             for (UploadQueueEntry entry : STORE.loadAll()) {
+                boolean changed = false;
                 if ("PREPARING".equals(entry.status)) {
                     entry.status = "PENDING";
-                    entry.lastError = "Recovered after application restart; optional Live Photo may be absent.";
+                    entry.lastError = "Persiapan upload dipulihkan setelah aplikasi dimulai ulang.";
+                    changed = true;
+                }
+                if (entry.optionalAssetsPending) {
+                    // A renderer from the previous process cannot resume. Keep all
+                    // assets already published and let the core upload finish.
+                    entry.optionalAssetsPending = false;
+                    entry.lastError = "Render media tambahan terputus saat aplikasi ditutup; aset utama tetap diproses.";
+                    changed = true;
+                    DebugLog.warn("Optional media interrupted by application restart; continuing queued assets. session="
+                            + entry.sessionId);
+                }
+                if (changed) {
                     entry.updatedAt = System.currentTimeMillis();
                     STORE.save(entry);
-                    DebugLog.warn("Recovered interrupted upload preparation. session=" + entry.sessionId);
                 }
             }
         } catch (Exception ex) {
