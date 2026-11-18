@@ -72,6 +72,7 @@ public final class ResultScreen extends JPanel {
     private Timer uploadStatusPollTimer;
     private String activeUploadSessionId = "";
     private long resultPreparedAt;
+    private boolean qrTimerResetForReady;
     private int uploadDots;
     private JDialog qrDialog;
     private Timer qrDialogTimer;
@@ -260,6 +261,7 @@ public final class ResultScreen extends JPanel {
         activeUploadSessionId = session.getSessionId();
         resultPreparedAt = System.currentTimeMillis();
         downloadUrl = "";
+        qrTimerResetForReady = false;
         setQrLoading(true);
         printButton.setVisible(AppContext.settings().isViewPrintButton());
         uploadStatus.setText("MENYIAPKAN HASIL FOTO...");
@@ -732,6 +734,11 @@ public final class ResultScreen extends JPanel {
                         if (entry.galleryUrl != null && !entry.galleryUrl.isBlank()) {
                             downloadUrl = entry.galleryUrl;
                             setQrReady();
+                            if (!qrTimerResetForReady) {
+                                qrTimerResetForReady = true;
+                                pageTimer.start(AppContext.settings().getResultTimerSeconds(),
+                                        this::handleResultTimerExpired);
+                            }
                         }
 
                         if ("COMPLETED".equals(entry.status)) {
