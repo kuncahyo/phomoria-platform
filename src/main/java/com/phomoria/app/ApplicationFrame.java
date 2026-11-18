@@ -8,6 +8,7 @@ import com.phomoria.ui.SettingsScreen;
 import com.phomoria.ui.StartScreen;
 import com.phomoria.debug.DebugConsoleDialog;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.debug.PerformanceDiagnostics;
 import com.phomoria.cloud.DevicePasswordManager;
 import com.phomoria.ui.FrameSelectionScreen;
 import com.phomoria.ui.UpdateScreen;
@@ -263,6 +264,7 @@ public final class ApplicationFrame extends JFrame {
         }
 
         DebugLog.info("Photo session cancelled -> Navigation -> FRAME_SELECTION");
+        PerformanceDiagnostics.recordSessionEnd(AppContext.session(), "CANCELLED");
 
         Component main = findScreen("MAIN");
 
@@ -296,11 +298,18 @@ public final class ApplicationFrame extends JFrame {
     }
 
     public void showFinalResult() {
+        PerformanceDiagnostics.recordSessionEnd(AppContext.session(), "FINAL_PREVIEW");
         DebugLog.info("Navigation -> RESULT");
         ResultScreen result = new ResultScreen(this);
         replace("RESULT", result);
         cards.show(root, "RESULT");
         SwingUtilities.invokeLater(result::prepareResult);
+    }
+
+    public void showAdvancedSettings() {
+        DebugLog.info("Navigation -> ADVANCED_SETTINGS");
+        replace("ADVANCED_SETTINGS", new com.phomoria.ui.AdvancedSettingsScreen(this, this::showStart));
+        cards.show(root, "ADVANCED_SETTINGS");
     }
 
     public void showSettings() {
