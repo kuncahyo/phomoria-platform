@@ -115,6 +115,9 @@ public final class ResultRenderer {
         Files.createDirectories(framesDirectory);
         try {
             for (int frameIndex = 0; frameIndex < outputFrameCount; frameIndex++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException("Render Live Photo dibatalkan oleh watchdog.");
+                }
                 List<BufferedImage> currentPhotos = new ArrayList<>(stillPhotos);
                 double progress = outputFrameCount <= 1 ? 0.0
                         : frameIndex / (double) (outputFrameCount - 1);
