@@ -26,6 +26,7 @@ public final class Main {
 
             AppContext.initialize();
             UploadQueueManager.start();
+            com.phomoria.debug.SystemHealthMonitor.start();
 
             ApplicationFrame frame = new ApplicationFrame();
             frame.setVisible(true);
