@@ -116,11 +116,36 @@ public final class WebcamLivePhotoBuffer {
                     result.add(new Frame(frame.timestampMillis(), frame.jpeg()));
                 }
             }
-            // Do not silently create a shorter Live Photo when the webcam has
-            // not yet warmed up for the full configured pre-shutter interval.
+            // Keep the full configured pre-shutter interval and reject stale
+            // buffers. Record the exact rejection reason so a missing clip can
+            // be diagnosed without changing capture timing or sampling load.
             long requiredFirstFrame = startTime + Math.max(1, 1000 / SAMPLE_FPS) * 2L;
-            if (result.size() < 2 || result.get(0).timestampMillis() > requiredFirstFrame
-                    || shutterTime - result.get(result.size() - 1).timestampMillis() > 500L) {
+            long firstFrameAge = result.isEmpty()
+                    ? -1L : shutterTime - result.get(0).timestampMillis();
+            long lastFrameAge = result.isEmpty()
+                    ? -1L : shutterTime - result.get(result.size() - 1).timestampMillis();
+            String rejectionReason = null;
+
+            if (!running) {
+                rejectionReason = "FRAME_PUMP_NOT_RUNNING";
+            } else if (result.size() < 2) {
+                rejectionReason = "INSUFFICIENT_FRAMES";
+            } else if (result.get(0).timestampMillis() > requiredFirstFrame) {
+                rejectionReason = "BUFFER_NOT_WARMED_FOR_FULL_DURATION";
+            } else if (lastFrameAge > 500L) {
+                rejectionReason = "LATEST_FRAME_STALE";
+            }
+
+            DebugLog.info("LIVE_PHOTO_BUFFER_SNAPSHOT"
+                    + " requestedSeconds=" + seconds
+                    + ", bufferedFrames=" + frames.size()
+                    + ", selectedFrames=" + result.size()
+                    + ", firstFrameAgeMs=" + firstFrameAge
+                    + ", lastFrameAgeMs=" + lastFrameAge
+                    + ", result=" + (rejectionReason == null ? "ACCEPTED" : "REJECTED")
+                    + ", reason=" + (rejectionReason == null ? "NONE" : rejectionReason));
+
+            if (rejectionReason != null) {
                 return List.of();
             }
             return Collections.unmodifiableList(result);
