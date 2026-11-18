@@ -112,7 +112,8 @@ public final class UploadQueueManager {
         entry.sessionId = sessionId;
         entry.frameName = frameName == null ? "" : frameName;
         entry.voucherToken = voucherToken == null ? "" : voucherToken;
-        entry.status = deferProcessing ? "PREPARING" : "PENDING";
+        entry.status = "PENDING";
+        entry.optionalAssetsPending = deferProcessing;
         entry.createdAt = previewStartedAt > 0 ? previewStartedAt : System.currentTimeMillis();
         entry.updatedAt = System.currentTimeMillis();
         try (java.io.FileWriter writer = new java.io.FileWriter(new File(staging, "manifest.json"))) {
@@ -168,16 +169,38 @@ public final class UploadQueueManager {
         }
     }
 
-    /** Copies optional assets produced after the initial durable enqueue. */
-    public static synchronized void refreshOptionalAssets(String sessionId, File source) throws Exception {
+    /** Marks that optional media is being rendered independently of the initial upload. */
+    public static synchronized void markOptionalAssetsPending(String sessionId) throws Exception {
+        UploadQueueEntry entry = STORE.find(sessionId);
+        if (entry == null) throw new IllegalStateException("Queue entry not found: " + sessionId);
+        entry.optionalAssetsPending = true;
+        entry.updatedAt = System.currentTimeMillis();
+        STORE.save(entry);
+        DebugLog.info("Optional media production started. session=" + sessionId);
+    }
+
+    /** Publishes one completed optional asset to the durable queue. */
+    public static synchronized void publishOptionalAsset(String sessionId, File source, String filename) throws Exception {
         if (sessionId == null || sessionId.isBlank() || source == null)
             throw new IllegalArgumentException("Session/source tidak valid untuk refresh aset.");
         File target = STORE.folder(sessionId);
         if (!new File(target, "manifest.json").isFile())
             throw new IllegalStateException("Manifest antrean belum tersedia: " + sessionId);
-        copy(source, target, "live_photo.mp4");
-        DebugLog.info("Optional upload assets refreshed. session=" + sessionId
-                + ", livePhotoPresent=" + new File(target, "live_photo.mp4").isFile());
+        copy(source, target, filename);
+        DebugLog.info("Optional upload asset published. session=" + sessionId
+                + ", asset=" + filename + ", bytes=" + new File(target, filename).length());
+        start();
+    }
+
+    /** Allows the queue to report completion only after all optional renderers finish. */
+    public static synchronized void markOptionalAssetsComplete(String sessionId) throws Exception {
+        UploadQueueEntry entry = STORE.find(sessionId);
+        if (entry == null) throw new IllegalStateException("Queue entry not found: " + sessionId);
+        entry.optionalAssetsPending = false;
+        entry.updatedAt = System.currentTimeMillis();
+        STORE.save(entry);
+        DebugLog.info("Optional media production finished. session=" + sessionId);
+        start();
     }
 
     /** Allows the Live Photo worker to release a durably queued session for upload. */
@@ -306,6 +329,12 @@ public final class UploadQueueManager {
                 entry.nextAttemptAt = 0;
                 DebugLog.info("Uploaded session asset. session=" + entry.sessionId
                         + ", asset=" + next.getKey());
+            } else if (entry.optionalAssetsPending) {
+                // Core assets may already be online, but optional renderers can still
+                // publish GIF/Live Photo later. Do not mark this session completed yet.
+                entry.status = "PARTIAL";
+                entry.nextAttemptAt = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8);
+                DebugLog.info("Core assets uploaded; waiting for optional media. session=" + entry.sessionId);
             } else {
                 // The server, not the local manifest, decides whether the
                 // gallery is fully synchronized.
