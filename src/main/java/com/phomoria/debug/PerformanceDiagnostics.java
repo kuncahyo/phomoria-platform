@@ -103,10 +103,9 @@ public final class PerformanceDiagnostics {
         try {
             com.sun.jna.platform.win32.WinNT.HANDLE process =
                     com.sun.jna.platform.win32.Kernel32.INSTANCE.GetCurrentProcess();
-            com.sun.jna.platform.win32.Psapi.PROCESS_MEMORY_COUNTERS counters =
-                    new com.sun.jna.platform.win32.Psapi.PROCESS_MEMORY_COUNTERS();
-            if (!com.sun.jna.platform.win32.Psapi.INSTANCE.GetProcessMemoryInfo(
-                    process, counters, counters.size())) return -1L;
+            ProcessMemoryCounters counters = new ProcessMemoryCounters();
+            counters.cb = new com.sun.jna.platform.win32.WinDef.DWORD(counters.size());
+            if (!PsapiMemory.INSTANCE.GetProcessMemoryInfo(process, counters, counters.size())) return -1L;
             counters.read();
             return "workingSet".equals(metric)
                     ? counters.WorkingSetSize.longValue()
@@ -114,6 +113,32 @@ public final class PerformanceDiagnostics {
         } catch (Throwable ignored) {
             return -1L;
         }
+    }
+
+    private interface PsapiMemory extends com.sun.jna.win32.StdCallLibrary {
+        PsapiMemory INSTANCE = com.sun.jna.Native.load("psapi", PsapiMemory.class,
+                com.sun.jna.win32.W32APIOptions.DEFAULT_OPTIONS);
+        boolean GetProcessMemoryInfo(com.sun.jna.platform.win32.WinNT.HANDLE process,
+                                     ProcessMemoryCounters counters, int size);
+    }
+
+    @com.sun.jna.Structure.FieldOrder({
+            "cb", "PageFaultCount", "PeakWorkingSetSize", "WorkingSetSize",
+            "QuotaPeakPagedPoolUsage", "QuotaPagedPoolUsage",
+            "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage",
+            "PagefileUsage", "PeakPagefileUsage"
+    })
+    public static final class ProcessMemoryCounters extends com.sun.jna.Structure {
+        public com.sun.jna.platform.win32.WinDef.DWORD cb;
+        public com.sun.jna.platform.win32.WinDef.DWORD PageFaultCount;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T PeakWorkingSetSize;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T WorkingSetSize;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T QuotaPeakPagedPoolUsage;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T QuotaPagedPoolUsage;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T QuotaPeakNonPagedPoolUsage;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T QuotaNonPagedPoolUsage;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T PagefileUsage;
+        public com.sun.jna.platform.win32.BaseTSD.SIZE_T PeakPagefileUsage;
     }
 
     private static String safe(String value) {
