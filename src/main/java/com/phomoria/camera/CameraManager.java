@@ -279,6 +279,21 @@ public final class CameraManager {
         return webcamFrameBuffer.getLatestPreviewFrame();
     }
 
+    /**
+     * Readiness check used before starting a capture countdown.
+     * DSLR backends retain their existing readiness behavior; for UVC webcams,
+     * require the shared preview/Live Photo frame pump to have a recent frame.
+     */
+    public static boolean isCapturePreviewReady() {
+        synchronized (CAMERA_LOCK) {
+            if (currentBackend != null) {
+                return true;
+            }
+            return current != null && current.isOpen()
+                    && webcamFrameBuffer.hasFreshPreviewFrame(500L);
+        }
+    }
+
     /** Snapshot of the rolling webcam buffer, ending at the current shutter time. */
     public static List<WebcamLivePhotoBuffer.Frame> snapshotLivePhoto(int durationSeconds) {
         synchronized (CAMERA_LOCK) {
