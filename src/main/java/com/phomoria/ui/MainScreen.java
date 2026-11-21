@@ -559,8 +559,6 @@ public final class MainScreen
         }
 
         retakeMode = false;
-        selectedIndex = -1;
-        preview.clearSelection();
 
         cameraView.setCropGuide(
                 selectedFrameDefinition,
@@ -807,8 +805,8 @@ public final class MainScreen
                 return;
             }
 
-            selectedIndex = -1;
-            preview.clearSelection();
+            selectedIndex = targetIndex;
+            preview.selectIndex(targetIndex);
 
             status.setText(
                     "FOTO "
@@ -820,6 +818,8 @@ public final class MainScreen
             session.addPhoto(
                     storedImage
             );
+            selectedIndex = session.getCapturedCount() - 1;
+            preview.selectIndex(selectedIndex);
 
             DebugLog.info(
                     "Photo added. count="
