@@ -68,6 +68,9 @@ public final class FrameCloudService {
                 }
             }
             return Collections.unmodifiableList(result);
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("frame-list-download", networkStarted, url, ex, "device=" + deviceUuid);
+            throw ex;
         }
     }
 
@@ -89,6 +92,10 @@ public final class FrameCloudService {
             }
             if (body.length == 0) throw new FrameCloudException("Download frame " + frameId + " berhasil tetapi file kosong.");
             return body;
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("frame-file-download", networkStarted, url, ex,
+                    "device=" + deviceUuid + ", frame=" + frameId);
+            throw ex;
         }
     }
 
