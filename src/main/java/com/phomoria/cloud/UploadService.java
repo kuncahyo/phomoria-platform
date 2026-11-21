@@ -107,6 +107,48 @@ public final class UploadService {
         }
     }
 
+    /**
+     * Register an asset that was rendered after the initial session reservation.
+     * The server operation is idempotent, so retrying after a lost response is safe.
+     */
+    public boolean registerAsset(String clientSessionId, AssetFile asset) throws Exception {
+        if (clientSessionId == null || clientSessionId.isBlank() || asset == null
+                || asset.getFile() == null || !asset.getFile().isFile() || asset.getFile().length() <= 0) {
+            throw new IllegalArgumentException("Data aset tidak valid untuk registrasi.");
+        }
+
+        CloudConfig config = CloudConfigManager.getConfig();
+        DeviceInfo device = DeviceManager.getDevice();
+        if (config.getToken().isBlank()) throw new IllegalStateException("Belum login ke API.");
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("device_uuid", device.getUuid());
+        payload.addProperty("client_session_id", clientSessionId);
+        payload.addProperty("asset_key", asset.getKey());
+        payload.addProperty("asset_type", asset.getType());
+        payload.addProperty("filename", asset.getFile().getName());
+        payload.addProperty("sort_order", asset.getSortOrder());
+        payload.addProperty("size", asset.getFile().length());
+
+        HttpPost post = new HttpPost(apiUrl(config, "/api/session/asset/register"));
+        post.setHeader("Authorization", "Bearer " + config.getToken());
+        post.setHeader("Accept", "application/json");
+        post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
+        try (CloseableHttpClient client = createHttpClient();
+             CloseableHttpResponse response = client.execute(post)) {
+            String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
+            if (response.getCode() < 200 || response.getCode() >= 300) {
+                throw new IllegalStateException("Registrasi aset " + asset.getKey() + " HTTP "
+                        + response.getCode() + ": " + body);
+            }
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            if (json == null || !json.has("success") || !json.get("success").getAsBoolean()) {
+                throw new IllegalStateException("Response registrasi aset tidak valid: " + body);
+            }
+            return json.has("already_uploaded") && json.get("already_uploaded").getAsBoolean();
+        }
+    }
+
     /** Upload exactly one manifest asset. Repeating the same key is safe. */
     public boolean uploadAsset(String clientSessionId, String assetKey, File file) throws Exception {
         CloudConfig config = CloudConfigManager.getConfig();
