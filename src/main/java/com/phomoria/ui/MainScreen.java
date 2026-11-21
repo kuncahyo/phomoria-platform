@@ -70,6 +70,7 @@ public final class MainScreen
     private Timer starterTimer;
     private Timer freezeTimer;
     private Timer finalReviewTimer;
+    private Timer cameraReadyTimer;
     private int finalReviewSeconds;
 
     private int freezeSeconds;
@@ -567,8 +568,7 @@ public final class MainScreen
         );
 
         showLiveCamera();
-
-        captureController.startNewPhoto();
+        startCaptureWhenCameraReady(false, -1);
     }
 
     private void startRetake() {
@@ -619,29 +619,53 @@ public final class MainScreen
 
         showLiveCamera();
 
-        status.setText(
-                "LIVE CAMERA — SIAP RETAKE FOTO "
-                        + (retakeIndex + 1)
-        );
+        status.setText("RETAKE DILAKUKAN");
+        startCaptureWhenCameraReady(true, retakeIndex);
+    }
 
-        Timer prepare =
-                new Timer(
-                        700,
-                        e -> {
-                            ((Timer) e.getSource()).stop();
+    /**
+     * Wait until the shared webcam frame pump has delivered a recent frame
+     * before starting the countdown. The rolling Live Photo buffer is never
+     * cleared or restarted here; it continues recording throughout countdown.
+     * DSLR capture behavior remains unchanged.
+     */
+    private void startCaptureWhenCameraReady(boolean retake, int targetIndex) {
+        if (cameraReadyTimer != null) {
+            cameraReadyTimer.stop();
+            cameraReadyTimer = null;
+        }
 
-                            if (!active || shuttingDown) {
-                                return;
-                            }
+        final long waitStartedAt = System.currentTimeMillis();
+        cameraReadyTimer = new Timer(50, e -> {
+            if (!active || shuttingDown) {
+                ((Timer) e.getSource()).stop();
+                cameraReadyTimer = null;
+                return;
+            }
 
-                            captureController.startRetake(
-                                    retakeIndex
-                            );
-                        }
-                );
+            boolean ready = CameraManager.isCapturePreviewReady();
+            long waitedMillis = System.currentTimeMillis() - waitStartedAt;
+            if (ready || waitedMillis >= 2000L) {
+                ((Timer) e.getSource()).stop();
+                cameraReadyTimer = null;
 
-        prepare.setRepeats(false);
-        prepare.start();
+                if (ready) {
+                    DebugLog.info("Camera preview ready before countdown. waitedMs=" + waitedMillis);
+                } else {
+                    // Preserve the existing capture flow if readiness cannot be
+                    // confirmed; do not leave a customer session stuck here.
+                    DebugLog.warn("Camera preview readiness timed out; continuing existing capture flow.");
+                }
+
+                if (retake) {
+                    captureController.startRetake(targetIndex);
+                } else {
+                    captureController.startNewPhoto();
+                }
+            }
+        });
+        cameraReadyTimer.setCoalesce(true);
+        cameraReadyTimer.start();
     }
 
     @Override
@@ -875,10 +899,7 @@ public final class MainScreen
                                         selectedFrameDefinition,
                                         selectedIndex
                                 );
-
-                                captureController.startRetake(
-                                        selectedIndex
-                                );
+                                startCaptureWhenCameraReady(true, selectedIndex);
 
                             } else {
                                 cameraView.setCropGuide(
@@ -886,8 +907,7 @@ public final class MainScreen
                                         AppContext.session()
                                                 .getCapturedCount()
                                 );
-
-                                captureController.startNewPhoto();
+                                startCaptureWhenCameraReady(false, -1);
                             }
                         }
                 );
@@ -1098,6 +1118,11 @@ public final class MainScreen
     }
 
     private void stopAllTimers() {
+        if (cameraReadyTimer != null) {
+            cameraReadyTimer.stop();
+            cameraReadyTimer = null;
+        }
+
         if (starterTimer != null) {
             starterTimer.stop();
             starterTimer = null;
