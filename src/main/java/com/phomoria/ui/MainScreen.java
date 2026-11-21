@@ -806,7 +806,6 @@ public final class MainScreen
             }
 
             selectedIndex = targetIndex;
-            preview.selectIndex(targetIndex);
 
             status.setText(
                     "FOTO "
@@ -819,7 +818,6 @@ public final class MainScreen
                     storedImage
             );
             selectedIndex = session.getCapturedCount() - 1;
-            preview.selectIndex(selectedIndex);
 
             DebugLog.info(
                     "Photo added. count="
@@ -830,6 +828,7 @@ public final class MainScreen
         }
 
         refreshPreview();
+        preview.selectIndex(selectedIndex);
         showCapturedPhoto(
                 storedImage
         );
