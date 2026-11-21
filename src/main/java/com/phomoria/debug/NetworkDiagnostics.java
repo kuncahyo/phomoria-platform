@@ -22,7 +22,7 @@ public final class NetworkDiagnostics {
 
     public static void succeeded(String operation, long startedNanos, int httpStatus, String context) {
         DebugLog.info("NETWORK SUCCESS operation=" + safe(operation)
-                + ", httpStatus=" + httpStatus
+                + ", httpStatus=" + (httpStatus > 0 ? httpStatus : "2xx")
                 + ", elapsedMs=" + elapsed(startedNanos) + ", " + safe(context));
     }
 
