@@ -63,6 +63,10 @@ public final class UpdateDownloader {
         try (InputStream input = response.body()) {
             Files.copy(input, destination,
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ex) {
+            NetworkDiagnostics.failed("update-download-body", networkStarted, info.getDownloadUrl(),
+                    ex, "version=" + safeVersion + ", stage=stream-copy");
+            throw ex;
         }
 
         DebugLog.info("Update package downloaded: " + destination);
