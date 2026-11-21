@@ -110,6 +110,9 @@ public final class UploadService {
                     session.has("session_code") ? session.get("session_code").getAsString() : "",
                     session.has("id") ? session.get("id").getAsString() : ""
             );
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("session-reservation", networkStarted, networkUrl, ex, "request=reserve");
+            throw ex;
         }
     }
 
@@ -147,6 +150,9 @@ public final class UploadService {
                     || !json.has("status") || !"COMPLETED".equalsIgnoreCase(json.get("status").getAsString())) {
                 throw new IllegalStateException("Response finalisasi sesi tidak valid: " + body);
             }
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("session-finalization", networkStarted, networkUrl, ex, "request=finalize");
+            throw ex;
         }
     }
 
@@ -194,6 +200,9 @@ public final class UploadService {
                 throw new IllegalStateException("Response registrasi aset tidak valid: " + body);
             }
             return json.has("already_uploaded") && json.get("already_uploaded").getAsBoolean();
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("asset-registration", networkStarted, networkUrl, ex, "request=register");
+            throw ex;
         }
     }
 
@@ -261,6 +270,9 @@ public final class UploadService {
             }
             JsonObject json = gson.fromJson(body, JsonObject.class);
             return json != null && json.has("status") ? json.get("status").getAsString() : "";
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("session-status-check", networkStarted, networkUrl, ex, "request=status");
+            throw ex;
         }
     }
 
