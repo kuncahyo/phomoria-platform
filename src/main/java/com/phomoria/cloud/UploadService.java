@@ -221,7 +221,7 @@ public final class UploadService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(builder.build());
-        try (CloseableHttpClient client = createHttpClient();
+        try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(post)) {
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
