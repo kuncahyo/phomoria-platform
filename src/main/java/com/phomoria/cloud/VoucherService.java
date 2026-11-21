@@ -2,6 +2,7 @@ package com.phomoria.cloud;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.phomoria.debug.NetworkDiagnostics;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -33,8 +34,11 @@ public final class VoucherService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setEntity(new StringEntity(payload.toString(), ContentType.APPLICATION_JSON));
 
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("voucher-authorization", url, "device=" + device.getUuid());
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("voucher-authorization", networkStarted, response.getCode(), "device=" + device.getUuid());
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             JsonObject json;
             try {
@@ -60,6 +64,9 @@ public final class VoucherService {
                     json.get("session_authorization_token").getAsString(),
                     json.has("expires_at") ? json.get("expires_at").getAsString() : ""
             );
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("voucher-authorization", networkStarted, url, ex, "device=" + device.getUuid());
+            throw ex;
         }
     }
 }
