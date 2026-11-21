@@ -107,6 +107,38 @@ public final class UploadService {
         }
     }
 
+    /** Explicitly finalize the server session after all optional renderers finish. */
+    public void finalizeSession(String clientSessionId) throws Exception {
+        if (clientSessionId == null || clientSessionId.isBlank()) {
+            throw new IllegalArgumentException("Client session ID kosong untuk finalisasi.");
+        }
+
+        CloudConfig config = CloudConfigManager.getConfig();
+        DeviceInfo device = DeviceManager.getDevice();
+        if (config.getToken().isBlank()) throw new IllegalStateException("Belum login ke API.");
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("device_uuid", device.getUuid());
+        payload.addProperty("client_session_id", clientSessionId);
+
+        HttpPost post = new HttpPost(apiUrl(config, "/api/session/finalize"));
+        post.setHeader("Authorization", "Bearer " + config.getToken());
+        post.setHeader("Accept", "application/json");
+        post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
+        try (CloseableHttpClient client = createHttpClient();
+             CloseableHttpResponse response = client.execute(post)) {
+            String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
+            if (response.getCode() < 200 || response.getCode() >= 300) {
+                throw new IllegalStateException("Finalisasi sesi HTTP " + response.getCode() + ": " + body);
+            }
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            if (json == null || !json.has("success") || !json.get("success").getAsBoolean()
+                    || !json.has("status") || !"COMPLETED".equalsIgnoreCase(json.get("status").getAsString())) {
+                throw new IllegalStateException("Response finalisasi sesi tidak valid: " + body);
+            }
+        }
+    }
+
     /**
      * Register an asset that was rendered after the initial session reservation.
      * The server operation is idempotent, so retrying after a lost response is safe.
