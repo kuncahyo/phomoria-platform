@@ -1,4 +1,3 @@
-```bat
 @echo off
 setlocal EnableExtensions
 
@@ -44,4 +43,3 @@ echo build\phomoria-package\installer\Phomoria-Setup-0.3.7.exe
 echo ============================================
 
 exit /b 0
-```
