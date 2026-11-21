@@ -353,6 +353,12 @@ public final class UploadQueueManager {
                 DebugLog.info("UPLOAD_STAGE START stage=asset-upload, session=" + entry.sessionId
                         + ", asset=" + next.getKey() + ", bytes=" + next.getFile().length()
                         + ", thread=" + Thread.currentThread().getName());
+                // Ensure delayed GIF/Live Photo assets exist in the server manifest
+                // before sending their file. This is also safe for assets included
+                // in the initial reservation because registration is idempotent.
+                service.registerAsset(entry.sessionId, next);
+                DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-registration, session=" + entry.sessionId
+                        + ", asset=" + next.getKey());
                 long assetStarted = System.nanoTime();
                 service.uploadAsset(entry.sessionId, next.getKey(), next.getFile());
                 DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-upload, session=" + entry.sessionId
