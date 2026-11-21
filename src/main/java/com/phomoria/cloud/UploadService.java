@@ -249,8 +249,12 @@ public final class UploadService {
         CloudConfig config = CloudConfigManager.getConfig();
         HttpGet get = new HttpGet(apiUrl(config, "/gallery/" + sessionCode + "/status"));
         get.setHeader("Accept", "application/json");
+        String networkUrl = apiUrl(config, "/gallery/" + sessionCode + "/status");
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("session-status-check", networkUrl, "request=status");
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(get)) {
+            NetworkDiagnostics.succeeded("session-status-check", networkStarted, response.getCode(), "request=status");
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new IllegalStateException("Status sesi HTTP " + response.getCode() + ": " + body);
