@@ -85,8 +85,13 @@ public final class UploadService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
+        String networkUrl = apiUrl(config, "/api/session/reserve");
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("session-reservation", networkUrl, "request=reserve");
         try (CloseableHttpClient client = createHttpClient();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("session-reservation", networkStarted, response.getCode(), "request=reserve");
+
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new IllegalStateException("Reservasi sesi HTTP " + response.getCode() + ": " + body);
@@ -126,8 +131,13 @@ public final class UploadService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
+        String networkUrl = apiUrl(config, "/api/session/finalize");
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("session-finalization", networkUrl, "request=finalize");
         try (CloseableHttpClient client = createHttpClient();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("session-finalization", networkStarted, response.getCode(), "request=finalize");
+
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new IllegalStateException("Finalisasi sesi HTTP " + response.getCode() + ": " + body);
@@ -167,8 +177,13 @@ public final class UploadService {
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(new StringEntity(gson.toJson(payload), ContentType.APPLICATION_JSON));
+        String networkUrl = apiUrl(config, "/api/session/asset/register");
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("asset-registration", networkUrl, "request=register");
         try (CloseableHttpClient client = createHttpClient();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("asset-registration", networkStarted, response.getCode(), "request=register");
+
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new IllegalStateException("Registrasi aset " + asset.getKey() + " HTTP "
