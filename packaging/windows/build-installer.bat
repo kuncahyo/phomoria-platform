@@ -2,10 +2,10 @@
 @echo off
 setlocal EnableExtensions
 
-cd /d "%~dp0..\..\.."
+cd /d "%~dp0..\.."
 
 echo ============================================
-echo PHOMORIA 0.3.2 - WINDOWS INSTALLER BUILD
+echo PHOMORIA 0.3.7 - WINDOWS INSTALLER BUILD
 echo ============================================
 
 call "%~dp0build-app-image.bat"
@@ -40,7 +40,7 @@ echo ============================================
 echo INSTALLER SUCCESSFUL
 echo ============================================
 echo Installer:
-echo build\phomoria-package\installer\Phomoria-Setup-0.3.2.exe
+echo build\phomoria-package\installer\Phomoria-Setup-0.3.7.exe
 echo ============================================
 
 exit /b 0
