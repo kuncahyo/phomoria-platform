@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.phomoria.debug.NetworkDiagnostics;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -38,8 +39,11 @@ public final class FrameCloudService {
         String url = buildUrl("/api/device/config?device_uuid=" +
                 URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
         HttpGet get = createAuthenticatedGet(url);
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("frame-list-download", url, "device=" + deviceUuid);
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(get)) {
+            NetworkDiagnostics.succeeded("frame-list-download", networkStarted, response.getCode(), "device=" + deviceUuid);
             String body = readBody(response);
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new FrameCloudException("Gagal mengambil daftar frame. HTTP " + response.getCode() + ": " + body);
@@ -72,8 +76,11 @@ public final class FrameCloudService {
         String url = buildUrl("/api/device/frames/" + frameId +
                 "/download?device_uuid=" + URLEncoder.encode(deviceUuid, StandardCharsets.UTF_8));
         HttpGet get = createAuthenticatedGet(url);
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("frame-file-download", url, "device=" + deviceUuid + ", frame=" + frameId);
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(get)) {
+            NetworkDiagnostics.succeeded("frame-file-download", networkStarted, response.getCode(), "device=" + deviceUuid + ", frame=" + frameId);
             byte[] body = response.getEntity() == null ? new byte[0] : EntityUtils.toByteArray(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 String message = new String(body, StandardCharsets.UTF_8);
