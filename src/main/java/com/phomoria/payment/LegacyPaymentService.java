@@ -3,6 +3,7 @@ package com.phomoria.payment;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.phomoria.debug.NetworkDiagnostics;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -50,7 +51,18 @@ public final class LegacyPaymentService {
         return v == null || v.isBlank() ? fallback : v.trim();
     }
 
-    private Connection db() throws SQLException { return DriverManager.getConnection(jdbcUrl, dbUser, dbPassword); }
+    private Connection db() throws SQLException {
+        long started = System.nanoTime();
+        NetworkDiagnostics.started("payment-database-connect", jdbcUrl, "service=legacy-payment");
+        try {
+            Connection connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPassword);
+            NetworkDiagnostics.succeeded("payment-database-connect", started, -1, "service=legacy-payment");
+            return connection;
+        } catch (SQLException ex) {
+            NetworkDiagnostics.failed("payment-database-connect", started, jdbcUrl, ex, "service=legacy-payment");
+            throw ex;
+        }
+    }
 
     private String computerName() throws Exception {
         String n = System.getenv("COMPUTERNAME");
@@ -146,7 +158,20 @@ public final class LegacyPaymentService {
         if ("GET".equals(method)) b.GET();
         else b.header("Content-Type", "application/json; charset=utf-8")
                 .method(method, HttpRequest.BodyPublishers.ofString(body == null ? "{}" : body.toString()));
-        HttpResponse<String> r = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        String requestUrl = base + path;
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("midtrans-payment", requestUrl,
+                "method=" + method + ", environment=" + (sandbox ? "sandbox" : "production"));
+        HttpResponse<String> r;
+        try {
+            r = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+            NetworkDiagnostics.succeeded("midtrans-payment", networkStarted, r.statusCode(),
+                    "method=" + method + ", environment=" + (sandbox ? "sandbox" : "production"));
+        } catch (IOException | InterruptedException ex) {
+            NetworkDiagnostics.failed("midtrans-payment", networkStarted, requestUrl, ex,
+                    "method=" + method + ", environment=" + (sandbox ? "sandbox" : "production"));
+            throw ex;
+        }
         JsonObject json;
         try { json = JsonParser.parseString(r.body()).getAsJsonObject(); }
         catch (RuntimeException ex) { throw new IOException("Respons Midtrans tidak valid (HTTP " + r.statusCode() + ")."); }
