@@ -40,6 +40,7 @@ public final class WebcamLivePhotoBuffer {
     private final Object lock = new Object();
     private final Deque<Frame> frames = new ArrayDeque<>();
     private volatile BufferedImage latestPreviewFrame;
+    private volatile long latestPreviewFrameTimestampMillis;
     private ScheduledExecutorService executor;
     private volatile boolean running;
 
@@ -49,6 +50,7 @@ public final class WebcamLivePhotoBuffer {
             running = true;
             frames.clear();
             latestPreviewFrame = null;
+            latestPreviewFrameTimestampMillis = 0L;
             executor = Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread thread = new Thread(r, "Phomoria-Webcam-FramePump");
                 thread.setDaemon(true);
@@ -81,6 +83,7 @@ public final class WebcamLivePhotoBuffer {
                 if (!running) return;
                 frames.addLast(frame);
                 latestPreviewFrame = image;
+                latestPreviewFrameTimestampMillis = now;
 
                 long oldestAllowed = now - MAX_BUFFER_SECONDS * 1000L;
                 while (!frames.isEmpty()
@@ -119,7 +122,10 @@ public final class WebcamLivePhotoBuffer {
             // Keep the full configured pre-shutter interval and reject stale
             // buffers. Record the exact rejection reason so a missing clip can
             // be diagnosed without changing capture timing or sampling load.
-            long requiredFirstFrame = startTime + Math.max(1, 1000 / SAMPLE_FPS) * 2L;
+            // Allow a tiny scheduler/timestamp jitter at the interval boundary.
+            // The requested snapshot window remains unchanged.
+            long requiredFirstFrame = startTime
+                    + Math.max(1, 1000 / SAMPLE_FPS) * 2L + 10L;
             long firstFrameAge = result.isEmpty()
                     ? -1L : shutterTime - result.get(0).timestampMillis();
             long lastFrameAge = result.isEmpty()
@@ -170,5 +176,12 @@ public final class WebcamLivePhotoBuffer {
 
     public boolean isRunning() {
         return running;
+    }
+
+    /** True when the shared preview/frame pump has produced a recent frame. */
+    public boolean hasFreshPreviewFrame(long maxAgeMillis) {
+        long timestamp = latestPreviewFrameTimestampMillis;
+        return running && timestamp > 0L
+                && System.currentTimeMillis() - timestamp <= Math.max(1L, maxAgeMillis);
     }
 }
