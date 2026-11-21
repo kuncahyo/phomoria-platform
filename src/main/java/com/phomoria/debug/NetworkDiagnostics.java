@@ -21,7 +21,7 @@ public final class NetworkDiagnostics {
     }
 
     public static void succeeded(String operation, long startedNanos, int httpStatus, String context) {
-        String event = httpStatus >= 200 && httpStatus < 300 ? "NETWORK SUCCESS" : "NETWORK RESPONSE";
+        String event = (httpStatus <= 0 || (httpStatus >= 200 && httpStatus < 300)) ? "NETWORK SUCCESS" : "NETWORK RESPONSE";
         DebugLog.info(event + " operation=" + safe(operation)
                 + ", httpStatus=" + (httpStatus > 0 ? httpStatus : "not-exposed-by-service")
                 + ", elapsedMs=" + elapsed(startedNanos) + ", " + safe(context));
