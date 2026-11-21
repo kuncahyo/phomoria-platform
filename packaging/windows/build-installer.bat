@@ -15,7 +15,7 @@ echo.
 echo Creating EXE installer with Inno Setup...
 
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
-set "ISS_FILE=%CD%\build\phomoria-package\installer\Phomoria-Setup.iss"
+set "ISS_FILE=%CD%\packaging\windows\Phomoria-Setup.iss"
 
 if not exist "%ISCC%" (
     echo ERROR: ISCC.exe not found.
