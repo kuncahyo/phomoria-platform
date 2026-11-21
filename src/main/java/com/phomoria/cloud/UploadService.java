@@ -1,6 +1,7 @@
 package com.phomoria.cloud;
 
 import com.google.gson.Gson;
+import com.phomoria.debug.NetworkDiagnostics;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -196,22 +197,35 @@ public final class UploadService {
         builder.addTextBody("asset_key", assetKey, ContentType.TEXT_PLAIN);
         builder.addBinaryBody("file", file, ContentType.DEFAULT_BINARY, file.getName());
 
-        HttpPost post = new HttpPost(apiUrl(config, "/api/session/asset"));
+        String uploadUrl = apiUrl(config, "/api/session/asset");
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("asset-upload", uploadUrl,
+                "session=" + clientSessionId + ", asset=" + assetKey
+                        + ", bytes=" + file.length());
+        HttpPost post = new HttpPost(uploadUrl);
         post.setHeader("Authorization", "Bearer " + config.getToken());
         post.setHeader("Accept", "application/json");
         post.setEntity(builder.build());
-        try (CloseableHttpClient client = HttpClients.createDefault();
+        try (CloseableHttpClient client = createHttpClient();
              CloseableHttpResponse response = client.execute(post)) {
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             if (response.getCode() < 200 || response.getCode() >= 300) {
                 throw new IllegalStateException("Upload aset " + assetKey + " HTTP "
                         + response.getCode() + ": " + body);
             }
+            NetworkDiagnostics.succeeded("asset-upload", networkStarted, response.getCode(),
+                    "session=" + clientSessionId + ", asset=" + assetKey
+                            + ", bytes=" + file.length());
             JsonObject json = gson.fromJson(body, JsonObject.class);
             if (json == null || !json.has("success") || !json.get("success").getAsBoolean()) {
                 throw new IllegalStateException("Response upload aset tidak valid: " + body);
             }
             return json.has("already_uploaded") && json.get("already_uploaded").getAsBoolean();
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("asset-upload", networkStarted, uploadUrl, ex,
+                    "session=" + clientSessionId + ", asset=" + assetKey
+                            + ", bytes=" + file.length());
+            throw ex;
         }
     }
 
