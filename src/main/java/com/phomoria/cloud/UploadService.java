@@ -233,9 +233,9 @@ public final class UploadService {
 
     public List<AssetFile> getAssets(File sessionFolder) {
         List<AssetFile> assets = new ArrayList<>();
+
+        // Upload the primary result and individual photos before optional media.
         addIfPresent(assets, sessionFolder, "result.png", "result", "result", 0);
-        addIfPresent(assets, sessionFolder, "animation.gif", "gif", "gif", 9000);
-        addIfPresent(assets, sessionFolder, "live_photo.mp4", "live_photo", "live_photo", 10000);
 
         File[] files = sessionFolder == null ? null : sessionFolder.listFiles();
         if (files != null) {
@@ -250,6 +250,10 @@ public final class UploadService {
                 }
             }
         }
+
+        // Keep optional media last, with GIF immediately before Live Photo.
+        addIfPresent(assets, sessionFolder, "animation.gif", "gif", "gif", 9000);
+        addIfPresent(assets, sessionFolder, "live_photo.mp4", "live_photo", "live_photo", 10000);
         return assets;
     }
 
