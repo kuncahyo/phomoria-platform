@@ -3,6 +3,7 @@ package com.phomoria.cloud;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.debug.NetworkDiagnostics;
 
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -54,8 +55,11 @@ public final class DeviceCloudService {
         post.setHeader("Authorization", "Bearer " + token);
         post.setEntity(new StringEntity(GSON.toJson(request), ContentType.APPLICATION_JSON));
 
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("device-registration", url, "device=" + device.getUuid());
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("device-registration", networkStarted, response.getCode(), "device=" + device.getUuid());
             String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
             int status = response.getCode();
             if (status < 200 || status >= 300) {
@@ -67,6 +71,9 @@ public final class DeviceCloudService {
             if (!success) throw new DeviceCloudException("Server menolak registrasi device: " + body);
             DebugLog.info("Device registration successful: uuid=" + device.getUuid());
             return true;
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("device-registration", networkStarted, url, ex, "device=" + device.getUuid());
+            throw ex;
         }
     }
 
