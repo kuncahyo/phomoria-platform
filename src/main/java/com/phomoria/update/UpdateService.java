@@ -2,6 +2,7 @@ package com.phomoria.update;
 
 import com.google.gson.Gson;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.debug.NetworkDiagnostics;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,8 +33,16 @@ public final class UpdateService {
                 .GET()
                 .build();
 
-        HttpResponse<String> response =
-                client.send(request, HttpResponse.BodyHandlers.ofString());
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("update-check", updateUrl, "operation=metadata");
+        HttpResponse<String> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            NetworkDiagnostics.succeeded("update-check", networkStarted, response.statusCode(), "operation=metadata");
+        } catch (IOException | InterruptedException ex) {
+            NetworkDiagnostics.failed("update-check", networkStarted, updateUrl, ex, "operation=metadata");
+            throw ex;
+        }
 
         DebugLog.info("Update server HTTP status=" + response.statusCode());
 
