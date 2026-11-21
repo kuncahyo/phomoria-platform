@@ -368,13 +368,16 @@ public final class UploadQueueManager {
                 entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
                 if ("COMPLETED".equalsIgnoreCase(entry.serverStatus) && !entry.optionalAssetsPending) {
                     entry.status = "COMPLETED";
+                    entry.nextAttemptAt = 0;
                 } else if (entry.optionalAssetsPending) {
                     entry.status = "PARTIAL";
                     entry.nextAttemptAt = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8);
+                } else {
+                    entry.status = "UPLOADING";
+                    entry.nextAttemptAt = 0;
                 }
                 entry.lastError = "";
                 entry.attemptCount = 0;
-                entry.nextAttemptAt = 0;
                 DebugLog.info("Uploaded session asset. session=" + entry.sessionId
                         + ", asset=" + next.getKey());
             } else if (entry.optionalAssetsPending) {
