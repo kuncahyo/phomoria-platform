@@ -2,6 +2,7 @@ package com.phomoria.cloud;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.phomoria.debug.NetworkDiagnostics;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -34,8 +35,11 @@ public final class AuthService {
                 ContentType.APPLICATION_JSON
         ));
 
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("cloud-login", url, "request=login");
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(post)) {
+            NetworkDiagnostics.succeeded("cloud-login", networkStarted, response.getCode(), "request=login");
 
             String body = response.getEntity() == null
                     ? ""
@@ -74,6 +78,9 @@ public final class AuthService {
 
             lastError = "";
             return true;
+        } catch (Exception ex) {
+            NetworkDiagnostics.failed("cloud-login", networkStarted, url, ex, "request=login");
+            throw ex;
         }
     }
 }
