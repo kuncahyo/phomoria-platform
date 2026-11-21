@@ -66,6 +66,12 @@ public final class FramePreviewPanel extends JPanel {
 
     public int getSelectedIndex() { return selectedIndex; }
 
+    /** Selects a completed photo slot programmatically and refreshes its outline. */
+    public void selectIndex(int index) {
+        selectedIndex = index >= 0 && index < photos.size() ? index : -1;
+        repaint();
+    }
+
     public void clearSelection() { selectedIndex = -1; repaint(); }
 
     private void loadCloudFrame() {
