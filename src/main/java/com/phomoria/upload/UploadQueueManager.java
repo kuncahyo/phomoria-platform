@@ -362,7 +362,7 @@ public final class UploadQueueManager {
                 // in the initial reservation because registration is idempotent.
                 long registrationStarted = System.nanoTime();
                 service.registerAsset(entry.sessionId, next);
-                NetworkDiagnostics.succeeded("asset-registration", registrationStarted, 200,
+                NetworkDiagnostics.succeeded("asset-registration", registrationStarted, -1,
                         "session=" + entry.sessionId + ", asset=" + next.getKey());
                 DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-registration, session=" + entry.sessionId
                         + ", asset=" + next.getKey());
@@ -408,9 +408,10 @@ public final class UploadQueueManager {
                 DebugLog.info("Upload queue finalized by server. session=" + entry.sessionId);
             }
         } catch (Exception ex) {
-            NetworkDiagnostics.failed("asset-upload-or-session-status", operationStarted,
-                    CloudConfigManager.getConfig().getServer() + "/api/session/asset", ex,
-                    "session=" + entry.sessionId);
+            DebugLog.warn("UPLOAD_STAGE NETWORK_RETRY_CONTEXT stage=asset-processing, session="
+                    + entry.sessionId + ", elapsedMs="
+                    + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted)
+                    + ", retryScheduled=true. Detail NETWORK FAILURE dicatat oleh service jaringan terkait.");
             DebugLog.error("UPLOAD_STAGE FAILED stage=asset-upload, session=" + entry.sessionId
                     + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted), ex);
             scheduleRetry(entry, ex, "Asset upload failed");
