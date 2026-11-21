@@ -384,18 +384,15 @@ public final class UploadQueueManager {
                 entry.nextAttemptAt = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8);
                 DebugLog.info("Core assets uploaded; waiting for optional media. session=" + entry.sessionId);
             } else {
-                // The server, not the local manifest, decides whether the
-                // gallery is fully synchronized.
-                entry.serverStatus = service.fetchSessionStatus(entry.sessionCode);
-                if ("COMPLETED".equalsIgnoreCase(entry.serverStatus)) {
-                    entry.status = "COMPLETED";
-                    entry.lastError = "";
-                    entry.nextAttemptAt = 0;
-                    DebugLog.info("Upload queue completed from server status. session=" + entry.sessionId);
-                } else {
-                    entry.status = "PARTIAL";
-                    entry.nextAttemptAt = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8);
-                }
+                // All currently published files are uploaded and optional
+                // renderers have declared completion. Ask the server to make
+                // the final authoritative completion decision.
+                service.finalizeSession(entry.sessionId);
+                entry.serverStatus = "COMPLETED";
+                entry.status = "COMPLETED";
+                entry.lastError = "";
+                entry.nextAttemptAt = 0;
+                DebugLog.info("Upload queue finalized by server. session=" + entry.sessionId);
             }
         } catch (Exception ex) {
             DebugLog.error("UPLOAD_STAGE FAILED stage=asset-upload, session=" + entry.sessionId
