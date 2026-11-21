@@ -3,6 +3,7 @@ package com.phomoria.upload;
 import com.phomoria.cloud.CloudConfigManager;
 import com.phomoria.cloud.UploadService;
 import com.phomoria.debug.DebugLog;
+import com.phomoria.debug.NetworkDiagnostics;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -301,6 +302,9 @@ public final class UploadQueueManager {
                     + ", gallery=" + entry.galleryUrl
                     + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted));
         } catch (Exception ex) {
+            NetworkDiagnostics.failed("session-reservation", operationStarted,
+                    CloudConfigManager.getConfig().getServer() + "/api/session/reserve", ex,
+                    "session=" + entry.sessionId);
             DebugLog.error("UPLOAD_STAGE FAILED stage=session-reservation, session=" + entry.sessionId
                     + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted), ex);
             scheduleRetry(entry, ex, "Session reservation failed");
@@ -356,11 +360,17 @@ public final class UploadQueueManager {
                 // Ensure delayed GIF/Live Photo assets exist in the server manifest
                 // before sending their file. This is also safe for assets included
                 // in the initial reservation because registration is idempotent.
+                long registrationStarted = System.nanoTime();
                 service.registerAsset(entry.sessionId, next);
+                NetworkDiagnostics.succeeded("asset-registration", registrationStarted, 200,
+                        "session=" + entry.sessionId + ", asset=" + next.getKey());
                 DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-registration, session=" + entry.sessionId
                         + ", asset=" + next.getKey());
                 long assetStarted = System.nanoTime();
                 service.uploadAsset(entry.sessionId, next.getKey(), next.getFile());
+                NetworkDiagnostics.succeeded("asset-upload", assetStarted, 200,
+                        "session=" + entry.sessionId + ", asset=" + next.getKey()
+                                + ", bytes=" + next.getFile().length());
                 DebugLog.info("UPLOAD_STAGE COMPLETE stage=asset-upload, session=" + entry.sessionId
                         + ", asset=" + next.getKey() + ", elapsedMs="
                         + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - assetStarted));
@@ -398,6 +408,9 @@ public final class UploadQueueManager {
                 DebugLog.info("Upload queue finalized by server. session=" + entry.sessionId);
             }
         } catch (Exception ex) {
+            NetworkDiagnostics.failed("asset-upload-or-session-status", operationStarted,
+                    CloudConfigManager.getConfig().getServer() + "/api/session/asset", ex,
+                    "session=" + entry.sessionId);
             DebugLog.error("UPLOAD_STAGE FAILED stage=asset-upload, session=" + entry.sessionId
                     + ", elapsedMs=" + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - operationStarted), ex);
             scheduleRetry(entry, ex, "Asset upload failed");
