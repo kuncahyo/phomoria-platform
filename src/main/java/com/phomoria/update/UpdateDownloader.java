@@ -1,6 +1,7 @@
 package com.phomoria.update;
 
 import com.phomoria.debug.DebugLog;
+import com.phomoria.debug.NetworkDiagnostics;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,8 +43,16 @@ public final class UpdateDownloader {
                 .GET()
                 .build();
 
-        HttpResponse<InputStream> response =
-                client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        long networkStarted = System.nanoTime();
+        NetworkDiagnostics.started("update-download", info.getDownloadUrl(), "version=" + safeVersion);
+        HttpResponse<InputStream> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            NetworkDiagnostics.succeeded("update-download", networkStarted, response.statusCode(), "version=" + safeVersion);
+        } catch (IOException | InterruptedException ex) {
+            NetworkDiagnostics.failed("update-download", networkStarted, info.getDownloadUrl(), ex, "version=" + safeVersion);
+            throw ex;
+        }
 
         if (response.statusCode() != 200) {
             throw new IOException(
